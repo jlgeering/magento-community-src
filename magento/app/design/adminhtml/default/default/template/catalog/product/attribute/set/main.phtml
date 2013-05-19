@@ -52,8 +52,12 @@
                     </tbody>
                 </table>
             </div>
-             <p><?php echo $this->getAddGroupButton() ?>&nbsp;<?php echo $this->getDeleteGroupButton() ?></p>
-            <p class="note-block"><?php echo Mage::helper('catalog')->__('Double click on a group to rename it') ?></p>
+
+            <?php if (!$this->getIsReadOnly()): ?>
+                <p><?php echo $this->getAddGroupButton() ?>&nbsp;<?php echo $this->getDeleteGroupButton() ?></p>
+                <p class="note-block"><?php echo Mage::helper('catalog')->__('Double click on a group to rename it') ?></p>
+            <?php endif; ?>
+
             <?php echo $this->getSetsFilterHtml() ?>
             <?php echo $this->getGroupTreeHtml() ?>
         </td>
@@ -70,6 +74,9 @@
             <div id="tree-div2" style="height:400px; margin-top:5px;overflow:auto"></div>
             <script type="text/javascript">
 			//<![CDATA[
+            var allowDragAndDrop = <?php echo ($this->getIsReadOnly() ? 'false' : 'true'); ?>;
+            var canEditGroups = <?php echo ($this->getIsReadOnly() ? 'false' : 'true'); ?>;
+
             var TreePanels = function() {
                 // shorthand
                 var Tree = Ext.tree;
@@ -81,7 +88,7 @@
                         var tree = new Ext.tree.TreePanel('tree-div1', {
                             animate:false,
                             loader: false,
-                            enableDD:true,
+                            enableDD:allowDragAndDrop,
                             containerScroll: true,
                             rootVisible: false
                         });
@@ -113,6 +120,7 @@
 
                         //this.ge.addListener('beforerender', editSet.editGroup);
                         this.ge.addListener('beforeshow', editSet.editGroup);
+                        this.ge.addListener('beforecomplete', editSet.beforeRenameGroup);
                         //this.ge.addListener('startedit', editSet.editGroup);
 
                         //-------------------------------------------------------------
@@ -120,7 +128,7 @@
                         var tree2 = new Ext.tree.TreePanel('tree-div2', {
                             animate:false,
                             loader: false,
-                            enableDD:true,
+                            enableDD:allowDragAndDrop,
                             containerScroll: true,
                             rootVisible: false,
                             lines:false
@@ -281,13 +289,10 @@
                             this.addGroup();
                         } else if( group_name != false && group_name != null && group_name != '' ) {
 
-                            for (var i=0; i < TreePanels.root.childNodes.length; i++) {
-                                if (TreePanels.root.childNodes[i].text.toLowerCase() == group_name.toLowerCase()) {
-                                    errorText = "<?php echo Mage::helper('catalog')->__('Attribute group with the \"/name/\" name already exists') ?>";
-                                    alert(errorText.replace("/name/",group_name));
-                                    return;
-                                }
+                            if (!editSet.validateGroupName(group_name, 0)) {
+                                return;
                             }
+
                             var newNode = new Ext.tree.TreeNode({
                                     text : group_name,
                                     cls : 'folder',
@@ -300,10 +305,25 @@
                     },
 
                     editGroup : function(obj) {
-                        if( obj.editNode.attributes.cls != 'folder' ) {
+                        if( obj.editNode.attributes.cls != 'folder' || !canEditGroups) {
                          	TreePanels.ge.cancelEdit();
                          	return false;
                         }
+                    },
+
+                    beforeRenameGroup : function(obj, after, before) {
+                        return editSet.validateGroupName(after, obj.editNode.id);
+                    },
+
+                    validateGroupName : function(name, exceptNodeId) {
+                        for (var i=0; i < TreePanels.root.childNodes.length; i++) {
+                            if (TreePanels.root.childNodes[i].text.toLowerCase() == name.toLowerCase() && TreePanels.root.childNodes[i].id != exceptNodeId) {
+                                errorText = "<?php echo Mage::helper('catalog')->__('Attribute group with the \"/name/\" name already exists') ?>";
+                                alert(errorText.replace("/name/",name));
+                                return false;
+                            }
+                        }
+                        return true;
                     },
 
                     save : function() {
@@ -325,6 +345,8 @@
                         var response = Ext.util.JSON.decode(o.responseText);
                         if( response.error ) {
                             $('messages').update(response.message);
+                        } else if( response.ajaxExpired && response.ajaxRedirect ){
+                            setLocation(response.ajaxRedirect);
                         } else if( response.url ){
                             setLocation(response.url);
                         } else if( response.message ) {

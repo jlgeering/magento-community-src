@@ -53,6 +53,8 @@ class Mage_Adminhtml_Model_Url extends Mage_Core_Model_Url
         if (isset($data['_nosecret'])) {
             $this->setNoSecret(true);
             unset($data['_nosecret']);
+        } else {
+            $this->setNoSecret(false);
         }
 
         return parent::setRouteParams($data, $unsetOldParams);
@@ -69,7 +71,7 @@ class Mage_Adminhtml_Model_Url extends Mage_Core_Model_Url
     {
         $result = parent::getUrl($routePath, $routeParams);
 
-        if (!$this->useSecretKey() || $this->getNoSecret()) {
+        if (!$this->useSecretKey()) {
             return $result;
         }
 
@@ -98,11 +100,13 @@ class Mage_Adminhtml_Model_Url extends Mage_Core_Model_Url
     public function getSecretKey($controller = null, $action = null)
     {
         $salt = Mage::getSingleton('core/session')->getFormKey();
+
+        $p = explode('/', trim($this->getRequest()->getOriginalPathInfo(), '/'));
         if (!$controller) {
-            $controller = $this->getRequest()->getControllerName();
+            $controller = !empty($p[1]) ? $p[1] : $this->getRequest()->getControllerName();
         }
         if (!$action) {
-            $action = $this->getRequest()->getActionName();
+            $action = !empty($p[2]) ? $p[2] : $this->getRequest()->getActionName();
         }
 
         $secret = $controller . $action . $salt;
@@ -116,7 +120,29 @@ class Mage_Adminhtml_Model_Url extends Mage_Core_Model_Url
      */
     public function useSecretKey()
     {
-        return Mage::getStoreConfigFlag('admin/security/use_form_key');
+        return Mage::getStoreConfigFlag('admin/security/use_form_key') && !$this->getNoSecret();
+    }
+
+    /**
+     * Enable secret key using
+     *
+     * @return Mage_Adminhtml_Model_Url
+     */
+    public function turnOnSecretKey()
+    {
+        $this->setNoSecret(false);
+        return $this;
+    }
+
+    /**
+     * Disable secret key using
+     *
+     * @return Mage_Adminhtml_Model_Url
+     */
+    public function turnOffSecretKey()
+    {
+        $this->setNoSecret(true);
+        return $this;
     }
 
     /**

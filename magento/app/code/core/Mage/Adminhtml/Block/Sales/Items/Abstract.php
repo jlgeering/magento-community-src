@@ -385,8 +385,22 @@ class  Mage_Adminhtml_Block_Sales_Items_Abstract extends Mage_Adminhtml_Block_Te
         return false;
     }
 
+    /**
+     * Check availability to edit quantity of item
+     *
+     * @return boolean
+     */
     public function canEditQty()
     {
+        /**
+         * Disable editing of quantity of item if creating of shipment forced
+         * and ship partially disabled for order
+         */
+        if ($this->getOrder()->getForcedDoShipmentWithInvoice()
+            && ($this->canShipPartially($this->getOrder()) || $this->canShipPartiallyItem($this->getOrder()))
+        ) {
+            return false;
+        }
         if ($this->getOrder()->getPayment()->canCapture()) {
             return $this->getOrder()->getPayment()->canCapturePartial();
         }
@@ -429,7 +443,7 @@ class  Mage_Adminhtml_Block_Sales_Items_Abstract extends Mage_Adminhtml_Block_Te
     /**
      * CREDITMEMO
      */
-
+    
     public function canReturnToStock() {
         $canReturnToStock = Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_CAN_SUBTRACT);
         if (Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_CAN_SUBTRACT)) {
@@ -438,19 +452,76 @@ class  Mage_Adminhtml_Block_Sales_Items_Abstract extends Mage_Adminhtml_Block_Te
             return false;
         }
     }
-
-    public function canShipPartially()
+    
+    /**
+     * Whether to show 'Return to stock' checkbox for item
+     * @param Mage_Sales_Model_Order_Creditmemo_Item $item
+     * @return bool
+     */
+    public function canReturnItemToStock($item=null) {
+    	$canReturnToStock = Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_CAN_SUBTRACT);
+    	if (!is_null($item)) {
+    		if (!$item->hasCanReturnToStock()) {
+	    		$product = Mage::getModel('catalog/product')->load($item->getOrderItem()->getProductId());
+	    		if ( $product->getId() && $product->getStockItem()->getManageStock() ) {
+	    			$item->setCanReturnToStock(true);
+	    		} 
+	    		else {
+	    			$item->setCanReturnToStock(false);
+	    		}
+    		} 
+    		$canReturnToStock = $item->getCanReturnToStock();
+    	}
+    	return $canReturnToStock;
+    }
+    /**
+     * Whether to show 'Return to stock' column for item parent 
+     * @param Mage_Sales_Model_Order_Creditmemo_Item $item
+     * @return bool
+     */
+    public function canParentReturnToStock($item = null) 
     {
-        $value = Mage::registry('current_shipment')->getOrder()->getCanShipPartially();
+    	$canReturnToStock = Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_CAN_SUBTRACT);
+    	if (!is_null($item)) {
+    		if ( $item->getCreditmemo()->getOrder()->hasCanReturnToStock() ) {
+    			$canReturnToStock = $item->getCreditmemo()->getOrder()->getCanReturnToStock();
+    		}
+    	} elseif ( $this->getOrder()->hasCanReturnToStock() ) {
+    		$canReturnToStock = $this->getOrder()->getCanReturnToStock();
+    	}
+    	return $canReturnToStock;
+    }
+
+    /**
+     * Return true if can ship partially
+     *
+     * @param Mage_Sales_Model_Order|null $order
+     * @return boolean
+     */
+    public function canShipPartially($order = null)
+    {
+        if (is_null($order) || !$order instanceof Mage_Sales_Model_Order) {
+            $order = Mage::registry('current_shipment')->getOrder();
+        }
+        $value = $order->getCanShipPartially();
         if (!is_null($value) && !$value) {
             return false;
         }
         return true;
     }
 
-    public function canShipPartiallyItem()
+    /**
+     * Return true if can ship items partially
+     *
+     * @param Mage_Sales_Model_Order|null $order
+     * @return boolean
+     */
+    public function canShipPartiallyItem($order = null)
     {
-        $value = Mage::registry('current_shipment')->getOrder()->getCanShipPartiallyItem();
+        if (is_null($order) || !$order instanceof Mage_Sales_Model_Order) {
+            $order = Mage::registry('current_shipment')->getOrder();
+        }
+        $value = $order->getCanShipPartiallyItem();
         if (!is_null($value) && !$value) {
             return false;
         }

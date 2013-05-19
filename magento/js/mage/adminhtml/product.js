@@ -37,7 +37,9 @@ Product.Gallery.prototype = {
         this.container = $(this.containerId);
         this.uploader = uploader;
         this.imageTypes = imageTypes;
-        this.uploader.onFilesComplete = this.handleUploadComplete.bind(this);
+        if (this.uploader) {
+            this.uploader.onFilesComplete = this.handleUploadComplete.bind(this);
+        }
         //this.uploader.onFileProgress  = this.handleUploadProgress.bind(this);
         //this.uploader.onFileError     = this.handleUploadError.bind(this);
         this.images = this.getElement('save').value.evalJSON();
@@ -292,13 +294,14 @@ Product.Attributes.prototype = {
 
 Product.Configurable = Class.create();
 Product.Configurable.prototype = {
-	initialize: function (attributes, links, idPrefix, grid) {
+	initialize: function (attributes, links, idPrefix, grid, readonly) {
 		this.templatesSyntax = new RegExp('(^|.|\\r|\\n)(\'{{\\s*(\\w+)\\s*}}\')', "");
 	    this.attributes = attributes; // Attributes
 		this.idPrefix   = idPrefix;   // Container id prefix
 		this.links 		= $H(links);  // Associated products
 		this.newProducts = [];        // For product that's created througth Create Empty and Copy from Configurable
-
+        this.readonly = readonly;
+        
 		/* Generation templates */
 		this.addAttributeTemplate     = new Template($(idPrefix + 'attribute_template').innerHTML.replace(/__id__/g,"'{{html_id}}'").replace(/ template no-display/g,''), this.templatesSyntax);
 		this.addValueTemplate         = new Template($(idPrefix + 'value_template').innerHTML.replace(/__id__/g,"'{{html_id}}'").replace(/ template no-display/g,''), this.templatesSyntax);
@@ -311,6 +314,7 @@ Product.Configurable.prototype = {
 		this.onLabelUpdate        = this.updateLabel.bindAsEventListener(this);       // Update attribute label
 		this.onValuePriceUpdate   = this.updateValuePrice.bindAsEventListener(this);  // Update pricing value
 		this.onValueTypeUpdate    = this.updateValueType.bindAsEventListener(this);   // Update pricing type
+		this.onValueDefaultUpdate = this.updateValueUseDefault.bindAsEventListener(this);
 
 		/* Grid initialization and attributes initialization */
 		this.createAttributes(); // Creation of default attributes
@@ -350,8 +354,10 @@ Product.Configurable.prototype = {
 			Event.observe(li.down('.attribute-label'),'change', this.onLabelUpdate);
 			Event.observe(li.down('.attribute-label'),'keyup',  this.onLabelUpdate);
 		}.bind(this));
-		// Creation of sortable for attributes sorting
-		Sortable.create(this.container, {handle:'attribute-name-container',onUpdate:this.updatePositions.bind(this)});
+		if (!this.readonly) {
+		    // Creation of sortable for attributes sorting
+		    Sortable.create(this.container, {handle:'attribute-name-container',onUpdate:this.updatePositions.bind(this)});
+		}
 		this.updateSaveInput();
 	},
 
@@ -579,6 +585,14 @@ Product.Configurable.prototype = {
 		Event.observe(priceField, 'keyup', this.onValuePriceUpdate);
 		Event.observe(priceField, 'change', this.onValuePriceUpdate);
 		Event.observe(priceTypeField, 'change', this.onValueTypeUpdate);
+		var useDefaultEl = li.down('.attribute-use-default-value');
+		if (useDefaultEl) {
+		    if (li.valueObject.use_default_value) {
+		        useDefaultEl.checked = true;
+		        this.updateUseDefaultRow(useDefaultEl, li);
+		    }
+		    Event.observe(useDefaultEl, 'change', this.onValueDefaultUpdate);
+		}
 	},
 	updateValuePrice: function(event) {
 		var li = Event.findElement(event, 'LI');
@@ -592,6 +606,27 @@ Product.Configurable.prototype = {
 		this.updateSimpleForm();
 		this.updateSaveInput();
 	},
+    updateValueUseDefault: function(event) {
+        var li = Event.findElement(event, 'LI');
+        var useDefaultEl = Event.element(event);
+        li.valueObject.use_default_value = useDefaultEl.checked;
+        this.updateUseDefaultRow(useDefaultEl, li);
+    },
+    updateUseDefaultRow: function(useDefaultEl, li)
+    {
+        var priceField = li.down('.attribute-price');
+        var priceTypeField = li.down('.attribute-price-type');
+        if (useDefaultEl.checked) {
+            priceField.disabled = true;
+            priceTypeField.disabled = true;
+        }
+        else {
+            priceField.disabled = false;
+            priceTypeField.disabled = false;
+        }
+        this.updateSimpleForm();
+        this.updateSaveInput();
+    },
 	updateSaveInput: function() {
 		$(this.idPrefix + 'save_attributes').value = this.attributes.toJSON();
 		$(this.idPrefix + 'save_links').value  = this.links.toJSON();

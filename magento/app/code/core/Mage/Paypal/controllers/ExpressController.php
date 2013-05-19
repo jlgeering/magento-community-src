@@ -171,6 +171,14 @@ class Mage_Paypal_ExpressController extends Mage_Core_Controller_Front_Action
                 }
             }
 
+            $customer = $this->getReview()->getQuote()->getCustomer();
+            if (!$customer || !$customer->getId()) {
+                $this->getReview()->getQuote()
+                    ->setCustomerIsGuest(true)
+                    ->setCustomerGroupId(Mage_Customer_Model_Group::NOT_LOGGED_IN_ID);
+            }
+            unset($customer); // for backward compatibility, see logic after place order
+
             $billing = $this->getReview()->getQuote()->getBillingAddress();
             $shipping = $this->getReview()->getQuote()->getShippingAddress();
 
@@ -205,7 +213,7 @@ class Mage_Paypal_ExpressController extends Mage_Core_Controller_Front_Action
 
             $order->place();
 
-            if (isset($customer) && $customer && $this->getReview()->getQuote()->getCheckoutMethod()=='register') {
+            if (isset($customer) && $customer && $this->getReview()->getQuote()->getCheckoutMethod()==Mage_Sales_Model_Quote::CHECKOUT_METHOD_REGISTER) {
                 $customer->save();
                 $customer->setDefaultBilling($customerBilling->getId());
                 $customerShippingId = isset($customerShipping) ? $customerShipping->getId() : $customerBilling->getId();

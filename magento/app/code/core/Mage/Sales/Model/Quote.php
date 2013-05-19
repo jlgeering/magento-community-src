@@ -39,6 +39,13 @@
 class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
 {
     /**
+     * Checkout methods
+     */
+    const CHECKOUT_METHOD_REGISTER = 'register';
+    const CHECKOUT_METHOD_GUEST = 'guest';
+    const CHECKOUT_METHOD_LOGIN_IN = 'login_in';
+
+    /**
      * Performance +30% without cache
      */
 //    const CACHE_TAG         = 'sales_quote';
@@ -307,6 +314,20 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
             $this->setCustomerTaxClassId($classId);
         //}
         return $this->getData('customer_tax_class_id');
+    }
+
+    /**
+     * Return quote checkout method code
+     *
+     * @param boolean $originalMethod if true return defined method from begining
+     * @return string
+     */
+    public function getCheckoutMethod($originalMethod = false)
+    {
+        if ($this->getCustomerId() && !$originalMethod) {
+            return self::CHECKOUT_METHOD_LOGIN_IN;
+        }
+        return $this->_getData('checkout_method');
     }
 
     /**
@@ -868,6 +889,13 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
      */
     public function collectTotals()
     {
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_collect_totals_before',
+            array(
+                $this->_eventObject=>$this
+            )
+        );
+
         $this->setSubtotal(0);
         $this->setBaseSubtotal(0);
 
@@ -928,11 +956,19 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
 
         $this->setData('trigger_recollect', 0);
         $this->_validateCouponCode();
+
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_collect_totals_after',
+            array(
+                $this->_eventObject=>$this
+            )
+        );
+
         return $this;
     }
 
     /**
-     * Get all quote totals
+     * Get all quote totals (sorted by priority)
      *
      * @return array
      */
@@ -947,7 +983,15 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
                 $totals[$code] = $total;
             }
         }
-        return $totals;
+
+        $sortedTotals = array();
+        foreach ($this->getBillingAddress()->getTotalModels() as $total) {
+            /* @var $total Mage_Sales_Model_Quote_Address_Total_Abstract */
+            if (isset($totals[$total->getCode()])) {
+                $sortedTotals[$total->getCode()] = $totals[$total->getCode()];
+            }
+        }
+        return $sortedTotals;
     }
 
     public function addMessage($message, $index='error')
@@ -1095,6 +1139,14 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
      */
     public function merge(Mage_Sales_Model_Quote $quote)
     {
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_merge_before',
+            array(
+                $this->_eventObject=>$this,
+                'source'=>$quote
+            )
+        );
+
         foreach ($quote->getAllVisibleItems() as $item) {
             $found = false;
             foreach ($this->getAllItems() as $quoteItem) {
@@ -1121,6 +1173,15 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
         if ($quote->getCouponCode()) {
             $this->setCouponCode($quote->getCouponCode());
         }
+
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_merge_after',
+            array(
+                $this->_eventObject=>$this,
+                'source'=>$quote
+            )
+        );
+
         return $this;
     }
 

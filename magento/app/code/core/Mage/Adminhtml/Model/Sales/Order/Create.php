@@ -155,8 +155,16 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
             $this->getSession()->setReordered($order->getId());
         }
 
+        /**
+         * Check if we edit quest order
+         */
         $this->getSession()->setCurrencyId($order->getOrderCurrencyCode());
-        $this->getSession()->setCustomerId($order->getCustomerId());
+        if ($order->getCustomerId()) {
+            $this->getSession()->setCustomerId($order->getCustomerId());
+        } else {
+            $this->getSession()->setCustomerId(false);
+        }
+        
         $this->getSession()->setStoreId($order->getStoreId());
 
         foreach ($order->getItemsCollection(
@@ -293,9 +301,11 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
                 'order_item' => $orderItem,
                 'quote_item' => $item
             ));
+
+            return $item;
         }
 
-        return $item;
+        return $this;
     }
 
     /**
@@ -1130,9 +1140,24 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
             if (!$this->getQuote()->getShippingAddress()->getShippingMethod()) {
                 $errors[] = Mage::helper('adminhtml')->__('Shipping method must be specified');
             }
+        }
 
-            if (!$this->getQuote()->getPayment()->getMethod()) {
-                $errors[] = Mage::helper('adminhtml')->__('Payment method must be specified');
+        if (!$this->getQuote()->getPayment()->getMethod()) {
+            $errors[] = Mage::helper('adminhtml')->__('Payment method must be specified');
+        } else {
+            $method = $this->getQuote()->getPayment()->getMethodInstance();
+            if (!$method) {
+                $errors[] = Mage::helper('adminhtml')->__('Payment method instance is not available');
+            } else {
+                if (!$method->isAvailable($this->getQuote())) {
+                    $errors[] = Mage::helper('adminhtml')->__('Payment method is not available');
+                } else {
+                    try {
+                        $method->validate();
+                    } catch (Mage_Core_Exception $e) {
+                        $errors[] = $e->getMessage();
+                    }
+                }
             }
         }
 
@@ -1175,8 +1200,16 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
                 ->setDefaultBilling($billingAddress->getId())
                 ->setDefaultShipping($shippingAddress->getId());
         }
-        else {
-            $customer = $this->getSession()->getCustomer();
+        elseif (($customer = $this->getSession()->getCustomer())        	&& $customer->getId()
+        	&& !$this->getSession()->getCustomer(true,true)->getId())
+        	{
+        	$customer = clone $customer;
+        	$customer->setStore($this->getSession()->getStore())
+        		->save();
+        	$this->getSession()->setCustomer($customer);
+        	$customer->addData($this->getData('account'));
+        }
+        else {            $customer = $this->getSession()->getCustomer();
             $customer->addData($this->getData('account'));
         }
         $this->getQuote()->setCustomer($customer);
@@ -1310,7 +1343,8 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
         $email = $this->getData('account/email');
         if (empty($email)) {
             $host = $this->getSession()->getStore()->getConfig(Mage_Customer_Model_Customer::XML_PATH_DEFAULT_EMAIL_DOMAIN);
-            $email = $customer->getIncrementId().'@'. $host;
+            $account = $customer->getIncrementId() ? $customer->getIncrementId() : time();
+            $email = $account.'@'. $host;
         }
         return $email;
     }

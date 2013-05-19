@@ -28,7 +28,7 @@
 <config>
     <modules>
         <Mage_Paypal>
-            <version>0.7.1</version>
+            <version>0.7.2</version>
         </Mage_Paypal>
     </modules>
     <global>
@@ -101,6 +101,17 @@
         </layout>
     </frontend>
     <adminhtml>
+        <events>
+            <payment_info_block_prepare_specific_information>
+                <observers>
+                    <paypal>
+                        <type>model</type>
+                        <class>paypal/observer</class>
+                        <method>paymentInfoBlockPrepareSpecificInformation</method>
+                    </paypal>
+                </observers>
+            </payment_info_block_prepare_specific_information>
+        </events>
         <translate>
             <modules>
                 <Mage_Paypal>

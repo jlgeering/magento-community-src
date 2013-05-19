@@ -36,9 +36,32 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
     const PAYMENT_TYPE_AUTH = 'AUTHORIZATION';
     const PAYMENT_TYPE_SALE = 'SALE';
 
+    const DATA_CHARSET = 'utf-8';
+
     protected $_code  = 'paypal_standard';
     protected $_formBlockType = 'paypal/standard_form';
-    protected $_allowCurrencyCode = array('AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'JPY', 'NOK', 'NZD', 'PLN', 'SEK', 'SGD','USD');
+    protected $_allowCurrencyCode = array('AUD', 'CAD', 'CZK', 'DKK', 'EUR', 'HKD', 'HUF', 'ILS', 'JPY', 'MXN', 'NOK', 'NZD', 'PLN', 'GBP', 'SGD', 'SEK', 'CHF', 'USD');
+
+    /**
+     * Check method for processing with base currency
+     *
+     * @param string $currencyCode
+     * @return boolean
+     */
+    public function canUseForCurrency($currencyCode)
+    {
+        if (!in_array($currencyCode, $this->_allowCurrencyCode)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Fields that should be replaced in debug with '***'
+     *
+     * @var array
+     */
+    protected $_debugReplacePrivateDataKeys = array('business');
 
      /**
      * Get paypal session namespace
@@ -123,7 +146,7 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
 
     public function canCapture()
     {
-        return true;
+        return false;
     }
 
     public function getOrderPlaceRedirectUrl()
@@ -155,6 +178,7 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
         */
 
         $sArr = array(
+            'charset'           => self::DATA_CHARSET,
             'business'          => Mage::getStoreConfig('paypal/wps/business_account'),
             'return'            => Mage::getUrl('paypal/standard/success',array('_secure' => true)),
             'cancel_return'     => Mage::getUrl('paypal/standard/cancel',array('_secure' => false)),
@@ -170,6 +194,7 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
             'state'             => $a->getRegionCode(),
             'country'           => $a->getCountry(),
             'zip'               => $a->getPostcode(),
+            'bn'                => 'Varien_Cart_WPS_US'
         );
 
         $logoUrl = Mage::getStoreConfig('paypal/wps/logo_url');
@@ -258,7 +283,10 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
         }
 
         $sReq = '';
+        $sReqDebug = '';
         $rArr = array();
+
+
         foreach ($sArr as $k=>$v) {
             /*
             replacing & char with and. otherwise it will break the post
@@ -266,6 +294,12 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
             $value =  str_replace("&","and",$v);
             $rArr[$k] =  $value;
             $sReq .= '&'.$k.'='.$value;
+            $sReqDebug .= '&'.$k.'=';
+            if (in_array($k, $this->_debugReplacePrivateDataKeys)) {
+                $sReqDebug .= '***';
+            } else  {
+                $sReqDebug .= $value;
+            }
         }
 
         if ($this->getDebug() && $sReq) {
@@ -297,8 +331,11 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
     public function ipnPostSubmit()
     {
         $sReq = '';
+        $sReqDebug = '';
         foreach($this->getIpnFormData() as $k=>$v) {
             $sReq .= '&'.$k.'='.urlencode(stripslashes($v));
+            $sReqDebug .= '&'.$k.'=';
+
         }
         //append ipn commdn
         $sReq .= "&cmd=_notify-validate";
@@ -377,13 +414,13 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
                            $order->getPayment()->setTransactionId($this->getIpnFormData('txn_id'));
                            //need to convert from order into invoice
                            $invoice = $order->prepareInvoice();
-                           $invoice->register()->capture();
+                           $invoice->register()->pay();
                            Mage::getModel('core/resource_transaction')
                                ->addObject($invoice)
                                ->addObject($invoice->getOrder())
                                ->save();
                            $order->setState(
-                               Mage_Sales_Model_Order::STATE_PROCESSING, $newOrderStatus,
+                               Mage_Sales_Model_Order::STATE_COMPLETE, true,
                                Mage::helper('paypal')->__('Invoice #%s created', $invoice->getIncrementId()),
                                $notified = true
                            );
@@ -395,8 +432,18 @@ class Mage_Paypal_Model_Standard extends Mage_Payment_Model_Method_Abstract
                             $notified = true
                         );
                     }
+
+                    $ipnCustomerNotified = true;
+                    if (!$order->getPaypalIpnCustomerNotified()) {
+                        $ipnCustomerNotified = false;
+                        $order->setPaypalIpnCustomerNotified(1);
+                    }
+
                     $order->save();
-                    $order->sendNewOrderEmail();
+
+                    if (!$ipnCustomerNotified) {
+                        $order->sendNewOrderEmail();
+                    }
 
                 }//else amount the same and there is order obj
                 //there are status added to order

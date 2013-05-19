@@ -52,6 +52,13 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
     protected $_joinUrlRewriteIntoCollection = false;
 
     /**
+     * Inactive categories ids
+     *
+     * @var array
+     */
+    protected $_inactiveCategoryIds = null;
+
+    /**
      * Enter description here...
      *
      */
@@ -104,6 +111,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         }
         $collection->addIdFilter($nodeIds);
         if ($onlyActive) {
+
             $disabledIds = $this->_getDisabledIds($collection);
             if ($disabledIds) {
                 $collection->addFieldToFilter('entity_id', array('nin'=>$disabledIds));
@@ -121,7 +129,15 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
 
             foreach ($collection as $category) {
                 if ($this->getNodeById($category->getId())) {
-                    $this->getNodeById($category->getId())->addData($category->getData());
+                    $this->getNodeById($category->getId())
+                        ->addData($category->getData());
+                }
+            }
+
+
+            foreach ($this->getNodes() as $node) {
+                if (!$collection->getItemById($node->getId()) && $node->getParent()) {
+                    $this->removeNode($node);
                 }
             }
         }
@@ -129,10 +145,58 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         return $this;
     }
 
+    /**
+     * Add inactive categories ids
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Flat
+     */
+    public function addInactiveCategoryIds($ids)
+    {
+        if (!is_array($this->_inactiveCategoryIds)) {
+            $this->_initInactiveCategoryIds();
+        }
+        $this->_inactiveCategoryIds = array_merge($ids, $this->_inactiveCategoryIds);
+        return $this;
+    }
+
+    /**
+     * Retreive inactive categories ids
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Flat
+     */
+    protected function _initInactiveCategoryIds()
+    {
+        $this->_inactiveCategoryIds = array();
+        Mage::dispatchEvent('catalog_category_tree_init_inactive_category_ids', array('tree'=>$this));
+        return $this;
+    }
+
+    /**
+     * Retreive inactive categories ids
+     *
+     * @return array
+     */
+    public function getInactiveCategoryIds()
+    {
+        if (!is_array($this->_inactiveCategoryIds)) {
+            $this->_initInactiveCategoryIds();
+        }
+
+        return $this->_inactiveCategoryIds;
+    }
+
     protected function _getDisabledIds($collection)
     {
         $storeId = Mage::app()->getStore()->getId();
-        $this->_inactiveItems = $this->_getInactiveItemIds($collection, $storeId);
+
+        $this->_inactiveItems = $this->getInactiveCategoryIds();
+
+
+        $this->_inactiveItems = array_merge(
+            $this->_getInactiveItemIds($collection, $storeId),
+            $this->_inactiveItems
+        );
+
 
         $allIds = $collection->getAllIds();
         $disabledIds = array();
@@ -246,16 +310,62 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         return $collection;
      }
 
+
+    /**
+     * Move tree before
+     *
+     * @param Varien_Data_Tree_Node $node
+     * @param Varien_Data_Tree_Node $newParent
+     * @param Varien_Data_Tree_Node $prevNode
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
+     */
+    protected function _beforeMove($category, $newParent, $prevNode)
+    {
+        Mage::dispatchEvent('catalog_category_tree_move_before',
+            array(
+                'category' => $category,
+                'prev_parent' => $prevNode,
+                'parent' => $newParent
+        ));
+
+        return $this;
+    }
+
     /**
      * Executing parents move method and cleaning cache after it
      *
      */
     public function move($category, $newParent, $prevNode = null) {
+
+        $this->_beforeMove($category, $newParent, $prevNode);
         Mage::getResourceSingleton('catalog/category')->move($category->getId(), $newParent->getId());
         parent::move($category, $newParent, $prevNode);
-        Mage::app()->getCache()->clean(Zend_Cache::CLEANING_MODE_MATCHING_TAG,
-            array(Mage_Catalog_Model_Category::CACHE_TAG));
+
+        $this->_afterMove($category, $newParent, $prevNode);
     }
+
+        /**
+     * Move tree after
+     *
+     * @param Varien_Data_Tree_Node $node
+     * @param Varien_Data_Tree_Node $newParent
+     * @param Varien_Data_Tree_Node $prevNode
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
+     */
+    protected function _afterMove($category, $newParent, $prevNode)
+    {
+        Mage::app()->cleanCache(array(Mage_Catalog_Model_Category::CACHE_TAG));
+
+        Mage::dispatchEvent('catalog_category_tree_move_after',
+            array(
+                'category' => $category,
+                'prev_node' => $prevNode,
+                'parent' => $newParent
+        ));
+
+        return $this;
+    }
+
 
     /**
      * Load whole category tree, that will include specified categories ids.
@@ -264,7 +374,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
      * @param bool $addCollectionData
      * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
      */
-    public function loadByIds($ids, $addCollectionData = true)
+    public function loadByIds($ids, $addCollectionData = true, $updateAnchorProductCount = true)
     {
         // load first two levels, if no ids specified
         if (empty($ids)) {
@@ -312,7 +422,9 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         if (!$arrNodes) {
             return false;
         }
-        $this->_updateAnchorProductCount($arrNodes);
+        if ($updateAnchorProductCount) {
+            $this->_updateAnchorProductCount($arrNodes);
+        }
         $childrenItems = array();
         foreach ($arrNodes as $key => $nodeInfo) {
             $pathToParent = explode('/', $nodeInfo[$this->_pathField]);

@@ -37,10 +37,39 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
     protected $_infoBlockType = 'paypaluk/direct_info';
     protected $_canSaveCc = false;
 
-    /*
-    * overwrites the method of Mage_Payment_Model_Method_Cc
-    * for switch or solo card
-    */
+    /**
+     * Availability options
+     */
+    protected $_isGateway               = true;
+    protected $_canAuthorize            = true;
+    protected $_canCapture              = true;
+    protected $_canCapturePartial       = false;
+    protected $_canRefund               = false;
+    protected $_canVoid                 = true;
+    protected $_canUseInternal          = true;
+    protected $_canUseCheckout          = true;
+    protected $_canUseForMultishipping  = true;
+
+    protected $_allowCurrencyCode = array('AUD', 'CAD', 'CZK', 'DKK', 'EUR', 'HKD', 'HUF', 'ILS', 'JPY', 'MXN', 'NOK', 'NZD', 'PLN', 'GBP', 'SGD', 'SEK', 'CHF', 'USD');
+
+    /**
+     * Check method for processing with base currency
+     *
+     * @param string $currencyCode
+     * @return boolean
+     */
+    public function canUseForCurrency($currencyCode)
+    {
+        if (!in_array($currencyCode, $this->_allowCurrencyCode)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * overwrites the method of Mage_Payment_Model_Method_Cc
+     * for switch or solo card
+     */
     public function OtherCcType($type)
     {
         return (parent::OtherCcType($type) || $type=='SS');
@@ -78,7 +107,7 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
      */
     public function getApi()
     {
-        return Mage::getSingleton('paypalUk/api_pro');
+        return Mage::getSingleton('paypaluk/api_pro');
     }
 
     public function authorize(Varien_Object $payment, $amount)
@@ -88,7 +117,8 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
             ->setAmount($amount)
             ->setBillingAddress($payment->getOrder()->getBillingAddress())
             ->setShippingAddress($payment->getOrder()->getShippingAddress())
-            ->setPayment($payment);
+            ->setPayment($payment)
+            ->setAdditionalInformation($payment->getAdditionalInformation());
 
          if($api->callDoDirectPayment()!==false) {
                $payment
@@ -96,7 +126,8 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
                 ->setPaymentStatus('AUTHORIZE')
                 ->setCcTransId($api->getTransactionId())
                 ->setCcAvsStatus($api->getAvsCode())
-                ->setCcCidStatus($api->getCvv2Match());
+                ->setCcCidStatus($api->getCvv2Match())
+                ->setAdditionalInformation($api->getAdditionalInformation());
          }else{
             $e = $api->getError();
             Mage::throwException($e['message']?$e['message']:Mage::helper('paypalUk')->__('There has been an error processing your payment. Please try later or contact us for help.'));
@@ -119,7 +150,8 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
             ->setTransactionId($payment->getCcTransId())
             ->setBillingAddress($payment->getOrder()->getBillingAddress())
             ->setShippingAddress($payment->getOrder()->getShippingAddress())
-            ->setPayment($payment);
+            ->setPayment($payment)
+            ->setAdditionalInformation($payment->getAdditionalInformation());
 
          if ($api->callDoDirectPayment()!==false) {
                $payment
@@ -127,7 +159,8 @@ class Mage_PaypalUk_Model_Direct extends Mage_Payment_Model_Method_Cc
                 ->setPaymentStatus('CAPTURE')
                 ->setCcTransId($api->getTransactionId())
                 ->setCcAvsStatus($api->getAvsCode())
-                ->setCcCidStatus($api->getCvv2Match());
+                ->setCcCidStatus($api->getCvv2Match())
+                ->setAdditionalInformation($api->getAdditionalInformation());
          } else {
             $e = $api->getError();
             Mage::throwException($e['message']?$e['message']:Mage::helper('paypalUk')->__('There has been an error processing your payment. Please try later or contact us for help.'));

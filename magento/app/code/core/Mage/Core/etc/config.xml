@@ -28,7 +28,7 @@
 <config>
     <modules>
         <Mage_Core>
-             <version>0.8.12</version>
+             <version>0.8.13</version>
         </Mage_Core>
     </modules>
 
@@ -87,6 +87,14 @@
                 </http_user_agent_skip>
             </validation>
         </session>
+        <request>
+            <direct_front_name/>
+        </request>
+        <log>
+            <core>
+                <writer_model>Zend_Log_Writer_Stream</writer_model>
+            </core>
+        </log>
     </global>
     <frontend>
         <routers>
@@ -126,6 +134,17 @@
             </modules>
         </translate>
     </adminhtml>
+    <install>
+        <translate>
+            <modules>
+                <Mage_Core>
+                    <files>
+                        <default>Mage_Core.csv</default>
+                    </files>
+                </Mage_Core>
+            </modules>
+        </translate>
+    </install>
 
     <default>
         <design>
@@ -155,6 +174,7 @@
                 <exception_file>exception.log</exception_file>
             </log>
             <js>
+                <merge_files>1</merge_files>
                 <deprecation>0</deprecation>
             </js>
         </dev>
@@ -232,11 +252,17 @@
             </cookie>
 
             <session>
-                <use_remote_addr>1</use_remote_addr>
-                <use_http_via>1</use_http_via>
-                <use_http_x_forwarded_for>1</use_http_x_forwarded_for>
-                <use_http_user_agent>1</use_http_user_agent>
+                <use_remote_addr>0</use_remote_addr>
+                <use_http_via>0</use_http_via>
+                <use_http_x_forwarded_for>0</use_http_x_forwarded_for>
+                <use_http_user_agent>0</use_http_user_agent>
             </session>
+
+            <browser_capabilities>
+                <cookies>1</cookies>
+                <javascript>1</javascript>
+            </browser_capabilities>
+            
         </web>
 
         <admin>

@@ -34,6 +34,13 @@
 class Mage_Adminhtml_Sales_OrderController extends Mage_Adminhtml_Controller_Action
 {
     /**
+     * Array of actions which can be processed without secret key validation
+     *
+     * @var array
+     */
+    protected $_publicActions = array('view');
+
+    /**
      * Additional initialization
      *
      */
@@ -191,8 +198,8 @@ class Mage_Adminhtml_Sales_OrderController extends Mage_Adminhtml_Controller_Act
                 $order->addStatusToHistory($data['status'], $data['comment'], $notify);
                 $comment = trim(strip_tags($data['comment']));
 
-                $order->sendOrderUpdateEmail($notify, $comment);
                 $order->save();
+                $order->sendOrderUpdateEmail($notify, $comment);
 
                 $this->loadLayout('empty');
                 $this->renderLayout();

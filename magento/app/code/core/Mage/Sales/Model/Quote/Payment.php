@@ -68,14 +68,27 @@ class Mage_Sales_Model_Quote_Payment extends Mage_Payment_Model_Info
     /**
      * Import data
      *
-     * @param   array $data
-     * @return  Mage_Sales_Model_Quote_Payment
+     * @param array $data
+     * @throws Mage_Core_Exception
+     * @return Mage_Sales_Model_Quote_Payment
      */
     public function importData(array $data)
     {
         $data = new Varien_Object($data);
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_import_data_before',
+            array(
+                $this->_eventObject=>$this,
+                'input'=>$data,
+            )
+        );
+
         $this->setMethod($data->getMethod());
         $method = $this->getMethodInstance();
+
+        if (!$method->isAvailable($this->getQuote())) {
+            Mage::throwException(Mage::helper('sales')->__('Requested Payment Method is not available'));
+        }
 
         $method->assignData($data);
         /*
@@ -99,7 +112,7 @@ class Mage_Sales_Model_Quote_Payment extends Mage_Payment_Model_Info
         }
         $method->prepareSave();
         if ($this->getQuote()) {
-            $this->setParentId($this->getQuote()->getId());
+            $this->setQuoteId($this->getQuote()->getId());
         }
         return parent::_beforeSave();
     }
@@ -116,5 +129,16 @@ class Mage_Sales_Model_Quote_Payment extends Mage_Payment_Model_Info
         $method = $this->getMethodInstance();
 
         return $method ? $method->getOrderPlaceRedirectUrl() : false;
+    }
+
+    /**
+     * Retrieve payment method model object
+     *
+     * @return Mage_Payment_Model_Method_Abstract
+     */
+    public function getMethodInstance()
+    {
+        $method = parent::getMethodInstance();
+        return $method->setStore($this->getQuote()->getStore());
     }
 }

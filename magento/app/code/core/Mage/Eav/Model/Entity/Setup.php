@@ -170,14 +170,10 @@ class Mage_Eav_Model_Entity_Setup extends Mage_Core_Model_Resource_Setup
     public function removeEntityType($id)
     {
         if (is_numeric($id)) {
-            $this->_conn->delete($this->getTable('eav/entity_type'),
-                $this->_conn->quoteInto('entity_type_id=?', $id)
-            );
+            $this->deleteTableRow('eav/entity_type', 'entity_type_id', $id);
         }
         else {
-            $this->_conn->delete($this->getTable('eav/entity_type'),
-                $this->_conn->quoteInto('entity_type_code=?', (string)$id)
-            );
+            $this->deleteTableRow('eav/entity_type', 'entity_type_code', (string)$id);
         }
         return $this;
     }
@@ -294,9 +290,7 @@ class Mage_Eav_Model_Entity_Setup extends Mage_Core_Model_Resource_Setup
      */
     public function removeAttributeSet($entityTypeId, $id)
     {
-        $this->_conn->delete($this->getTable('eav/attribute_set'),
-            $this->_conn->quoteInto('attribute_set_id=?', $this->getAttributeSetId($entityTypeId, $id))
-        );
+        $this->deleteTableRow('eav/attribute_set', 'attribute_set_id', $this->getAttributeSetId($entityTypeId, $id));
         return $this;
     }
 
@@ -478,8 +472,10 @@ class Mage_Eav_Model_Entity_Setup extends Mage_Core_Model_Resource_Setup
      */
     public function removeAttributeGroup($entityTypeId, $setId, $id)
     {
-        $this->_conn->delete($this->getTable('eav/attribute_group'),
-            $this->_conn->quoteInto('attribute_group_id=?', $this->getAttributeGroupId($entityTypeId, $setId, $id))
+        $this->deleteTableRow(
+            'eav/attribute_group',
+            'attribute_group_id',
+            $this->getAttributeGroupId($entityTypeId, $setId, $id)
         );
         return $this;
     }
@@ -544,6 +540,7 @@ class Mage_Eav_Model_Entity_Setup extends Mage_Core_Model_Resource_Setup
             'frontend_input'            => $this->_getValue($attr, 'input', 'text'),
             'frontend_input_renderer'   => $this->_getValue($attr, 'input_renderer', ''),
             'frontend_label'            => $this->_getValue($attr, 'label', ''),
+            'frontend_class'            => $this->_getValue($attr, 'frontend_class', ''),
             'source_model'              => $this->_getValue($attr, 'source', ''),
             'is_global'                 => $this->_getValue($attr, 'global', 1),
             'is_visible'                => $this->_getValue($attr, 'visible', 1),
@@ -777,10 +774,9 @@ class Mage_Eav_Model_Entity_Setup extends Mage_Core_Model_Resource_Setup
      */
     public function removeAttribute($entityTypeId, $code)
     {
-        if ($attributeId = $this->getAttributeId($entityTypeId, $code)) {
-            $this->_conn->delete($this->getTable('eav/attribute'),
-                $this->_conn->quoteInto('attribute_id=?', $attributeId)
-            );
+        $attributeId = $this->getAttributeId($entityTypeId, $code);
+        if ($attributeId) {
+            $this->deleteTableRow('eav/attribute', 'attribute_id', $attributeId);
         }
         return $this;
     }

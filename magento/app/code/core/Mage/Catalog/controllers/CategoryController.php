@@ -87,11 +87,23 @@ class Mage_Catalog_CategoryController extends Mage_Core_Controller_Front_Action
             $update->addHandle($category->getLayoutUpdateHandle());
             $update->addHandle('CATEGORY_'.$category->getId());
 
+
+
+            if ($category->getPageLayout()) {
+                    $this->getLayout()->helper('page/layout')
+                        ->applyHandle($category->getPageLayout());
+            }
+
             $this->loadLayoutUpdates();
 
             $update->addUpdate($category->getCustomLayoutUpdate());
 
             $this->generateLayoutXml()->generateLayoutBlocks();
+
+            if ($category->getPageLayout()) {
+                $this->getLayout()->helper('page/layout')
+                    ->applyTemplate($category->getPageLayout());
+            }
 
             if ($root = $this->getLayout()->getBlock('root')) {
                 $root->addBodyClass('categorypath-'.$category->getUrlPath())
@@ -102,7 +114,7 @@ class Mage_Catalog_CategoryController extends Mage_Core_Controller_Front_Action
             $this->_initLayoutMessages('checkout/session');
             $this->renderLayout();
         }
-        else {
+        elseif (!$this->getResponse()->isRedirect()) {
             $this->_forward('noRoute');
         }
     }

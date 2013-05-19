@@ -20,13 +20,34 @@
  *
  * @category   Mage
  * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
+/**
+ * Core Email Template Filter Model
+ *
+ * @category   Mage
+ * @package    Mage_Core
+ * @author     Magento Core Team <core@magentocommerce.com>
+ */
 class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
 {
+    /**
+     * Use absolute links flag
+     *
+     * @var bool
+     */
     protected $_useAbsoluteLinks = false;
+
+    /**
+     * Use session in URL flag
+     *
+     * @var bool
+     */
+    protected $_useSessionInUrl;
+
     /**
      * Url Instance
      *
@@ -34,12 +55,52 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
      */
     protected static $_urlInstance;
 
+    /**
+     * Modifier Callbacks
+     *
+     * @var array
+     */
+    protected $_modifiers = array('nl2br'  => '');
+
+    /**
+     * Setup callbacks for filters
+     *
+     */
+    public function __construct()
+    {
+        $this->_modifiers['escape'] = array($this, 'modifierEscape');
+    }
+
+    /**
+     * Set use absolute links flag
+     *
+     * @param bool $flag
+     * @return Mage_Core_Model_Email_Template_Filter
+     */
     public function setUseAbsoluteLinks($flag)
     {
         $this->_useAbsoluteLinks = $flag;
         return $this;
     }
 
+    /**
+     * Set Use session in URL flag
+     *
+     * @param bool $flag
+     * @return Mage_Core_Model_Email_Template_Filter
+     */
+    public function setUseSessionInUrl($flag)
+    {
+        $this->_useSessionInUrl = (bool)$flag;
+        return $this;
+    }
+
+    /**
+     * Retrieve Block html directive
+     *
+     * @param array $construction
+     * @return string
+     */
     public function blockDirective($construction)
     {
         $skipParams = array('type', 'id', 'output');
@@ -74,10 +135,15 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
         return $block->$method();
     }
 
+    /**
+     * Retrieve layout html directive
+     *
+     * @param array $construction
+     * @return string
+     */
     public function layoutDirective($construction)
     {
         $skipParams = array('handle', 'area');
-        $setArea    = null;
 
         $params = $this->_getIncludeParameters($construction[2]);
         $layout = Mage::getModel('core/layout');
@@ -111,6 +177,12 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
         return $layout->getOutput();
     }
 
+    /**
+     * Retrieve block parameters
+     *
+     * @param mixed $value
+     * @return array
+     */
     protected function _getBlockParameters($value)
     {
         $tokenizer = new Varien_Filter_Template_Tokenizer_Parameter();
@@ -119,6 +191,12 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
         return $tokenizer->tokenize();
     }
 
+    /**
+     * Retrieve Skin URL directive
+     *
+     * @param array $construction
+     * @return string
+     */
     public function skinDirective($construction)
     {
         $params = $this->_getIncludeParameters($construction[2]);
@@ -129,6 +207,25 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
         return $url;
     }
 
+    /**
+     * Retrieve media file URL directive
+     *
+     * @param array $construction
+     * @return string
+     */
+    public function mediaDirective($construction)
+    {
+        $params = $this->_getIncludeParameters($construction[2]);
+        return Mage::getBaseUrl('media') . $params['url'];
+    }
+
+    /**
+     * Retrieve store URL directive
+     * Support url and direct_url properties
+     *
+     * @param array $construction
+     * @return string
+     */
     public function storeDirective($construction)
     {
         $params = $this->_getIncludeParameters($construction[2]);
@@ -142,6 +239,10 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
             }
         }
         $params['_absolute'] = $this->_useAbsoluteLinks;
+
+        if ($this->_useSessionInUrl === false) {
+            $params['_nosid'] = true;
+        }
 
         if (isset($params['direct_url'])) {
             $path = '';
@@ -178,4 +279,98 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
         return $url;
     }
 
+    /**
+     * Directive for converting special characters to HTML entities
+     * Supported options:
+     *     allowed_tags - Comma separated html tags that have not to be converted
+     *
+     * @param array $construction
+     * @return string
+     */
+    public function htmlescapeDirective($construction)
+    {
+        $params = $this->_getIncludeParameters($construction[2]);
+        if (!isset($params['var'])) {
+            return '';
+        }
+
+        $allowedTags = null;
+        if (isset($params['allowed_tags'])) {
+            $allowedTags = preg_split('/\s*\,\s*/', $params['allowed_tags'], 0, PREG_SPLIT_NO_EMPTY);
+        }
+
+        return Mage::helper('core')->htmlEscape($params['var'], $allowedTags);
+    }
+
+    /**
+     * Var directive with modifiers support
+     *
+     * @param array $construction
+     * @return string
+     */
+    public function varDirective($construction)
+    {
+        if (count($this->_templateVars)==0) {
+            // If template preprocessing
+            return $construction[0];
+        }
+
+        $parts = explode('|', $construction[2], 2);
+        if (2 === count($parts)) {
+            list($variableName, $modifiersString) = $parts;
+            return $this->_amplifyModifiers($this->_getVariable($variableName, ''), $modifiersString);
+        }
+        return $this->_getVariable($construction[2], '');
+    }
+
+    /**
+     * Apply modifiers one by one, with specified params
+     *
+     * Modifier syntax: modifier1[:param1:param2:...][|modifier2:...]
+     *
+     * @param string $value
+     * @param string $modifiers
+     * @return string
+     */
+    protected function _amplifyModifiers($value, $modifiers)
+    {
+        foreach (explode('|', $modifiers) as $part) {
+            if (empty($part)) {
+                continue;
+            }
+            $params   = explode(':', $part);
+            $modifier = array_shift($params);
+            if (isset($this->_modifiers[$modifier])) {
+                $callback = $this->_modifiers[$modifier];
+                if (!$callback) {
+                    $callback = $modifier;
+                }
+                array_unshift($params, $value);
+                $value = call_user_func_array($callback, $params);
+            }
+        }
+        return $value;
+    }
+
+    /**
+     * Escape specified string
+     *
+     * @param string $value
+     * @param string $type
+     * @return string
+     */
+    public function modifierEscape($value, $type = 'html')
+    {
+        switch ($type) {
+            case 'html':
+                return htmlspecialchars($value, ENT_QUOTES);
+
+            case 'htmlentities':
+                return htmlentities($value, ENT_QUOTES);
+
+            case 'url':
+                return rawurlencode($value);
+        }
+        return $value;
+    }
 }

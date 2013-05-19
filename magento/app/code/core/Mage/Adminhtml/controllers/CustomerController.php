@@ -198,6 +198,10 @@ class Mage_Adminhtml_CustomerController extends Mage_Adminhtml_Controller_Action
                     $customer->setForceConfirmed(true);
                 }
 
+                Mage::dispatchEvent('adminhtml_customer_prepare_save',
+                    array('customer' => $customer, 'request' => $this->getRequest())
+                );
+
                 $customer->save();
 
                 // send welcome email
@@ -523,9 +527,11 @@ class Mage_Adminhtml_CustomerController extends Mage_Adminhtml_Controller_Action
              Mage::getSingleton('adminhtml/session')->addError(Mage::helper('adminhtml')->__('Please select customer(s)'));
         } else {
             try {
+                $customer = Mage::getModel('customer/customer');
                 foreach ($customersIds as $customerId) {
-                    $customer = Mage::getModel('customer/customer')->load($customerId);
-                    $customer->delete();
+                    $customer->reset()
+                        ->load($customerId)
+                        ->delete();
                 }
                 Mage::getSingleton('adminhtml/session')->addSuccess(
                     Mage::helper('adminhtml')->__(

@@ -20,6 +20,7 @@
                     <element name="set" type="xsd:string" />
                     <element name="type" type="xsd:string" />
                     <element name="category_ids" type="typens:ArrayOfString" />
+                    <element name="website_ids" type="typens:ArrayOfString" />
                 </all>
             </complexType>
             <complexType name="catalogProductRequestAttributes">
@@ -48,6 +49,7 @@
                     <element name="url_path" type="xsd:string" minOccurs="0" />
                     <element name="visibility" type="xsd:string" minOccurs="0" />
                     <element name="category_ids" type="typens:ArrayOfString" minOccurs="0" />
+                    <element name="website_ids" type="typens:ArrayOfString" minOccurs="0" />
                     <element name="has_options" type="xsd:string" minOccurs="0" />
                     <element name="gift_message_available" type="xsd:string" minOccurs="0" />
                     <element name="price" type="xsd:string" minOccurs="0" />
@@ -78,6 +80,7 @@
                     <element name="url_path" type="xsd:string" minOccurs="0" />
                     <element name="visibility" type="xsd:string" minOccurs="0" />
                     <element name="category_ids" type="typens:ArrayOfString" minOccurs="0" />
+                    <element name="website_ids" type="typens:ArrayOfString" minOccurs="0" />
                     <element name="has_options" type="xsd:string" minOccurs="0" />
                     <element name="gift_message_available" type="xsd:string" minOccurs="0" />
                     <element name="price" type="xsd:string" minOccurs="0" />
@@ -316,6 +319,7 @@
                 <all>
                     <element name="content" type="xsd:string" />
                     <element name="mime" type="xsd:string" />
+                    <element name="name" type="xsd:string" minOccurs="0" />
                 </all>
             </complexType>
             <complexType name="catalogProductAttributeMediaCreateEntity">
@@ -372,7 +376,7 @@
         <part name="sessionId" type="xsd:string" />
         <part name="productId" type="xsd:string" />
         <part name="storeView" type="xsd:string" />
-        <part name="attributes" type="typens:catalogProductAttributes" />
+        <part name="attributes" type="typens:catalogProductRequestAttributes" />
     </message>
     <message name="catalogProductInfoResponse">
         <part name="info" type="typens:catalogProductReturnEntity" />

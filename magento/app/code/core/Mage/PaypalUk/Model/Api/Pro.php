@@ -76,12 +76,37 @@ class Mage_PaypalUk_Model_Api_Pro extends  Mage_PaypalUk_Model_Api_Abstract
     protected $_canUseCheckout          = true;
     protected $_canUseForMultishipping  = true;
 
+    /**
+     * Fields that should be replaced in debug with '***'
+     *
+     * @var array
+     */
+    protected $_debugReplacePrivateDataKeys = array('ACCT', 'EXPDATE', 'CVV2',
+                                                    'CARDISSUE', 'CARDSTART',
+                                                    'CREDITCARDTYPE', 'USER',
+                                                    'PWD');
+
     /*
     * 3 = Authorisation approved
     * 6 = Settlement pending (transaction is scheduled to be settled)
     * 9 =  Authorisation captured
     */
     protected $_validVoidTransState = array(3,6,9);
+
+    /**
+     * Additional information fields map use for centinel params
+     *
+     * @var string
+     */
+    protected $_additionalInformationFieldMap = array(
+        'centinel_mpivendor' => 'MPIVENDOR3DS',
+        'centinel_authstatus' => 'AUTHSTATUS3DS',
+        'centinel_cavv' => 'CAVV',
+        'centinel_eci' => 'ECI',
+        'centinel_xid' => 'XID',
+        'centinel_vpas_result' => 'vpas', // must be 'VPAS' but self::postRequest return Varien_Object
+        'centinel_eci_result' => 'ecisubmitted3ds' // must be 'ECISUBMITTED3DS' but self::postRequest return Varien_Object
+    );
 
 /*********************** DIRECT PAYMENT ***************************/
     public function callDoDirectPayment()
@@ -143,13 +168,20 @@ class Mage_PaypalUk_Model_Api_Pro extends  Mage_PaypalUk_Model_Api_Abstract
             ), $proArr);
         }
 
+        $proArr = Varien_Object_Mapper::accumulateByMap($this->getAdditionalInformation(), $proArr, $this->_additionalInformationFieldMap);
+
         $result = $this->postRequest($proArr);
 
         if ($result && $result->getResultCode()==self::RESPONSE_CODE_APPROVED) {
              $this->setTransactionId($result->getPnref());
-             $this->setAvsZip($result->getAvsZip());
+             $this->setAvsZip($result->getAvszip());
+             $this->setAvsCode($result->getAvszip());
              $this->setCvv2Match($result->getCvv2match());
-         } else {
+
+            $resultAdditionalInformation = $this->getAdditionalInformation();
+            $resultAdditionalInformation = Varien_Object_Mapper::accumulateByMap($result, $resultAdditionalInformation, array_flip($this->_additionalInformationFieldMap));
+            $this->setAdditionalInformation($resultAdditionalInformation);
+        } else {
             $errorArr['code'] = $result->getResultCode();
             $errorArr['message'] = $result->getRespmsg();
             $this->setError($errorArr);
@@ -351,16 +383,24 @@ class Mage_PaypalUk_Model_Api_Pro extends  Mage_PaypalUk_Model_Api_Abstract
         ), $proArr);
 
         $proReq = '';
+        $proReqDebug = '';
         foreach ($proArr as $k=>$v) {
             //payflow gateway doesn't allow urlencoding.
             //$proReq .= '&'.$k.'='.urlencode($v);
             $proReq .= '&'.$k.'='.$v;
+            $proReqDebug .= '&'.$k.'=';
+            if (in_array($k, $this->_debugReplacePrivateDataKeys)) {
+                $proReqDebug .=  '***';
+            } else {
+                $proReqDebug .=  $v;
+            }
         }
         $proReq = substr($proReq, 1);
+        $proReqDebug = substr($proReqDebug, 1);
 
         if ($this->getDebug()) {
             $debug = Mage::getModel('paypaluk/api_debug')
-                ->setRequestBody($proReq)
+                ->setRequestBody($proReqDebug)
                 ->save();
         }
         $http = new Varien_Http_Adapter_Curl();

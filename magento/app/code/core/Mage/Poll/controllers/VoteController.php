@@ -33,6 +33,13 @@
 
 class Mage_Poll_VoteController extends Mage_Core_Controller_Front_Action
 {
+    /**
+     * Action list where need check enabled cookie
+     *
+     * @var array
+     */
+    protected $_cookieCheckActions = array('add');
+
     public function addAction()
     {
         $pollId     = intval($this->getRequest()->getParam('poll_id'));
@@ -46,7 +53,7 @@ class Mage_Poll_VoteController extends Mage_Core_Controller_Front_Action
         if ($poll->getId() && !$poll->getClosed() && !$poll->isVoted()) {
             $vote = Mage::getModel('poll/poll_vote')
                 ->setPollAnswerId($answerId)
-                ->setIpAddress(ip2long($this->getRequest()->getServer('REMOTE_ADDR')))
+                ->setIpAddress(Mage::helper('core/http')->getRemoteAddr(true))
                 ->setCustomerId(Mage::getSingleton('customer/session')->getCustomerId());
 
             $poll->addVote($vote);

@@ -33,25 +33,12 @@
  */
 class Mage_Api_Model_Wsdl_Config extends Mage_Api_Model_Wsdl_Config_Base
 {
-
-    protected $_wsdlContent = null;
+    protected static $_namespacesPrefix = null;
 
     public function __construct($sourceData=null)
     {
         $this->setCacheId('wsdl_config_global');
         parent::__construct($sourceData);
-    }
-
-    /**
-     * Set content of wsdl file as string
-     *
-     * @param string $wsdlContent
-     * @return Mage_Api_Model_Wsdl_Config
-     */
-    public function setWsdlContent($wsdlContent)
-    {
-        $this->_wsdlContent = $wsdlContent;
-        return $this;
     }
 
     /**
@@ -61,7 +48,24 @@ class Mage_Api_Model_Wsdl_Config extends Mage_Api_Model_Wsdl_Config_Base
      */
     public function getWsdlContent()
     {
-        return $this->_wsdlContent;
+        return $this->_xml->asXML();
+    }
+
+    /**
+     * Return namespaces with their prefix
+     *
+     * @return array
+     */
+    public static function getNamespacesPrefix()
+    {
+        if (is_null(self::$_namespacesPrefix)) {
+            self::$_namespacesPrefix = array();
+            $config = Mage::getSingleton('api/config')->getNode('v2/wsdl/prefix')->children();
+            foreach ($config as $prefix => $namespace) {
+                self::$_namespacesPrefix[$namespace->asArray()] = $prefix;
+            }
+        }
+        return self::$_namespacesPrefix;
     }
 
     public function getCache()
@@ -89,67 +93,40 @@ class Mage_Api_Model_Wsdl_Config extends Mage_Api_Model_Wsdl_Config_Base
         $this->setCacheChecksum(null);
         $saveCache = true;
 
-        // check if local modules are disabled
-        $disableLocalModules = (string)$this->getNode('global/disable_local_modules');
-        $disableLocalModules = !empty($disableLocalModules) && (('true' === $disableLocalModules) || ('1' === $disableLocalModules));
-
-        if ($disableLocalModules) {
-            /**
-             * Reset include path
-             */
-            $codeDir = Mage::getConfig()->getOptions()->getCodeDir();
-            $libDir = Mage::getConfig()->getOptions()->getLibDir();
-
-            set_include_path(
-                // excluded '/app/code/local'
-                BP . DS . 'app' . DS . 'code' . DS . 'community' . PS .
-                BP . DS . 'app' . DS . 'code' . DS . 'core' . PS .
-                BP . DS . 'lib' . PS .
-                /**
-                 * Problem with concatenate BP . $codeDir
-                 */
-                /*BP . $codeDir . DS .'community' . PS .
-                BP . $codeDir . DS .'core' . PS .
-                BP . $libDir . PS .*/
-                Mage::registry('original_include_path')
-            );
-        }
-
-        if (Mage::isInstalled()) {
-            if (Mage::app()->useCache('config')) {
-                $loaded = $this->loadCache();
-                if ($loaded) {
-                    return $this;
-                }
+        if (Mage::app()->useCache('config')) {
+            $loaded = $this->loadCache();
+            if ($loaded) {
+                return $this;
             }
         }
 
         $mergeWsdl = new Mage_Api_Model_Wsdl_Config_Base();
         $mergeWsdl->setHandler($this->getHandler());
 
-        $modules = Mage::getConfig()->getNode('modules')->children();
+        /**
+         * Exclude Mage_Api wsdl xml file because it used for previous version
+         * of API wsdl declaration
+         */
+        $mergeWsdl->addLoadedFile(Mage::getConfig()->getModuleDir('etc', "Mage_Api").DS.'wsdl.xml');
 
         $baseWsdlFile = Mage::getConfig()->getModuleDir('etc', "Mage_Api").DS.'wsdl2.xml';
         $this->loadFile($baseWsdlFile);
-
-        foreach ($modules as $modName=>$module) {
-//            if ($module->is('active') && $modName == 'Mage_Customer') {
-            if ($module->is('active') && $modName != 'Mage_Api') {
-                if ($disableLocalModules && ('local' === (string)$module->codePool)) {
-                    continue;
-                }
-                $wsdlFile = Mage::getConfig()->getModuleDir('etc', $modName).DS.'wsdl.xml';
-                if ($mergeWsdl->loadFile($wsdlFile)) {
-                    $this->extend($mergeWsdl, true);
-                }
-            }
-        }
-        $this->setWsdlContent($this->_xml->asXML());
+        Mage::getConfig()->loadModulesConfiguration('wsdl.xml', $this, $mergeWsdl);
 
         if (Mage::app()->useCache('config')) {
             $this->saveCache(array('config'));
         }
 
         return $this;
+    }
+
+    /**
+     * Return Xml of node as string
+     *
+     * @return string
+     */
+    public function getXmlString()
+    {
+        return $this->getNode()->asXML();
     }
 }
