@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Rss
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Rss
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -57,7 +57,7 @@ class Mage_Rss_Block_List extends Mage_Core_Block_Template
      */
     public function addRssFeed($url, $label, $param = array(), $customerGroup=false)
     {
-        $param = array_merge($param, array('sid' => $this->getCurrentStoreId()));
+        $param = array_merge($param, array('store_id' => $this->getCurrentStoreId()));
         if ($customerGroup) {
             $param = array_merge($param, array('cid' => $this->getCurrentCustomerGroupId()));
         }
@@ -126,7 +126,7 @@ class Mage_Rss_Block_List extends Mage_Core_Block_Template
     public function getCatalogRssUrl($code)
     {
         $store_id = Mage::app()->getStore()->getId();
-        $param = array('sid' => $store_id);
+        $param = array('store_id' => $store_id);
         $custGroup = Mage::getSingleton('customer/session')->getCustomerGroupId();
         if ($custGroup) {
             $param = array_merge($param, array('cid' => $custGroup));
@@ -148,7 +148,7 @@ class Mage_Rss_Block_List extends Mage_Core_Block_Template
     {
         $path = self::XML_PATH_RSS_METHODS.'/catalog/special';
         if((bool)Mage::getStoreConfig($path)){
-            $this->addRssFeed($path, $this->__('Special/Discount Products'),array(),true);
+            $this->addRssFeed($path, $this->__('Special Products'),array(),true);
         }
     }
 

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -78,7 +78,7 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Media extends Mage_Eav_Model_
         }
 
         if(!is_array($value['images']) && strlen($value['images']) > 0) {
-           $value['images'] = Zend_Json::decode($value['images']);
+           $value['images'] = Mage::helper('core')->jsonDecode($value['images']);
         }
 
         if (!is_array($value['images'])) {
@@ -123,7 +123,7 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Media extends Mage_Eav_Model_
             $attrData = $object->getData($mediaAttrCode);
 
             if (in_array($attrData, $clearImages)) {
-                $object->setData($mediaAttrCode, null);
+                $object->setData($mediaAttrCode, false);
             }
 
             if (in_array($attrData, array_keys($newImages))) {
@@ -165,7 +165,7 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Media extends Mage_Eav_Model_
 
         $attrCode = $this->getAttribute()->getAttributeCode();
         $value = $object->getData($attrCode);
-        if (!is_array($value) || !isset($value['images'])) {
+        if (!is_array($value) || !isset($value['images']) || $object->isLockedAttribute($attrCode)) {
             return;
         }
         $toDelete = array();
@@ -217,16 +217,13 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Media extends Mage_Eav_Model_
     {
         $file = realpath($file);
 
-        if (!$file) {
+        if (!$file || !file_exists($file)) {
             Mage::throwException(Mage::helper('catalog')->__('Image not exists'));
         }
-
         $pathinfo = pathinfo($file);
-
-        if (!isset($pathinfo['extension']) || !in_array($pathinfo['extension'], array('jpg','jpeg','gif','png'))) {
+        if (!isset($pathinfo['extension']) || !in_array(strtolower($pathinfo['extension']), array('jpg','jpeg','gif','png'))) {
             Mage::throwException(Mage::helper('catalog')->__('Invalid image file type'));
         }
-
 
         $fileName       = Varien_File_Uploader::getCorrectFileName($pathinfo['basename']);
         $dispretionPath = Varien_File_Uploader::getDispretionPath($fileName);
@@ -490,16 +487,26 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Media extends Mage_Eav_Model_
      */
     protected function _copyImage($file)
     {
-        $ioObject = new Varien_Io_File();
-        $destDirectory = dirname($this->_getConfig()->getMediaPath($file));
-        $ioObject->open(array('path'=>$destDirectory));
-        $destFile = dirname($file) . $ioObject->dirsep()
-                  . Varien_File_Uploader::getNewFileName($this->_getConfig()->getMediaPath($file));
+        try {
+            $ioObject = new Varien_Io_File();
+            $destDirectory = dirname($this->_getConfig()->getMediaPath($file));
+            $ioObject->open(array('path'=>$destDirectory));
+            $destFile = dirname($file) . $ioObject->dirsep()
+                      . Varien_File_Uploader::getNewFileName($this->_getConfig()->getMediaPath($file));
 
-        $ioObject->cp(
-            $this->_getConfig()->getMediaPath($file),
-            $this->_getConfig()->getMediaPath($destFile)
-        );
+            if (!$ioObject->fileExists($this->_getConfig()->getMediaPath($file),true)) {
+                throw new Exception();
+            }
+            $ioObject->cp(
+                $this->_getConfig()->getMediaPath($file),
+                $this->_getConfig()->getMediaPath($destFile)
+            );
+        } catch (Exception $e) {
+            Mage::throwException(
+                Mage::helper('catalog')->__('Failed to copy file %s. Please, delete media with non-existing images and try again.',
+                    $this->_getConfig()->getMediaPath($file))
+            );
+        }
 
         return str_replace($ioObject->dirsep(), '/', $destFile);
     }

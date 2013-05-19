@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Admin
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -70,6 +70,7 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
             $user = Mage::getModel('admin/user');
             $user->login($username, $password);
             if ($user->getId()) {
+
                 if (Mage::getSingleton('adminhtml/url')->useSecretKey()) {
                     Mage::getSingleton('adminhtml/url')->renewSecretUrls();
                 }
@@ -78,6 +79,7 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
                 $session->setUser($user);
                 $session->setAcl(Mage::getResourceModel('admin/acl')->loadAcl());
                 if ($requestUri = $this->_getRequestUri($request)) {
+                    Mage::dispatchEvent('admin_session_user_login_success', array('user'=>$user));
                     header('Location: ' . $requestUri);
                     exit;
                 }
@@ -87,6 +89,7 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
             }
         }
         catch (Mage_Core_Exception $e) {
+            Mage::dispatchEvent('admin_session_user_login_failed', array('user_name'=>$username, 'exception' => $e));
             if ($request && !$request->getParam('messageSent')) {
                 Mage::getSingleton('adminhtml/session')->addError($e->getMessage());
                 $request->setParam('messageSent', true);
@@ -141,15 +144,13 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
             }
 
             try {
-                if ($acl->isAllowed($user->getAclRole(), 'all', null)){
-                    return true;
-                }
-            } catch (Exception $e) {}
-
-            try {
                 return $acl->isAllowed($user->getAclRole(), $resource, $privilege);
             } catch (Exception $e) {
-                return false;
+                try {
+                    if (!$acl->has($resource)) {
+                        return $acl->isAllowed($user->getAclRole(), null, $privilege);
+                    }
+                } catch (Exception $e) { }
             }
         }
         return false;

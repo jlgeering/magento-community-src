@@ -18,14 +18,11 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Core
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
-
-#error_log('========================'."\n", 3, 'var/log/magento.log');
-
 
 /**
  * Disable magic quotes in runtime if needed
@@ -57,23 +54,18 @@ if (get_magic_quotes_gpc()) {
  * Class autoload
  *
  * @todo change to spl_autoload_register
+ * @deprecated
  * @param string $class
  */
 function __autoload($class)
 {
-    if (strpos($class, '/')!==false) {
-        return;
+    if (defined('COMPILER_INCLUDE_PATH')) {
+        $classFile = $class.'.php';
+    } else {
+        $classFile = uc_words($class, DIRECTORY_SEPARATOR).'.php';
     }
-    $classFile = uc_words($class, DS).'.php';
-
-    //$a = explode('_', $class);
-    //Varien_Profiler::start('AUTOLOAD');
-    //Varien_Profiler::start('AUTOLOAD: '.$a[0]);
 
     include($classFile);
-
-    //Varien_Profiler::stop('AUTOLOAD');
-    //Varien_Profiler::stop('AUTOLOAD: '.$a[0]);
 }
 
 /**
@@ -87,10 +79,6 @@ function destruct($object)
         foreach ($object as $obj) {
             destruct($obj);
         }
-    } elseif (is_object($object)) {
-        if (in_array('__destruct', get_class_methods($object))) {
-            $object->__destruct();
-        }
     }
     unset($object);
 }
@@ -98,6 +86,7 @@ function destruct($object)
 /**
  * Translator function
  *
+ * @deprecated 1.3
  * @param string $text the text to translate
  * @param mixed optional parameters to use in sprintf
  */
@@ -145,7 +134,11 @@ function is_empty_date($date)
 
 function mageFindClassFile($class)
 {
-    $classFile = uc_words($class, DS).'.php';
+    if (defined('COMPILER_INCLUDE_PATH')) {
+        $classFile = $class.'.php';
+    } else {
+        $classFile = uc_words($class, DIRECTORY_SEPARATOR).'.php';
+    }
     $found = false;
     foreach (explode(PS, get_include_path()) as $path) {
         $fileName = $path.DS.$classFile;
@@ -181,16 +174,19 @@ function mageCoreErrorHandler($errno, $errstr, $errfile, $errline){
     if (!defined('E_RECOVERABLE_ERROR')) {
         define('E_RECOVERABLE_ERROR', 4096);
     }
+    if (!defined('E_DEPRECATED')) {
+        define('E_DEPRECATED', 8192);
+    }
 
     // PEAR specific message handling
     if (stripos($errfile.$errstr, 'pear') !== false) {
-         // ignore strict notices
-        if ($errno == E_STRICT) {
-            return false;
+         // ignore strict and deprecated notices
+        if (($errno == E_STRICT) || ($errno == E_DEPRECATED)) {
+            return true;
         }
         // ignore attempts to read system files when open_basedir is set
         if ($errno == E_WARNING && stripos($errstr, 'open_basedir') !== false) {
-            return false;
+            return true;
         }
     }
 
@@ -235,6 +231,9 @@ function mageCoreErrorHandler($errno, $errstr, $errfile, $errline){
             break;
         case E_RECOVERABLE_ERROR:
             $errorMessage .= "Recoverable Error";
+            break;
+        case E_DEPRECATED:
+            $errorMessage .= "Deprecated functionality";
             break;
         default:
             $errorMessage .= "Unknown error ($errno)";
@@ -326,6 +325,26 @@ function mageParseCsv($string, $delimiter=",", $enclosure='"', $escape='\\')
     return $elements;
 }
 
+function is_dir_writeable($dir)
+{
+    if (is_dir($dir) && is_writable($dir)) {
+        if (stripos(PHP_OS, 'win') === 0) {
+            $dir    = ltrim($dir, DIRECTORY_SEPARATOR);
+            $file   = $dir . DIRECTORY_SEPARATOR . uniqid(mt_rand()).'.tmp';
+            $exist  = file_exists($file);
+            $fp     = @fopen($file, 'a');
+            if ($fp === false) {
+                return false;
+            }
+            fclose($fp);
+            if (!$exist) {
+                unlink($file);
+            }
+        }
+        return true;
+    }
+    return false;
+}
 
 if ( !function_exists('sys_get_temp_dir') ) {
     // Based on http://www.phpit.net/
@@ -335,16 +354,11 @@ if ( !function_exists('sys_get_temp_dir') ) {
         // Try to get from environment variable
         if ( !empty($_ENV['TMP']) ) {
             return realpath( $_ENV['TMP'] );
-        }
-        else if ( !empty($_ENV['TMPDIR']) ) {
+        } else if ( !empty($_ENV['TMPDIR']) ) {
             return realpath( $_ENV['TMPDIR'] );
-        }
-        else if ( !empty($_ENV['TEMP']) ) {
+        } else if ( !empty($_ENV['TEMP']) ) {
             return realpath( $_ENV['TEMP'] );
-        }
-
-        // Detect by creating a temporary file
-        else {
+        } else {
             // Try to use system's temporary directory
             // as random name shouldn't exist
             $temp_file = tempnam( md5(uniqid(rand(), TRUE)), '' );
@@ -352,8 +366,7 @@ if ( !function_exists('sys_get_temp_dir') ) {
                 $temp_dir = realpath( dirname($temp_file) );
                 unlink( $temp_file );
                 return $temp_dir;
-            }
-            else {
+            } else {
                 return FALSE;
             }
         }

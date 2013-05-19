@@ -18,20 +18,37 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Eav
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Eav
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
+/**
+ * Eav attribute set model
+ *
+ * @category   Mage
+ * @package    Mage_Eav
+ * @author     Magento Core Team <core@magentocommerce.com>
+ */
 class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
 {
+    /**
+     * Initialize resource model
+     *
+     */
     protected function _construct()
     {
         $this->_init('eav/entity_attribute_set');
     }
 
+    /**
+     * Init attribute set from skeleton (another attribute set)
+     *
+     * @param int $skeletonId
+     * @return Mage_Eav_Model_Entity_Attribute_Set
+     */
     public function initFromSkeleton($skeletonId)
     {
         $groups = Mage::getModel('eav/entity_attribute_group')
@@ -68,10 +85,24 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
         return $this;
     }
 
+    /**
+     * Collect data for save
+     *
+     * @param array $data
+     */
     public function organizeData($data)
     {
         $modelGroupArray = array();
         $modelAttributeArray = array();
+        $attributeIds = array();
+        if ($data['attributes']) {
+            $ids = array();
+            foreach ($data['attributes'] as $attribute) {
+                $ids[] = $attribute[0];
+            }
+            $attributeIds = Mage::getResourceSingleton('eav/entity_attribute')
+                ->getValidAttributeIds($ids);
+        }
         if( $data['groups'] ) {
             foreach( $data['groups'] as $group ) {
                 $modelGroup = Mage::getModel('eav/entity_attribute_group');
@@ -81,8 +112,8 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
                     ->setSortOrder($group[2]);
 
                 if( $data['attributes'] ) {
-                    foreach( $data['attributes'] as $key => $attribute ) {
-                        if( $attribute[1] == $group[0] ) {
+                    foreach( $data['attributes'] as $attribute ) {
+                        if( $attribute[1] == $group[0] && in_array($attribute[0], $attributeIds) ) {
                             $modelAttribute = Mage::getModel('eav/entity_attribute');
                             $modelAttribute->setId($attribute[0])
                                 ->setAttributeGroupId($attribute[1])
@@ -103,7 +134,7 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
 
         if( $data['not_attributes'] ) {
             $modelAttributeArray = array();
-            foreach( $data['not_attributes'] as $key => $attributeId ) {
+            foreach( $data['not_attributes'] as $attributeId ) {
                 $modelAttribute = Mage::getModel('eav/entity_attribute');
 
                 $modelAttribute->setEntityAttributeId($attributeId);
@@ -114,7 +145,7 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
 
         if( $data['removeGroups'] ) {
             $modelGroupArray = array();
-            foreach( $data['removeGroups'] as $key => $groupId ) {
+            foreach( $data['removeGroups'] as $groupId ) {
                 $modelGroup = Mage::getModel('eav/entity_attribute_group');
                 $modelGroup->setId($groupId);
 
@@ -126,10 +157,80 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
             ->setEntityTypeId($this->getEntityTypeId());
     }
 
-    public function validate($name)
+    /**
+     * Validate attribute set name
+     *
+     * @param string $name
+     * @throws Mage_Core_Exception
+     * @return bool
+     */
+    public function validate()
     {
-        if (!$this->_getResource()->validate($this, $name)) {
-            throw new Exception(Mage::helper('eav')->__('Attribute set with the "%s" name already exists',$name));
+        if (!$this->_getResource()->validate($this, $this->getAttributeSetName())) {
+            Mage::throwException(
+                Mage::helper('eav')->__('Attribute set with the "%s" name already exists', $this->getAttributeSetName())
+            );
         }
+        return true;
+    }
+
+    /**
+     * Add set info to attributes
+     *
+     * @param string|Mage_Eav_Model_Entity_Type $entityType
+     * @param array $attributes
+     * @param int $setId
+     * @return Mage_Eav_Model_Entity_Attribute_Set
+     */
+    public function addSetInfo($entityType, array $attributes, $setId = null)
+    {
+        $attributeIds   = array();
+        $config         = Mage::getSingleton('eav/config');
+        $entityType     = $config->getEntityType($entityType);
+        foreach ($attributes as $attribute) {
+            $attribute = $config->getAttribute($entityType, $attribute);
+            if ($setId && is_array($attribute->getAttributeSetInfo($setId))) {
+                continue;
+            }
+            if (!$attribute->getAttributeId()) {
+                continue;
+            }
+            $attributeIds[] = $attribute->getAttributeId();
+        }
+
+        if ($attributeIds) {
+            $setInfo = $this->_getResource()
+                ->getSetInfo($attributeIds, $setId);
+
+            foreach ($attributes as $attribute) {
+                $attribute = $config->getAttribute($entityType, $attribute);
+                if (!$attribute->getAttributeId()) {
+                    continue;
+                }
+                if (!in_array($attribute->getAttributeId(), $attributeIds)) {
+                    continue;
+                }
+                if (is_numeric($setId)) {
+                    $attributeSetInfo = $attribute->getAttributeSetInfo();
+                    if (!is_array($attributeSetInfo)) {
+                        $attributeSetInfo = array();
+                    }
+                    if (isset($setInfo[$attribute->getAttributeId()][$setId])) {
+                        $attributeSetInfo[$setId] = $setInfo[$attribute->getAttributeId()][$setId];
+                    }
+                    $attribute->setAttributeSetInfo($attributeSetInfo);
+                }
+                else {
+                    if (isset($setInfo[$attribute->getAttributeId()])) {
+                        $attribute->setAttributeSetInfo($setInfo[$attribute->getAttributeId()]);
+                    }
+                    else {
+                        $attribute->setAttributeSetInfo(array());
+                    }
+                }
+            }
+        }
+
+        return $this;
     }
 }

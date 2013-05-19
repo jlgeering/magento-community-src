@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -34,7 +34,9 @@
  */
 class Mage_Catalog_Helper_Product_Flat extends Mage_Core_Helper_Abstract
 {
-    const XML_PATH_USE_PRODUCT_FLAT     = 'catalog/frontend/flat_catalog_product';
+    const XML_PATH_USE_PRODUCT_FLAT          = 'catalog/frontend/flat_catalog_product';
+    const XML_NODE_ADD_FILTERABLE_ATTRIBUTES = 'global/catalog/product/flat/add_filterable_attributes';
+    const XML_NODE_ADD_CHILD_DATA            = 'global/catalog/product/flat/add_child_data';
 
     /**
      * Catalog Product Flat Flag object
@@ -79,5 +81,25 @@ class Mage_Catalog_Helper_Product_Flat extends Mage_Core_Helper_Abstract
             return false;
         }
         return Mage::getStoreConfigFlag(self::XML_PATH_USE_PRODUCT_FLAT, $store);
+    }
+
+    /**
+     * Is add filterable attributes to Flat table
+     *
+     * @return int
+     */
+    public function isAddFilterableAttributes()
+    {
+        return intval(Mage::getConfig()->getNode(self::XML_NODE_ADD_FILTERABLE_ATTRIBUTES));
+    }
+
+    /**
+     * Is add child data to Flat
+     *
+     * @return int
+     */
+    public function isAddChildData()
+    {
+        return intval(Mage::getConfig()->getNode(self::XML_NODE_ADD_CHILD_DATA));
     }
 }

@@ -42,6 +42,10 @@ to app/etc/local.xml manually.
                         <host><![CDATA[]]></host>
                         <port><![CDATA[]]></port>
                         <persistent><![CDATA[]]></persistent>
+                        <weight><![CDATA[]]></weight>
+                        <timeout><![CDATA[]]></timeout>
+                        <retry_interval><![CDATA[]]></retry_interval>
+                        <status><![CDATA[]]></status>
                     </server>
                 </servers>
                 <compression><![CDATA[0]]></compression>
@@ -51,5 +55,9 @@ to app/etc/local.xml manually.
                 <file_name_prefix><![CDATA[]]></file_name_prefix>
             </memcached>
         </cache>
-     </global>
+        <remote_addr_headers><!-- list headers that contain real client IP if webserver is behind a reverse proxy -->
+            <header1>HTTP_X_REAL_IP</header1>
+            <header2>HTTP_X_FORWARDED_FOR</header2>
+        </remote_addr_headers>
+    </global>
 </config>

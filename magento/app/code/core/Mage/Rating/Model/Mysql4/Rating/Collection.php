@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Rating
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Rating
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,12 +33,10 @@
  */
 class Mage_Rating_Model_Mysql4_Rating_Collection extends Mage_Core_Model_Mysql4_Collection_Abstract
 {
-    /*
-    protected $_ratingTable;
-    protected $_ratingEntityTable;
-    protected $_ratingOptionTable;
-    protected $_ratingVoteTable;
-    */
+    /**
+     * @var bool
+     */
+    protected $_isStoreJoined = false;
 
     public function _construct()
     {
@@ -89,14 +87,14 @@ class Mage_Rating_Model_Mysql4_Rating_Collection extends Mage_Core_Model_Mysql4_
            $storeId = array($storeId === null ? -1 : $storeId);
         }
         if (empty($storeId)) {
-        	return $this;
+            return $this;
         }
-        $condition = $this->getConnection()->quoteInto('store.store_id IN(?)', $storeId);
-
-
-        $this->getSelect()->join(array('store'=>$this->getTable('rating_store')), 'main_table.rating_id = store.rating_id')
-            ->group('main_table.rating_id')
-            ->where($condition);
+        if (!$this->_isStoreJoined) {
+            $this->getSelect()->join(array('store'=>$this->getTable('rating_store')), 'main_table.rating_id = store.rating_id')
+                ->group('main_table.rating_id');
+            $this->_isStoreJoined = true;
+        }
+        $this->getSelect()->where($this->getConnection()->quoteInto('store.store_id IN(?)', $storeId));
         $this->setPositionOrder();
         return $this;
     }

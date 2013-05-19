@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Downloadable
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Downloadable
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,9 +33,8 @@
  */
 class Mage_Downloadable_Model_Mysql4_Link extends Mage_Core_Model_Mysql4_Abstract
 {
-
     /**
-     * Varien class constructor
+     * Initialize connection and define resource
      *
      */
     protected function  _construct()
@@ -95,21 +94,49 @@ class Mage_Downloadable_Model_Mysql4_Link extends Mage_Core_Model_Mysql4_Abstrac
             }
         } else {
             if (!$linkObject->getUseDefaultPrice()) {
-                $this->_getWriteAdapter()->insert(
-                    $this->getTable('downloadable/link_price'),
-                    array(
-                        'link_id' => $linkObject->getId(),
-                        'website_id' => $linkObject->getWebsiteId(),
-                        'price' => $linkObject->getPrice()
-                    ));
+                $dataToInsert[] = array(
+                    'link_id' => $linkObject->getId(),
+                    'website_id' => $linkObject->getWebsiteId(),
+                    'price' => $linkObject->getPrice()
+                );
+                $_isNew = $linkObject->getOrigData('link_id') != $linkObject->getLinkId();
+                if ($linkObject->getWebsiteId() == 0 && $_isNew && !Mage::helper('catalog')->isPriceGlobal()) {
+                    $websiteIds = $linkObject->getProductWebsiteIds();
+                    foreach ($websiteIds as $websiteId) {
+                        $baseCurrency = Mage::app()->getBaseCurrencyCode();
+                        $websiteCurrency = Mage::app()->getWebsite($websiteId)->getBaseCurrencyCode();
+                        if ($websiteCurrency == $baseCurrency) {
+                            continue;
+                        }
+                        $rate = Mage::getModel('directory/currency')->load($baseCurrency)->getRate($websiteCurrency);
+                        if (!$rate) {
+                            $rate = 1;
+                        }
+                        $newPrice = $linkObject->getPrice() * $rate;
+                        $dataToInsert[] = array(
+                            'link_id' => $linkObject->getId(),
+                            'website_id' => $websiteId,
+                            'price' => $newPrice
+                        );
+                    }
+                }
+                foreach ($dataToInsert as $_data) {
+                    $this->_getWriteAdapter()->insert($this->getTable('downloadable/link_price'), $_data);
+                }
             }
         }
         return $this;
     }
 
+    /**
+     * Delete data by item(s)
+     *
+     * @param Mage_Downloadable_Model_Link|array|int $items
+     * @return Mage_Downloadable_Model_Mysql4_Link
+     */
     public function deleteItems($items)
     {
-		$where = '';
+        $where = '';
         if ($items instanceof Mage_Downloadable_Model_Link) {
             $where = $this->_getReadAdapter()->quoteInto('link_id = ?', $items->getId());
         }
@@ -123,11 +150,36 @@ class Mage_Downloadable_Model_Mysql4_Link extends Mage_Core_Model_Mysql4_Abstrac
             $this->_getWriteAdapter()->delete(
                 $this->getTable('downloadable/link'), $where);
             $this->_getWriteAdapter()->delete(
-	            $this->getTable('downloadable/link_title'), $where);
-	        $this->_getWriteAdapter()->delete(
-                $this->getTable('downloadable/link_price'),$where);
+                $this->getTable('downloadable/link_title'), $where);
+            $this->_getWriteAdapter()->delete(
+                $this->getTable('downloadable/link_price'), $where);
         }
         return $this;
     }
 
+    /**
+     * Retrieve links searchable data
+     *
+     * @param int $productId
+     * @param int $storeId
+     * @return array
+     */
+    public function getSearchableData($productId, $storeId)
+    {
+        $select = $this->_getReadAdapter()->select()
+            ->from(array('link' => $this->getMainTable()), null)
+            ->join(
+                array('link_title_default' => $this->getTable('downloadable/link_title')),
+                'link_title_default.link_id=link.link_id AND link_title_default.store_id=0',
+                array())
+            ->joinLeft(
+                array('link_title_store' => $this->getTable('downloadable/link_title')),
+                'link_title_store.link_id=link.link_id AND link_title_store.store_id=' . intval($storeId),
+                array('title' => 'IFNULL(link_title_store.title, link_title_default.title)'))
+            ->where('link.product_id=?', $productId);
+        if (!$searchData = $this->_getReadAdapter()->fetchCol($select)) {
+            $searchData = array();
+        }
+        return $searchData;
+    }
 }

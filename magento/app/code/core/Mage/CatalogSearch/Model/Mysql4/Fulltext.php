@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogSearch
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogSearch
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -46,6 +46,13 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
      * @var string
      */
     protected $_separator = ' ';
+
+    /**
+     * Array of Zend_Date objects per store
+     *
+     * @var array
+     */
+    protected $_dates = array();
 
     /**
      * Product Type Instances cache
@@ -101,6 +108,8 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
             'int'       => array_keys($this->_getSearchableAttributes('int')),
             'varchar'   => array_keys($this->_getSearchableAttributes('varchar')),
             'text'      => array_keys($this->_getSearchableAttributes('text')),
+            'decimal'   => array_keys($this->_getSearchableAttributes('decimal')),
+            'datetime'  => array_keys($this->_getSearchableAttributes('datetime')),
         );
 
         // status and visibility filter
@@ -179,16 +188,15 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
      */
     protected function _getSearchableProducts($storeId, array $staticFields, $productIds = null, $lastProductId = 0, $limit = 100)
     {
-        $entityType = $this->getEavConfig()->getEntityType('catalog_product');
-        $store      = Mage::app()->getStore($storeId);
-
-        $select = $this->_getReadAdapter()->select()
+        $store  = Mage::app()->getStore($storeId);
+        $select = $this->_getWriteAdapter()->select()
+            ->useStraightJoin(true)
             ->from(
                 array('e' => $this->getTable('catalog/product')),
                 array_merge(array('entity_id', 'type_id'), $staticFields))
-            ->joinInner(
+            ->join(
                 array('website' => $this->getTable('catalog/product_website')),
-                $this->_getReadAdapter()->quoteInto('website.product_id=e.entity_id AND website.website_id=?', $store->getWebsiteId()),
+                $this->_getWriteAdapter()->quoteInto('website.product_id=e.entity_id AND website.website_id=?', $store->getWebsiteId()),
                 array()
             );
 
@@ -199,8 +207,7 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
         $select->where('e.entity_id>?', $lastProductId)
             ->limit($limit)
             ->order('e.entity_id');
-
-        return $this->_getReadAdapter()->fetchAll($select);
+        return $this->_getWriteAdapter()->fetchAll($select);
     }
 
     /**
@@ -245,7 +252,7 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
             $where[] = $this->_getWriteAdapter()->quoteInto('product_id IN(?)', $productId);
         }
 
-        $this->_getWriteAdapter()->delete($this->getMainTable(), $where);
+        $this->_getWriteAdapter()->delete($this->getMainTable(), join(' AND ', $where));
         return $this;
     }
 
@@ -279,7 +286,7 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
                 $words = $stringHelper->splitWords($queryText, true, $query->getMaxQueryWords());
                 $likeI = 0;
                 foreach ($words as $word) {
-                    $like[] = '`data_index` LIKE :likew' . $likeI;
+                    $like[] = '`s`.`data_index` LIKE :likew' . $likeI;
                     $bind[':likew' . $likeI] = '%' . $word . '%';
                     $likeI ++;
                 }
@@ -289,15 +296,17 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
             }
             if ($searchType == Mage_CatalogSearch_Model_Fulltext::SEARCH_TYPE_FULLTEXT
                 || $searchType == Mage_CatalogSearch_Model_Fulltext::SEARCH_TYPE_COMBINE) {
-                $fulltextCond = 'MATCH (`data_index`) AGAINST (:query IN BOOLEAN MODE)';
+                $fulltextCond = 'MATCH (`s`.`data_index`) AGAINST (:query IN BOOLEAN MODE)';
             }
             if ($searchType == Mage_CatalogSearch_Model_Fulltext::SEARCH_TYPE_COMBINE && $likeCond) {
                 $separateCond = ' OR ';
             }
 
-            $sql = sprintf("REPLACE INTO `{$this->getTable('catalogsearch/result')}` "
-                . "(SELECT '%d', `product_id`, MATCH (`data_index`) AGAINST (:query IN BOOLEAN MODE) "
-                . "FROM `{$this->getMainTable()}` WHERE (%s%s%s) AND `store_id`='%d')",
+            $sql = sprintf("INSERT INTO `{$this->getTable('catalogsearch/result')}` "
+                . "(SELECT '%d', `s`.`product_id`, MATCH (`s`.`data_index`) AGAINST (:query IN BOOLEAN MODE) "
+                . "FROM `{$this->getMainTable()}` AS `s` INNER JOIN `{$this->getTable('catalog/product')}` AS `e`"
+                . "ON `e`.`entity_id`=`s`.`product_id` WHERE (%s%s%s) AND `s`.`store_id`='%d')"
+                . " ON DUPLICATE KEY UPDATE `relevance`=VALUES(`relevance`)",
                 $query->getId(),
                 $fulltextCond,
                 $separateCond,
@@ -335,17 +344,28 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
             $entityType = $this->getEavConfig()->getEntityType('catalog_product');
             $entity     = $entityType->getEntity();
 
-            $select = $this->_getReadAdapter()->select()
-                ->from($this->getTable('eav/attribute'), array('attribute_code'))
-                ->where('entity_type_id=?', $entityType->getEntityTypeId())
-                ->where('is_searchable=?', 1);
-            $attributeCodes = array_merge($this->_getReadAdapter()->fetchCol($select), array('status', 'visibility'));
-            $this->getEavConfig()->preloadAttributes($entityType, $attributeCodes);
-            foreach ($attributeCodes as $attributeCode) {
+            $whereCond  = array(
+                $this->_getWriteAdapter()->quoteInto('additional_table.is_searchable=?', 1),
+                $this->_getWriteAdapter()->quoteInto('main_table.attribute_code IN(?)', array('status', 'visibility'))
+            );
+
+            $select = $this->_getWriteAdapter()->select()
+                ->from(array('main_table' => $this->getTable('eav/attribute')))
+                ->join(
+                    array('additional_table' => $this->getTable('catalog/eav_attribute')),
+                    'additional_table.attribute_id = main_table.attribute_id'
+                )
+                ->where('main_table.entity_type_id=?', $entityType->getEntityTypeId())
+                ->where(join(' OR ', $whereCond));
+            $attributesData = $this->_getWriteAdapter()->fetchAll($select);
+            $this->getEavConfig()->importAttributesData($entityType, $attributesData);
+            foreach ($attributesData as $attributeData) {
+                $attributeCode = $attributeData['attribute_code'];
                 $attribute = $this->getEavConfig()->getAttribute($entityType, $attributeCode);
                 $attribute->setEntity($entity);
                 $this->_searchableAttributes[$attribute->getId()] = $attribute;
             }
+            unset($attributesData);
         }
         if (!is_null($backendType)) {
             $attributes = array();
@@ -399,14 +419,14 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
         foreach ($atributeTypes as $backendType => $attributeIds) {
             if ($attributeIds) {
                 $tableName = $this->getTable('catalog/product') . '_' . $backendType;
-                $selects[] = $this->_getReadAdapter()->select()
+                $selects[] = $this->_getWriteAdapter()->select()
                     ->from(
                         array('t_default' => $tableName),
                         array('entity_id', 'attribute_id'))
                     ->joinLeft(
                         array('t_store' => $tableName),
-                        $this->_getReadAdapter()->quoteInto("t_default.entity_id=t_store.entity_id AND t_default.attribute_id=t_store.attribute_id AND t_store.store_id=?", $storeId),
-                        array('value'=>'IFNULL(t_store.value, t_default.value)'))
+                        $this->_getWriteAdapter()->quoteInto("t_default.entity_id=t_store.entity_id AND t_default.attribute_id=t_store.attribute_id AND t_store.store_id=?", $storeId),
+                        array('value'=>'IF(t_store.value_id > 0, t_store.value, t_default.value)'))
                     ->where('t_default.store_id=?', 0)
                     ->where('t_default.attribute_id IN(?)', $attributeIds)
                     ->where('t_default.entity_id IN(?)', $productIds);
@@ -415,13 +435,31 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
 
         if ($selects) {
             $select = '('.join(')UNION(', $selects).')';
-            $query = $this->_getReadAdapter()->query($select);
+            $query = $this->_getWriteAdapter()->query($select);
             while ($row = $query->fetch()) {
                 $result[$row['entity_id']][$row['attribute_id']] = $row['value'];
             }
         }
 
         return $result;
+    }
+
+    /**
+     * Retrieve Product Type Instance
+     *
+     * @param string $typeId
+     * @return Mage_Catalog_Model_Product_Type_Abstract
+     */
+    protected function _getProductTypeInstance($typeId)
+    {
+        if (!isset($this->_productTypes[$typeId])) {
+            $productEmulator = $this->_getProductEmulator();
+            $productEmulator->setTypeId($typeId);
+
+            $this->_productTypes[$typeId] = Mage::getSingleton('catalog/product_type')
+                ->factory($productEmulator);
+        }
+        return $this->_productTypes[$typeId];
     }
 
     /**
@@ -433,15 +471,11 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
      */
     protected function _getProductChildIds($productId, $typeId)
     {
-        if (!isset($this->_productTypes[$typeId])) {
-            $productEmulator = new Varien_Object();
-            $productEmulator->setTypeId($typeId);
+        $typeInstance = $this->_getProductTypeInstance($typeId);
+        $relation = $typeInstance->isComposite()
+            ? $typeInstance->getRelationInfo()
+            : false;
 
-            $typeInstance = Mage::getSingleton('catalog/product_type')->factory($productEmulator);
-            $this->_productTypes[$typeId] = $typeInstance->isComposite() ? $typeInstance->getRelationInfo() : false;
-        }
-
-        $relation = $this->_productTypes[$typeId];
         if ($relation && $relation->getTable() && $relation->getParentFieldName() && $relation->getChildFieldName()) {
             $select = $this->_getReadAdapter()->select()
                 ->from(
@@ -455,6 +489,18 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
         }
 
         return null;
+    }
+
+    /**
+     * Retrieve Product Emulator (Varien Object)
+     *
+     * @return Varien_Object
+     */
+    protected function _getProductEmulator()
+    {
+        $productEmulator = new Varien_Object();
+        $productEmulator->setIdFieldName('entity_id');
+        return $productEmulator;
     }
 
     /**
@@ -481,6 +527,16 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
                 }
             }
         }
+
+        $product = $this->_getProductEmulator()
+            ->setId($productData['entity_id'])
+            ->setTypeId($productData['type_id'])
+            ->setStoreId($storeId);
+        $typeInstance = $this->_getProductTypeInstance($productData['type_id']);
+        if ($data = $typeInstance->getSearchableData($product)) {
+            $index = array_merge($index, $data);
+        }
+
         return join($this->_separator, $index);
     }
 
@@ -500,6 +556,12 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
         if ($attribute->usesSource()) {
             $attribute->setStoreId($storeId);
             $value = $attribute->getSource()->getOptionText($value);
+        }
+        if ($attribute->getBackendType() == 'datetime') {
+            $value = $this->_getStoreDate($storeId, $value);
+        }
+        if ($attribute->getFrontend()->getInputType() == 'price') {
+            $value = Mage::app()->getStore($storeId)->roundPrice($value);
         }
 
         if (is_array($value)) {
@@ -536,23 +598,48 @@ class Mage_CatalogSearch_Model_Mysql4_Fulltext extends Mage_Core_Model_Mysql4_Ab
      */
     protected function _saveProductIndexes($storeId, $productIndexes)
     {
-        $values = array();
-        $bind   = array();
+        $adapter = $this->_getWriteAdapter();
+        $data    = array();
+        $storeId = (int)$storeId;
         foreach ($productIndexes as $productId => &$index) {
-            $values[] = sprintf('(%s,%s,%s)',
-                $this->_getWriteAdapter()->quoteInto('?', $productId),
-                $this->_getWriteAdapter()->quoteInto('?', $storeId),
-                '?'
+            $data[] = array(
+                'product_id'    => (int)$productId,
+                'store_id'      => $storeId,
+                'data_index'    => $index
             );
-            $bind[] = $index;
         }
 
-        if ($values) {
-            $sql = "REPLACE INTO `{$this->getMainTable()}` VALUES"
-                . join(',', $values);
-            $this->_getWriteAdapter()->query($sql, $bind);
+        if ($data) {
+            $adapter->insertOnDuplicate($this->getMainTable(), $data, array('data_index'));
         }
 
         return $this;
+    }
+
+    /**
+     * Retrieve Date value for store
+     *
+     * @param int $storeId
+     * @param string $date
+     * @return string
+     */
+    protected function _getStoreDate($storeId, $date = null)
+    {
+        if (!isset($this->_dates[$storeId])) {
+            $timezone = Mage::getStoreConfig(Mage_Core_Model_Locale::XML_PATH_DEFAULT_TIMEZONE, $storeId);
+            $locale   = Mage::getStoreConfig(Mage_Core_Model_Locale::XML_PATH_DEFAULT_LOCALE, $storeId);
+            $locale   = new Zend_Locale($locale);
+
+            $dateObj = new Zend_Date(null, null, $locale);
+            $dateObj->setTimezone($timezone);
+            $this->_dates[$storeId] = array($dateObj, $locale->getTranslation(null, 'date', $locale));
+        }
+
+        if (!is_empty_date($date)) {
+            list($dateObj, $format) = $this->_dates[$storeId];
+            $dateObj->setDate($date, Varien_Date::DATETIME_INTERNAL_FORMAT);
+            return $dateObj->toString($format);
+        }
+        return null;
     }
 }

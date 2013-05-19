@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -71,41 +71,43 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_Account extends Mage_Adminhtml_Bloc
 //        }
 
         if ($customer->getId()) {
-            // add password management fieldset
-            $newFieldset = $form->addFieldset(
-                'password_fieldset',
-                array('legend'=>Mage::helper('customer')->__('Password Management'))
-            );
-            // New customer password
-            $field = $newFieldset->addField('new_password', 'text',
-                array(
-                    'label' => Mage::helper('customer')->__('New Password'),
-                    'name'  => 'new_password',
-                    'class' => 'validate-new-password'
-                )
-            );
-            $field->setRenderer($this->getLayout()->createBlock('adminhtml/customer_edit_renderer_newpass'));
+            if (!$customer->isReadonly()) {
+                // add password management fieldset
+                $newFieldset = $form->addFieldset(
+                    'password_fieldset',
+                    array('legend'=>Mage::helper('customer')->__('Password Management'))
+                );
+                // New customer password
+                $field = $newFieldset->addField('new_password', 'text',
+                    array(
+                        'label' => Mage::helper('customer')->__('New Password'),
+                        'name'  => 'new_password',
+                        'class' => 'validate-new-password'
+                    )
+                );
+                $field->setRenderer($this->getLayout()->createBlock('adminhtml/customer_edit_renderer_newpass'));
 
-            // prepare customer confirmation control (only for existing customers)
-            $confirmationKey = $customer->getConfirmation();
-            if ($confirmationKey || $customer->isConfirmationRequired()) {
-                $confirmationAttribute = $customer->getAttribute('confirmation');
-                if (!$confirmationKey) {
-                    $confirmationKey = $customer->getRandomConfirmationKey();
-                }
-                $element = $fieldset->addField('confirmation', 'select', array(
-                    'name'  => 'confirmation',
-                    'label' => Mage::helper('customer')->__($confirmationAttribute->getFrontendLabel()),
-                ))->setEntityAttribute($confirmationAttribute)
-                    ->setValues(array('' => 'Confirmed', $confirmationKey => 'Not confirmed'));
+                // prepare customer confirmation control (only for existing customers)
+                $confirmationKey = $customer->getConfirmation();
+                if ($confirmationKey || $customer->isConfirmationRequired()) {
+                    $confirmationAttribute = $customer->getAttribute('confirmation');
+                    if (!$confirmationKey) {
+                        $confirmationKey = $customer->getRandomConfirmationKey();
+                    }
+                    $element = $fieldset->addField('confirmation', 'select', array(
+                        'name'  => 'confirmation',
+                        'label' => Mage::helper('customer')->__($confirmationAttribute->getFrontendLabel()),
+                    ))->setEntityAttribute($confirmationAttribute)
+                        ->setValues(array('' => 'Confirmed', $confirmationKey => 'Not confirmed'));
 
-                // prepare send welcome email checkbox, if customer is not confirmed
-                // no need to add it, if website id is empty
-                if ($customer->getConfirmation() && $customer->getWebsiteId()) {
-                    $fieldset->addField('sendemail', 'checkbox', array(
-                        'name'  => 'sendemail',
-                        'label' => Mage::helper('customer')->__('Send Welcome Email after Confirmation')
-                    ));
+                    // prepare send welcome email checkbox, if customer is not confirmed
+                    // no need to add it, if website id is empty
+                    if ($customer->getConfirmation() && $customer->getWebsiteId()) {
+                        $fieldset->addField('sendemail', 'checkbox', array(
+                            'name'  => 'sendemail',
+                            'label' => Mage::helper('customer')->__('Send Welcome Email after Confirmation')
+                        ));
+                    }
                 }
             }
         }
@@ -130,22 +132,39 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_Account extends Mage_Adminhtml_Bloc
                 'name'  => 'sendemail',
                 'id'    => 'sendemail',
             ));
+            if (!Mage::app()->isSingleStoreMode()) {
+                $fieldset->addField('sendemail_store_id', 'select', array(
+                    'label' => $this->helper('customer')->__('Send From'),
+                    'name' => 'sendemail_store_id',
+                    'values' => Mage::getSingleton('adminhtml/system_store')->getStoreValuesForForm()
+                ));
+            }
         }
 
-        // make sendemail disabled, if website_id has empty value
-        if ($sendemail = $form->getElement('sendemail')) {
+        // make sendemail and sendmail_store_id disabled, if website_id has empty value
+        if ($sendemail = $form->getElement('sendemail_store_id')) {
             $prefix = $form->getHtmlIdPrefix();
             $sendemail->setAfterElementHtml(
                 '<script type="text/javascript">'
                 . "
                 $('{$prefix}website_id').disableSendemail = function() {
                     $('{$prefix}sendemail').disabled = ('' == this.value || '0' == this.value);
+                    $('{$prefix}sendemail_store_id').disabled = ('' == this.value || '0' == this.value);
                 }.bind($('{$prefix}website_id'));
-                Event.observe('{$prefix}website_id', 'click', $('{$prefix}website_id').disableSendemail);
+                Event.observe('{$prefix}website_id', 'change', $('{$prefix}website_id').disableSendemail);
                 $('{$prefix}website_id').disableSendemail();
                 "
                 . '</script>'
             );
+        }
+
+        if ($customer->isReadonly()) {
+            foreach ($customer->getAttributes() as $attribute) {
+                $element = $form->getElement($attribute->getAttributeCode());
+                if ($element) {
+                    $element->setReadonly(true, true);
+                }
+            }
         }
 
         $form->setValues($customer->getData());

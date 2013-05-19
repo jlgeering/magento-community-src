@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Log
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Log
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -83,12 +83,10 @@ class Mage_Log_Model_Mysql4_Log extends Mage_Core_Model_Mysql4_Abstract
                 array('visitor_id' => 'visitor_table.visitor_id'))
             ->joinLeft(
                 array('customer_table' => $this->getTable('log/customer')),
-                'visitor_table.visitor_id = customer_table.visitor_id',
+                'visitor_table.visitor_id = customer_table.visitor_id AND customer_table.log_id IS NULL',
                 array())
-            ->where('customer_table.log_id IS NULL')
             ->where('visitor_table.last_visit_at < ?', gmdate('Y-m-d H:i:s', time() - $time))
-            ->order('visitor_table.visitor_id')
-            ->limit(1000);
+            ->limit(100);
 
             $query = $this->_getReadAdapter()->query($select);
             $visitorIds = array();
@@ -179,7 +177,7 @@ class Mage_Log_Model_Mysql4_Log extends Mage_Core_Model_Mysql4_Abstract
                 ->where('log_id>?', $customerLogId)
                 ->where('log_id<?', $lastLogId + 1)
                 ->order('log_id')
-                ->limit(1000);
+                ->limit(100);
 
             $query = $this->_getReadAdapter()->query($select);
             $count = 0;
@@ -253,8 +251,7 @@ class Mage_Log_Model_Mysql4_Log extends Mage_Core_Model_Mysql4_Abstract
                     'url_info_table.url_id = url_table.url_id',
                     array())
                 ->where('url_table.url_id IS NULL')
-                ->order('url_info_table.url_id ASC')
-                ->limit(1000);
+                ->limit(100);
             $query = $this->_getReadAdapter()->query($select);
             while ($row = $query->fetch()) {
                 $urlIds[] = $row['url_id'];

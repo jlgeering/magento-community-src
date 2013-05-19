@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -72,6 +72,17 @@ class Mage_GoogleBase_Model_Config extends Varien_Object
     }
 
     /**
+     * Google Account type
+     *
+     * @param int $storeId
+     * @return string
+     */
+    public function getAccountType($storeId = null)
+    {
+        return $this->getConfigData('account_type', $storeId);
+    }
+
+    /**
      * Google Account target country info
      *
      * @param int $storeId
@@ -113,7 +124,7 @@ class Mage_GoogleBase_Model_Config extends Varien_Object
      */
     public function isValidBaseCurrencyCode($storeId = null)
     {
-        return Mage::app()->getBaseCurrencyCode() == $this->getTargetCurrency($storeId);
+        return Mage::app()->getStore($storeId)->getBaseCurrencyCode() == $this->getTargetCurrency($storeId);
     }
 
     /**

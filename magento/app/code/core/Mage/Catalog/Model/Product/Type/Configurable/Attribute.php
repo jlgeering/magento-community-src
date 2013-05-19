@@ -18,27 +18,37 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
 /**
- * Catalog super product attribute model
+ * Catalog Configurable Product Attribute Model
  *
  * @category   Mage
  * @package    Mage_Catalog
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Catalog_Model_Product_Type_Configurable_Attribute extends Mage_Core_Model_Abstract
 {
+    /**
+     * Initialize resource model
+     *
+     */
     protected function _construct()
     {
         $this->_init('catalog/product_type_configurable_attribute');
     }
 
+    /**
+     * Add price data to attribute
+     *
+     * @param array $priceData
+     * @return Mage_Catalog_Model_Product_Type_Configurable_Attribute
+     */
     public function addPrice($priceData)
     {
         $data = $this->getPrices();
@@ -50,24 +60,27 @@ class Mage_Catalog_Model_Product_Type_Configurable_Attribute extends Mage_Core_M
         return $this;
     }
 
+    /**
+     * Retrieve attribute label
+     *
+     * @return string
+     */
     public function getLabel()
     {
-        if (is_null($this->getData('label')) && $this->getProductAttribute()) {
-            // If no attribute label seted
-            $this->setData('label', $this->getProductAttribute()->getFrontend()->getLabel());
+        if ($this->getData('use_default') && $this->getProductAttribute()) {
+            return $this->getProductAttribute()->getStoreLabel();
+        } else if (is_null($this->getData('label')) && $this->getProductAttribute()) {
+            $this->setData('label', $this->getProductAttribute()->getStoreLabel());
         }
 
         return $this->getData('label');
     }
 
-    /*protected function _afterLoad()
-    {
-        parent::_afterLoad();
-        $this->_getResource()->loadLabel($this);
-        $this->_getResource()->loadPrices($this);
-        return $this;
-    }*/
-
+    /**
+     * After save process
+     *
+     * @return Mage_Catalog_Model_Product_Type_Configurable_Attribute
+     */
     protected function _afterSave()
     {
         parent::_afterSave();

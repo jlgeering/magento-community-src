@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -42,13 +42,13 @@ class Mage_Catalog_Model_Product_Attribute_Frontend_Image extends Mage_Eav_Model
 
         if( !is_null($size) && file_exists(Mage::getBaseDir('media').DS.'catalog'.DS.'product'.DS.$size.DS.$image) ) {
             # resized image is cached
-            $url = Mage::getBaseUrl('media').'catalog/product/' . $size . '/' . $image;
+            $url = Mage::app()->getStore($object->getStore())->getBaseUrl('media').'catalog/product/' . $size . '/' . $image;
         } elseif( !is_null($size) ) {
             # resized image is not cached
-            $url = Mage::getBaseUrl().'catalog/product/image/size/' . $size . '/' . $image;
+            $url = Mage::app()->getStore($object->getStore())->getBaseUrl().'catalog/product/image/size/' . $size . '/' . $image;
         } elseif ($image) {
             # using original image
-            $url = Mage::getBaseUrl('media').'catalog/product/'.$image;
+            $url = Mage::app()->getStore($object->getStore())->getBaseUrl('media').'catalog/product/'.$image;
         }
         return $url;
     }

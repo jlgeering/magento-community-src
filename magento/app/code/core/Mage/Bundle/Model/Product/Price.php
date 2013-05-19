@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,6 +33,9 @@
  */
 class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Price
 {
+    const PRICE_TYPE_FIXED      = 1;
+    const PRICE_TYPE_DYNAMIC    = 0;
+
     /**
      * Return product base price
      *
@@ -40,7 +43,7 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
      */
     public function getPrice($product)
     {
-        if ($product->getPriceType()) {
+        if ($product->getPriceType() == self::PRICE_TYPE_FIXED) {
             return $product->getData('price');
         } else {
             return 0;
@@ -61,21 +64,24 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
         }
 
         $finalPrice = $product->getPrice();
+        $basePrice  = $finalPrice;
 
         /**
          * Just product with fixed price calculation has price
          */
         if ($finalPrice) {
-            $finalPrice = $this->_applyTierPrice($product, $qty, $finalPrice);
-            $finalPrice = $this->_applySpecialPrice($product, $finalPrice);
+            $tierPrice      = $this->_applyTierPrice($product, $qty, $finalPrice);
+            $specialPrice   = $this->_applySpecialPrice($product, $finalPrice);
+            $finalPrice     = min(array($tierPrice, $specialPrice));
+
             $product->setFinalPrice($finalPrice);
             Mage::dispatchEvent('catalog_product_get_final_price', array('product'=>$product));
             $finalPrice = $product->getData('final_price');
         }
+        $basePrice = $finalPrice;
 
         if ($product->hasCustomOptions()) {
             $customOption = $product->getCustomOption('bundle_option_ids');
-//            $optionIds = unserialize($customOption->getValue());
             $customOption = $product->getCustomOption('bundle_selection_ids');
             $selectionIds = unserialize($customOption->getValue());
             $selections = $product->getTypeInstance(true)->getSelectionsByIds($selectionIds, $product);
@@ -83,7 +89,7 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
                 if ($selection->isSalable()) {
                     $selectionQty = $product->getCustomOption('selection_qty_' . $selection->getSelectionId());
                     if ($selectionQty) {
-                        $finalPrice = $finalPrice + $this->getSelectionPrice($product, $selection, $selectionQty->getValue());
+                        $finalPrice = $finalPrice + $this->getSelectionFinalPrice($product, $selection, $qty, $selectionQty->getValue());
                     }
                 }
             }
@@ -104,7 +110,7 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
 //            }
         }
 
-        $finalPrice = $this->_applyOptionsPrice($product, $qty, $finalPrice);
+        $finalPrice = $finalPrice + $this->_applyOptionsPrice($product, $qty, $basePrice) - $basePrice;
         $product->setFinalPrice($finalPrice);
 
         return max(0, $product->getData('final_price'));
@@ -115,87 +121,126 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
         return $this->getSelectionFinalPrice($product, $childProduct, $productQty, $childProductQty, false);
     }
 
+    /**
+     * Retrieve Price
+     *
+     * @param unknown_type $product
+     * @param unknown_type $which
+     * @return unknown
+     */
     public function getPrices($product, $which = null)
     {
-        /**
-         * Check if product price is fixed
-         */
-        if ($product->getPriceType()) {
-            $minimalPrice = $maximalPrice = $product->getFinalPrice();
+        // check calculated price index
+        if ($product->getData('min_price') && $product->getData('max_price')) {
+            $minimalPrice = $product->getData('min_price');
+            $maximalPrice = $product->getData('max_price');
         } else {
-            $minimalPrice = $maximalPrice = $product->getPrice();
-        }
+            /**
+             * Check if product price is fixed
+             */
+            $finalPrice = $product->getFinalPrice();
+            if ($product->getPriceType() == self::PRICE_TYPE_FIXED) {
+                $minimalPrice = $maximalPrice = $finalPrice;
+            } else { // PRICE_TYPE_DYNAMIC
+                $minimalPrice = $maximalPrice = 0;
+            }
 
-        if ($options = $this->getOptions($product)) {
-            foreach ($options as $option) {
-                if ($option->getSelections()) {
+            $options = $this->getOptions($product);
+            $minPriceFounded = false;
 
-                    $selectionMinimalPrices = array();
-                    $selectionMaximalPrices = array();
+            if ($options) {
+                foreach ($options as $option) {
+                    /* @var $option Mage_Bundle_Model_Option */
+                    $selections = $option->getSelections();
+                    if ($selections) {
+                        $selectionMinimalPrices = array();
+                        $selectionMaximalPrices = array();
 
-                    foreach ($option->getSelections() as $selection) {
-                        if (!$selection->isSalable()) {
-                            continue;
+                        foreach ($option->getSelections() as $selection) {
+                            /* @var $selection Mage_Bundle_Model_Selection */
+                            if (!$selection->isSalable()) {
+                                /**
+                                 * @todo CatalogInventory Show out of stock Products
+                                 */
+                                continue;
+                            }
+
+                            $qty = $selection->getSelectionQty();
+                            if ($selection->getSelectionCanChangeQty() && $option->isMultiSelection()) {
+                                $qty = min(1, $qty);
+                            }
+
+                            $selectionMinimalPrices[] = $this->getSelectionFinalPrice($product, $selection, 1, $qty);
+                            $selectionMaximalPrices[] = $this->getSelectionFinalPrice($product, $selection, 1);
                         }
 
-                        $qty = $selection->getSelectionQty();
-                        if ($selection->getSelectionCanChangeQty() && $option->getType() != 'multi' && $option->getType() != 'checkbox') {
-                            $qty = min(1, $qty);
-                        }
+                        if (count($selectionMinimalPrices)) {
+                            $selMinPrice = min($selectionMinimalPrices);
+                            if ($option->getRequired()) {
+                                $minimalPrice += $selMinPrice;
+                                $minPriceFounded = true;
+                            } elseif (true !== $minPriceFounded) {
+                                $minPriceFounded = false === $minPriceFounded ? $selMinPrice : min($minPriceFounded, $selMinPrice);
+                            }
 
-                        $selectionMinimalPrices[] = $this->getSelectionPrice($product, $selection, $qty);
-                        $selectionMaximalPrices[] = $this->getSelectionPrice($product, $selection);
-                    }
-
-                    if (count($selectionMinimalPrices)) {
-                        if ($option->getRequired()) {
-                            $minimalPrice += min($selectionMinimalPrices);
-                        }
-
-                        if ($option->isMultiSelection()) {
-                            $maximalPrice += array_sum($selectionMaximalPrices);
-                        } else {
-                            $maximalPrice += max($selectionMaximalPrices);
+                            if ($option->isMultiSelection()) {
+                                $maximalPrice += array_sum($selectionMaximalPrices);
+                            } else {
+                                $maximalPrice += max($selectionMaximalPrices);
+                            }
                         }
                     }
                 }
             }
-        }
+            // condition is TRUE when all product options are NOT required
+            if (! is_bool($minPriceFounded)) {
+                $minimalPrice = $minPriceFounded;
+            }
 
+            if ($product->getPriceType() == self::PRICE_TYPE_DYNAMIC) {
+                $minimalPrice = $this->_applySpecialPrice($product, $minimalPrice);
+                $maximalPrice = $this->_applySpecialPrice($product, $maximalPrice);
+            }
 
-        $minimalPrice = $this->_applySpecialPrice($product, $minimalPrice);
-        $maximalPrice = $this->_applySpecialPrice($product, $maximalPrice);
+            $customOptions = $product->getOptions();
 
-        if ($customOptions = $product->getOptions()) {
-            foreach ($customOptions as $customOption) {
-                if ($values = $customOption->getValues()) {
-                    $prices = array();
-                    foreach ($values as $value) {
-                        $prices[] = $value->getPrice();
-                    }
-                    if (count($prices)) {
+            if ($product->getPriceType() == self::PRICE_TYPE_FIXED && $customOptions) {
+                foreach ($customOptions as $customOption) {
+                    /* @var $customOption Mage_Catalog_Model_Product_Option */
+                    $values = $customOption->getValues();
+                    if ($values) {
+                        $prices = array();
+                        foreach ($values as $value) {
+                            /* @var $value Mage_Catalog_Model_Product_Option_Value */
+                            $valuePrice = $value->getPrice(true);
+
+                            $prices[] = $valuePrice;
+                        }
+                        if (count($prices)) {
+                            if ($customOption->getIsRequire()) {
+                                $minimalPrice += min($prices);
+                            }
+                            $maximalPrice += max($prices);
+                        }
+                    } else {
+                        $valuePrice = $customOption->getPrice(true);
+
                         if ($customOption->getIsRequire()) {
-                            $minimalPrice += min($prices);
+                            $minimalPrice += $valuePrice;
                         }
-                        $maximalPrice += max($prices);
+                        $maximalPrice += $valuePrice;
                     }
-                } else {
-                    if ($customOption->getIsRequire()) {
-                        $minimalPrice += $customOption->getPrice();
-                    }
-                    $maximalPrice += $customOption->getPrice();
                 }
             }
         }
 
-        if (is_null($which)) {
-            return array($minimalPrice, $maximalPrice);
-        } else if ($which = 'max') {
+        if ($which == 'max') {
             return $maximalPrice;
-        } else if ($which = 'min') {
+        } else if ($which == 'min') {
             return $minimalPrice;
         }
-        return 0;
+
+        return array($minimalPrice, $maximalPrice);
     }
 
     /**
@@ -228,14 +273,17 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
      */
     public function getOptions($product)
     {
-        $product->getTypeInstance(true)->setStoreFilter($product->getStoreId(), $product);
+        $product->getTypeInstance(true)
+            ->setStoreFilter($product->getStoreId(), $product);
 
-        $optionCollection = $product->getTypeInstance(true)->getOptionsCollection($product);
+        $optionCollection = $product->getTypeInstance(true)
+            ->getOptionsCollection($product);
 
-        $selectionCollection = $product->getTypeInstance(true)->getSelectionsCollection(
-            $product->getTypeInstance(true)->getOptionsIds($product),
-            $product
-        );
+        $selectionCollection = $product->getTypeInstance(true)
+            ->getSelectionsCollection(
+                $product->getTypeInstance(true)->getOptionsIds($product),
+                $product
+            );
 
         return $optionCollection->appendSelections($selectionCollection, false, false);
     }
@@ -254,17 +302,18 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
             $selectionQty = $selectionProduct->getSelectionQty();
         }
 
-        if ($bundleProduct->getPriceType() == Mage_Bundle_Block_Adminhtml_Catalog_Product_Edit_Tab_Attributes_Extend::DYNAMIC){
+        if ($bundleProduct->getPriceType() == self::PRICE_TYPE_DYNAMIC) {
             if ($multiplyQty) {
-                return $selectionProduct->getFinalPrice($selectionQty)*$selectionQty;
+                $selectionPrice = $selectionProduct->getFinalPrice($selectionQty) * $selectionQty;
             } else {
-                return $selectionProduct->getFinalPrice($selectionQty);
+                $selectionPrice = $selectionProduct->getFinalPrice($selectionQty);
             }
+            return $selectionPrice;
         } else {
-            if ($selectionProduct->getSelectionPriceType()) {
-                return ($bundleProduct->getPrice()*$selectionProduct->getSelectionPriceValue()/100)*$selectionQty;
+            if ($selectionProduct->getSelectionPriceType()) { // percent
+                return $bundleProduct->getPrice() * ($selectionProduct->getSelectionPriceValue() / 100) * $selectionQty;
             } else {
-                return $selectionProduct->getSelectionPriceValue()*$selectionQty;
+                return $selectionProduct->getSelectionPriceValue() * $selectionQty;
             }
         }
     }
@@ -294,13 +343,14 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
      */
     public function getSelectionFinalPrice($bundleProduct, $selectionProduct, $bundleQty, $selectionQty = null, $multiplyQty = true)
     {
+        $selectionPrice = $this->getSelectionPrice($bundleProduct, $selectionProduct, $selectionQty, $multiplyQty);
         // apply bundle tier price
-        $finalPrice = $this->_applyTierPrice($bundleProduct, $bundleQty, $this->getSelectionPrice($bundleProduct, $selectionProduct, $selectionQty, $multiplyQty));
+        $tierPrice = $this->_applyTierPrice($bundleProduct, $bundleQty, $selectionPrice);
 
         // apply bundle special price
-        $finalPrice = $this->_applySpecialPrice($bundleProduct, $finalPrice);
+        $specialPrice = $this->_applySpecialPrice($bundleProduct, $selectionPrice);
 
-        return $finalPrice;
+        return min(array($tierPrice, $specialPrice));
     }
 
     /**
@@ -318,8 +368,9 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
         }
 
         $tierPrice  = $product->getTierPrice($qty);
+
         if (is_numeric($tierPrice)) {
-            $tierPrice = $finalPrice - ($finalPrice*$tierPrice)/100;
+            $tierPrice = $finalPrice - ($finalPrice * ($tierPrice / 100));
             $finalPrice = min($finalPrice, $tierPrice);
         }
         return $finalPrice;
@@ -379,15 +430,30 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
                     // found tier qty is same as current tier qty but current tier group is ALL_GROUPS
                     continue;
                 }
-                $prevPrice  = $price['website_price'];
-                $prevQty    = $price['price_qty'];
-                $prevGroup  = $price['cust_group'];
+
+                if ($price['website_price'] > $prevPrice) {
+                    $prevPrice  = $price['website_price'];
+                    $prevQty    = $price['price_qty'];
+                    $prevGroup  = $price['cust_group'];
+                }
             }
+
             return $prevPrice;
         } else {
-            foreach ($prices as $i=>$price) {
-                if ($price['cust_group']!=$custGroup && $price['cust_group']!=$allGroups) {
+            $qtyCache = array();
+            foreach ($prices as $i => $price) {
+                if ($price['cust_group'] != $custGroup && $price['cust_group'] != $allGroups) {
                     unset($prices[$i]);
+                } else if (isset($qtyCache[$price['price_qty']])) {
+                    $j = $qtyCache[$price['price_qty']];
+                    if ($prices[$j]['website_price'] < $price['website_price']) {
+                        unset($prices[$j]);
+                        $qtyCache[$price['price_qty']] = $i;
+                    } else {
+                        unset($prices[$i]);
+                    }
+                } else {
+                    $qtyCache[$price['price_qty']] = $i;
                 }
             }
         }
@@ -543,22 +609,22 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
     public static function calculateSpecialPrice($finalPrice, $specialPrice, $specialPriceFrom, $specialPriceTo, $store = null)
     {
         if (!is_null($specialPrice) && $specialPrice != false) {
-            if (!$store instanceof Mage_Core_Model_Store) {
-                $store = Mage::app()->getStore($store);
-            }
-
-            $storeTimeStamp = Mage::app()->getLocale()->storeTimeStamp($store);
-            $fromTimeStamp  = strtotime($specialPriceFrom);
-            $toTimeStamp    = strtotime($specialPriceTo);
-
-            if ($specialPriceFrom && $storeTimeStamp < $fromTimeStamp) {
-            } elseif ($specialPriceTo && $storeTimeStamp > $toTimeStamp) {
-            } else {
+            if (Mage::app()->getLocale()->isStoreDateInInterval($store, $specialPriceFrom, $specialPriceTo)) {
                 $specialPrice   = ($finalPrice * $specialPrice) / 100;
                 $finalPrice     = min($finalPrice, $specialPrice);
             }
         }
         return $finalPrice;
+    }
+
+    /**
+     * Check is tier price value fixed or percent of original price
+     *
+     * @return bool
+     */
+    public function isTierPriceFixed()
+    {
+        return false;
     }
 
     /*

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,6 +34,8 @@
 
 class Mage_Adminhtml_Block_Sales_Order_Invoice_Create_Items extends Mage_Adminhtml_Block_Sales_Items_Abstract
 {
+    protected $_disableSubmitButton = false;
+
     /**
      * Prepare child blocks
      *
@@ -50,17 +52,40 @@ class Mage_Adminhtml_Block_Sales_Order_Invoice_Create_Items extends Mage_Adminht
                 'onclick'   => $onclick,
             ))
         );
-
+        $this->_disableSubmitButton = true;
+        $_submitButtonClass = ' disabled';
+        foreach ($this->getInvoice()->getAllItems() as $item) {
+            /**
+             * @see bug #14839
+             */
+            if ($item->getQty()/* || $this->getSource()->getData('base_grand_total')*/) {
+                $this->_disableSubmitButton = false;
+                $_submitButtonClass = '';
+                break;
+            }
+        }
+        $_submitLabel = $this->getOrder()->getForcedDoShipmentWithInvoice()?'Submit Invoice and Shipment':'Submit Invoice';
         $this->setChild(
             'submit_button',
             $this->getLayout()->createBlock('adminhtml/widget_button')->setData(array(
-                'label'     => Mage::helper('sales')->__('Submit Invoice'),
-                'class'     => 'save submit-button',
-                'onclick'   => '$(\'edit_form\').submit()',
+                'label'     => Mage::helper('sales')->__('%s', $_submitLabel),
+                'class'     => 'save submit-button' . $_submitButtonClass,
+                'onclick'   => 'disableElements(\'submit-button\');$(\'edit_form\').submit()',
+                'disabled'  => $this->_disableSubmitButton
             ))
         );
 
         return parent::_prepareLayout();
+    }
+
+    /**
+     * Get is submit button disabled or not
+     *
+     * @return boolean
+     */
+    public function getDisableSubmitButton()
+    {
+        return $this->_disableSubmitButton;
     }
 
     /**
@@ -86,7 +111,7 @@ class Mage_Adminhtml_Block_Sales_Order_Invoice_Create_Items extends Mage_Adminht
     /**
      * Retrieve invoice model instance
      *
-     * @return Mage_Sales_Model_Invoice
+     * @return Mage_Sales_Model_Order_Invoice
      */
     public function getInvoice()
     {
@@ -111,7 +136,7 @@ class Mage_Adminhtml_Block_Sales_Order_Invoice_Create_Items extends Mage_Adminht
     public function getOrderTotalbarData()
     {
         $totalbarData = array();
-        $this->setPriceDataObject($this->getInvoice());
+        $this->setPriceDataObject($this->getInvoice()->getOrder());
         $totalbarData[] = array(Mage::helper('sales')->__('Paid Amount'), $this->displayPriceAttribute('amount_paid'), false);
         $totalbarData[] = array(Mage::helper('sales')->__('Refund Amount'), $this->displayPriceAttribute('amount_refunded'), false);
         $totalbarData[] = array(Mage::helper('sales')->__('Shipping Amount'), $this->displayPriceAttribute('shipping_captured'), false);
@@ -159,12 +184,31 @@ class Mage_Adminhtml_Block_Sales_Order_Invoice_Create_Items extends Mage_Adminht
         return true;
     }
 
+    /**
+     * Check if capture operation is allowed in ACL
+     * @return bool
+     */
+    public function isCaptureAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/capture');
+    }
+
+    /**
+     * Check if invoice can be captured
+     * @return bool
+     */
     public function canCapture()
     {
-        if (Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/capture')) {
-            return $this->getInvoice()->canCapture();
-        }
-        return false;
+        return $this->getInvoice()->canCapture();
+    }
+
+    /**
+     * Check if gateway is associated with invoice order
+     * @return bool
+     */
+    public function isGatewayUsed()
+    {
+        return $this->getInvoice()->getOrder()->getPayment()->getMethodInstance()->isGateway();
     }
 
     public function canSendInvoiceEmail()

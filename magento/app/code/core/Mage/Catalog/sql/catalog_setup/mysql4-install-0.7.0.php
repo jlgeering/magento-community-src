@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 $installer = $this;
@@ -499,8 +499,6 @@ CREATE TABLE {$this->getTable('catalog_product_visibility')} (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Available product visibility';
 
 insert  into {$this->getTable('catalog_product_visibility')}(`visibility_id`,`visibility_code`) values (1,'Nowhere'),(2,'Catalog'),(3,'Search'),(4,'Catalog, Search');
-
-insert  into {$this->getTable('core_email_template')}(`template_id`,`template_code`,`template_text`,`template_type`,`template_subject`,`template_sender_name`,`template_sender_email`,`added_at`,`modified_at`) values (NULL,'Send product to a friend','Welcome, {{var name}}<br /><br />Please look at <a href=\"{{var product.getProductUrl()}}\">{{var product.name}}</a><br /><br />Here is message: <br />{{var message}}<br /><br />',2,'Welcome, {{var name}}',NULL,NULL,NOW(),NOW());
 
 ALTER TABLE `{$this->getTable('catalog_category_entity')}` ADD `path` VARCHAR( 255 ) NOT NULL, ADD `position` INT NOT NULL;
 

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_ProductAlert
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_ProductAlert
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -32,15 +32,8 @@
  * @package    Mage_ProductAlert
  * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_ProductAlert_Block_Email_Stock extends Mage_Core_Block_Template
+class Mage_ProductAlert_Block_Email_Stock extends Mage_ProductAlert_Block_Email_Abstract
 {
-    /**
-     * Product collection array
-     *
-     * @var array
-     */
-    protected $_products = array();
-
     /**
      * Constructor
      *
@@ -52,35 +45,6 @@ class Mage_ProductAlert_Block_Email_Stock extends Mage_Core_Block_Template
     }
 
     /**
-     * Add product to collection
-     *
-     * @param Mage_Catalog_Model_Product $product
-     */
-    public function addProduct(Mage_Catalog_Model_Product $product)
-    {
-        $this->_products[$product->getId()] = $product;
-    }
-
-    /**
-     * Reset product collection
-     *
-     */
-    public function reset()
-    {
-        $this->_products = array();
-    }
-
-    /**
-     * Retrieve product collection array
-     *
-     * @return array
-     */
-    public function getProducts()
-    {
-        return $this->_products;
-    }
-
-    /**
      * Retrive unsubscribe url for product
      *
      * @param int $productId
@@ -88,10 +52,9 @@ class Mage_ProductAlert_Block_Email_Stock extends Mage_Core_Block_Template
      */
     public function getProductUnsubscribeUrl($productId)
     {
-        return $this->getUrl('productalert/unsubscribe/stock', array(
-            'product' => $productId,
-            '_query'  => $this->_getStoreUrlParam()
-        ));
+        $params = $this->_getUrlParams();
+        $params['product'] = $productId;
+        return $this->getUrl('productalert/unsubscribe/stock', $params);
     }
 
     /**
@@ -101,23 +64,6 @@ class Mage_ProductAlert_Block_Email_Stock extends Mage_Core_Block_Template
      */
     public function getUnsubscribeUrl()
     {
-        return $this->getUrl('productalert/unsubscribe/stockAll', array(
-            '_query'  => $this->_getStoreUrlParam()
-        ));
-    }
-
-    /**
-     * Get store url param (GET)
-     *
-     * @return string
-     */
-    protected function _getStoreUrlParam()
-    {
-        if ($this->getStoreCode()) {
-            return array(
-                '___store' => $this->getStoreCode()
-            );
-        }
-        return array();
+        return $this->getUrl('productalert/unsubscribe/stockAll', $this->_getUrlParams());
     }
 }

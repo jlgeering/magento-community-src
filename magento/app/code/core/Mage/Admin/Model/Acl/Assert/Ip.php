@@ -18,21 +18,21 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Admin
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Admin
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
 /**
  * IP assertion for admin acl
- * 
+ *
  * @category   Mage
  * @package    Mage_Admin
  * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Admin_Model_Acl_Assert_Ip implements Zend_Acl_Assert_Interface 
+class Mage_Admin_Model_Acl_Assert_Ip implements Zend_Acl_Assert_Interface
 {
     /**
      * Check whether ip is allowed
@@ -46,7 +46,7 @@ class Mage_Admin_Model_Acl_Assert_Ip implements Zend_Acl_Assert_Interface
     public function assert(Mage_Admin_Model_Acl $acl, Mage_Admin_Model_Acl_Role $role = null,
                            Mage_Admin_Model_Acl_Resource $resource = null, $privilege = null)
     {
-        return $this->_isCleanIP($_SERVER['REMOTE_ADDR']);
+        return $this->_isCleanIP(Mage::helper('core/http')->getRemoteAddr());
     }
 
     protected function _isCleanIP($ip)

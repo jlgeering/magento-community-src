@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Core
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -40,11 +40,42 @@ class Mage_Core_Block_Messages extends Mage_Core_Block_Template
      */
     protected $_messages;
 
+    /**
+     * Store first level html tag name for messages html output
+     *
+     * @var string
+     */
+    protected $_messagesFirstLevelTagName = 'ul';
+
+    /**
+     * Store second level html tag name for messages html output
+     *
+     * @var string
+     */
+    protected $_messagesSecondLevelTagName = 'li';
+
+    /**
+     * Flag which require message text escape
+     *
+     * @var bool
+     */
+    protected $_escapeMessageFlag = false;
+
     public function _prepareLayout()
     {
         $this->addMessages(Mage::getSingleton('core/session')->getMessages(true));
-
         parent::_prepareLayout();
+    }
+
+    /**
+     * Set message escape flag
+     * @param bool $flag
+     * @return Mage_Core_Block_Messages
+     */
+    public function setEscapeMessageFlag($flag)
+    {
+        $this->_escapeMessageFlag = $flag;
+        return $this;
     }
 
     /**
@@ -59,6 +90,12 @@ class Mage_Core_Block_Messages extends Mage_Core_Block_Template
         return $this;
     }
 
+    /**
+     * Add messages to display
+     *
+     * @param Mage_Core_Model_Message_Collection $messages
+     * @return Mage_Core_Block_Messages
+     */
     public function addMessages(Mage_Core_Model_Message_Collection $messages)
     {
         foreach ($messages->getItems() as $message) {
@@ -159,11 +196,13 @@ class Mage_Core_Block_Messages extends Mage_Core_Block_Template
      */
     public function getHtml($type=null)
     {
-        $html = '<ul id="admin_messages">';
+        $html = '<' . $this->_messagesFirstLevelTagName . ' id="admin_messages">';
         foreach ($this->getMessages($type) as $message) {
-            $html.= '<li class="'.$message->getType().'-msg">'.$message->getText().'</li>';
+            $html.= '<' . $this->_messagesSecondLevelTagName . ' class="'.$message->getType().'-msg">'
+                . ($this->_escapeMessageFlag) ? $this->htmlEscape($message->getText()) : $message->getText()
+                . '</' . $this->_messagesSecondLevelTagName . '>';
         }
-        $html .= '</ul>';
+        $html .= '</' . $this->_messagesFirstLevelTagName . '>';
         return $html;
     }
 
@@ -185,22 +224,22 @@ class Mage_Core_Block_Messages extends Mage_Core_Block_Template
         foreach ($types as $type) {
             if ( $messages = $this->getMessages($type) ) {
                 if ( !$html ) {
-                    $html .= '<ul class="messages">';
+                    $html .= '<' . $this->_messagesFirstLevelTagName . ' class="messages">';
                 }
-                $html .= '<li class="' . $type . '-msg">';
-                $html .= '<ul>';
+                $html .= '<' . $this->_messagesSecondLevelTagName . ' class="' . $type . '-msg">';
+                $html .= '<' . $this->_messagesFirstLevelTagName . '>';
 
                 foreach ( $messages as $message ) {
-                    $html.= '<li>';
-                    $html.= $message->getText();
-                    $html.= '</li>';
+                    $html.= '<' . $this->_messagesSecondLevelTagName . '>';
+                    $html.= ($this->_escapeMessageFlag) ? $this->htmlEscape($message->getText()) : $message->getText();
+                    $html.= '</' . $this->_messagesSecondLevelTagName . '>';
                 }
-                $html .= '</ul>';
-                $html .= '</li>';
+                $html .= '</' . $this->_messagesFirstLevelTagName . '>';
+                $html .= '</' . $this->_messagesSecondLevelTagName . '>';
             }
         }
         if ( $html) {
-            $html .= '</ul>';
+            $html .= '</' . $this->_messagesFirstLevelTagName . '>';
         }
         return $html;
     }
@@ -208,5 +247,25 @@ class Mage_Core_Block_Messages extends Mage_Core_Block_Template
     protected function _toHtml()
     {
         return $this->getGroupedHtml();
+    }
+
+    /**
+     * Set messages first level html tag name for output messages as html
+     *
+     * @param string $tagName
+     */
+    public function setMessagesFirstLevelTagName($tagName)
+    {
+        $this->_messagesFirstLevelTagName = $tagName;
+    }
+
+    /**
+     * Set messages first level html tag name for output messages as html
+     *
+     * @param string $tagName
+     */
+    public function setMessagesSecondLevelTagName($tagName)
+    {
+        $this->_messagesSecondLevelTagName = $tagName;
     }
 }

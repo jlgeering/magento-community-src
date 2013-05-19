@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -33,13 +33,33 @@
  */
 class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Action
 {
-
     const FLAG_IS_URLS_CHECKED = 'check_url_settings';
+
+    /**
+     * Array of actions which can be processed without secret key validation
+     *
+     * @var array
+     */
+    protected $_publicActions = array();
 
     /**
      * Used module name in current adminhtml controller
      */
     protected $_usedModuleName = 'adminhtml';
+
+    /**
+     * Currently used area
+     *
+     * @var string
+     */
+    protected $_currentArea = 'adminhtml';
+
+    /**
+     * Namespace for session.
+     *
+     * @var string
+     */
+    protected $_sessionNamespace = 'adminhtml';
 
     protected function _isAllowed()
     {
@@ -107,11 +127,6 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
         return $this;
     }
 
-    public function hasAction($action)
-    {
-        return true;
-    }
-
     /**
      * Controller predispatch method
      *
@@ -119,38 +134,44 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
      */
     public function preDispatch()
     {
-        Mage::getDesign()->setArea('adminhtml')
+        // override admin store design settings via stores section
+        Mage::getDesign()
+            ->setArea($this->_currentArea)
             ->setPackageName((string)Mage::getConfig()->getNode('stores/admin/design/package/name'))
-            ->setTheme((string)Mage::getConfig()->getNode('stores/admin/design/theme/default'));
+            ->setTheme((string)Mage::getConfig()->getNode('stores/admin/design/theme/default'))
+        ;
+        foreach (array('layout', 'template', 'skin', 'locale') as $type) {
+            if ($value = (string)Mage::getConfig()->getNode("stores/admin/design/theme/{$type}")) {
+                Mage::getDesign()->setTheme($type, $value);
+            }
+        }
 
-        $this->getLayout()->setArea('adminhtml');
+        $this->getLayout()->setArea($this->_currentArea);
 
         Mage::dispatchEvent('adminhtml_controller_action_predispatch_start', array());
-
         parent::preDispatch();
-
         $_isValidFormKey = true;
         $_isValidSecretKey = true;
         $_keyErrorMsg = '';
         if (Mage::getSingleton('admin/session')->isLoggedIn()) {
             if ($this->getRequest()->isPost()) {
                 $_isValidFormKey = $this->_validateFormKey();
-                $_keyErrorMsg = 'Invalid Form Key';
+                $_keyErrorMsg = Mage::helper('adminhtml')->__('Invalid Form Key. Please refresh the page.');
             } elseif (Mage::getSingleton('adminhtml/url')->useSecretKey()) {
                 $_isValidSecretKey = $this->_validateSecretKey();
-                $_keyErrorMsg = 'Invalid Secret Key';
+                $_keyErrorMsg = Mage::helper('adminhtml')->__('Invalid Secret Key. Please refresh the page.');
             }
         }
         if (!$_isValidFormKey || !$_isValidSecretKey) {
             $this->setFlag('', self::FLAG_NO_DISPATCH, true);
             $this->setFlag('', self::FLAG_NO_POST_DISPATCH, true);
             if ($this->getRequest()->getQuery('isAjax', false) || $this->getRequest()->getQuery('ajax', false)) {
-                $this->getResponse()->setBody(Zend_Json::encode(array(
+                $this->getResponse()->setBody(Mage::helper('core')->jsonEncode(array(
                     'error' => true,
-                    'error_msg' => Mage::helper('adminhtml')->__($_keyErrorMsg)
+                    'message' => $_keyErrorMsg
                 )));
             } else {
-                $this->_redirect('*/index/index');
+                $this->_redirect( Mage::getSingleton('admin/session')->getUser()->getStartupPageUrl() );
             }
             return $this;
         }
@@ -167,7 +188,7 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
             && !$this->getRequest()->getParam('forwarded')
             && !$this->_getSession()->getIsUrlNotice(true)
             && !Mage::getConfig()->getNode('global/can_use_base_url')) {
-            $this->_checkUrlSettings();
+            //$this->_checkUrlSettings();
             $this->setFlag('', self::FLAG_IS_URLS_CHECKED, true);
         }
         if (is_null(Mage::getSingleton('adminhtml/session')->getLocale())) {
@@ -177,6 +198,10 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
         return $this;
     }
 
+    /**
+     * @deprecated after 1.4.0.0 alpha, logic moved to Mage_Adminhtml_Block_Notification_Baseurl
+     * @return Mage_Adminhtml_Controller_Action
+     */
     protected function _checkUrlSettings()
     {
         /**
@@ -193,7 +218,7 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
 
         if ($defaultSecure == '{{base_url}}' || $defaultUnsecure == '{{base_url}}') {
             $this->_getSession()->addNotice(
-                $this->__('{{base_url}} is not recommended to use in a production environment to declare the Base Unsecure Url / Base Secure Url. It is highly recommended to change this value in your Magento <a href="%s">configuration</a>.', $this->getUrl('adminhtml/system_config/edit', array('section'=>'web')))
+                $this->__('{{base_url}} is not recommended to use in a production environment to declare the Base Unsecure URL / Base Secure URL. It is highly recommended to change this value in your Magento <a href="%s">configuration</a>.', $this->getUrl('adminhtml/system_config/edit', array('section'=>'web')))
             );
             return $this;
         }
@@ -214,7 +239,7 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
 
             if ($url) {
                 $this->_getSession()->addNotice(
-                    $this->__('{{base_url}} is not recommended to use in a production environment to declare the Base Unsecure Url / Base Secure Url. It is highly recommended to change this value in your Magento <a href="%s">configuration</a>.', $url)
+                    $this->__('{{base_url}} is not recommended to use in a production environment to declare the Base Unsecure URL / Base Secure URL. It is highly recommended to change this value in your Magento <a href="%s">configuration</a>.', $url)
                 );
                 return $this;
             }
@@ -303,9 +328,10 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
      * Declare headers and content file in responce for file download
      *
      * @param string $fileName
-     * @param string $content set to null to avoid starting output, $contentLength should be set explicitly in that case
+     * @param string|array $content set to null to avoid starting output, $contentLength should be set explicitly in
+     *                              that case
      * @param string $contentType
-     * @param int $contentLength explicit content length, if strlen($content) isn't applicable
+     * @param int $contentLength    explicit content length, if strlen($content) isn't applicable
      * @return Mage_Adminhtml_Controller_Action
      */
     protected function _prepareDownloadResponse($fileName, $content, $contentType = 'application/octet-stream', $contentLength = null)
@@ -315,16 +341,47 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
             $this->_redirect($session->getUser()->getStartupPageUrl());
             return $this;
         }
+
+        $isFile = false;
+        $file   = null;
+        if (is_array($content)) {
+            if (!isset($content['type']) || !isset($content['value'])) {
+                return $this;
+            }
+            if ($content['type'] == 'filename') {
+                $isFile         = true;
+                $file           = $content['value'];
+                $contentLength  = filesize($file);
+            }
+        }
+
         $this->getResponse()
             ->setHttpResponseCode(200)
             ->setHeader('Pragma', 'public', true)
             ->setHeader('Cache-Control', 'must-revalidate, post-check=0, pre-check=0', true)
             ->setHeader('Content-type', $contentType, true)
             ->setHeader('Content-Length', is_null($contentLength) ? strlen($content) : $contentLength)
-            ->setHeader('Content-Disposition', 'attachment; filename=' . $fileName)
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$fileName.'"')
             ->setHeader('Last-Modified', date('r'));
+
         if (!is_null($content)) {
-            $this->getResponse()->setBody($content);
+            if ($isFile) {
+                $this->getResponse()->clearBody();
+                $this->getResponse()->sendHeaders();
+
+                $ioAdapter = new Varien_Io_File();
+                $ioAdapter->open(array('path' => $ioAdapter->dirname($file)));
+                $ioAdapter->streamOpen($file, 'r');
+                while ($buffer = $ioAdapter->streamRead()) {
+                    print $buffer;
+                }
+                $ioAdapter->streamClose();
+                if (!empty($content['rm'])) {
+                    $ioAdapter->rm($file);
+                }
+            } else {
+                $this->getResponse()->setBody($content);
+            }
         }
         return $this;
     }
@@ -345,16 +402,6 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
     protected function _forward($action, $controller = null, $module = null, array $params = null)
     {
         $this->_getSession()->setIsUrlNotice($this->getFlag('', self::FLAG_IS_URLS_CHECKED));
-
-        // Save original values for controller and action included in secret key Urls
-        $_urlModel = Mage::getSingleton('adminhtml/url');
-        if (!$_urlModel->getOriginalControllerName()) {
-            $_urlModel->setOriginalControllerName($this->getRequest()->getControllerName());
-        }
-        if (!$_urlModel->getOriginalActionName()) {
-            $_urlModel->setOriginalActionName($this->getRequest()->getActionName());
-        }
-
         return parent::_forward($action, $controller, $module, $params);
     }
 
@@ -370,7 +417,6 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
         return Mage::helper('adminhtml')->getUrl($route, $params);
     }
 
-
     /**
      * Validate Secret Key
      *
@@ -378,10 +424,12 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
      */
     protected function _validateSecretKey()
     {
-        $url = Mage::getSingleton('adminhtml/url');
+        if (is_array($this->_publicActions) && in_array($this->getRequest()->getActionName(), $this->_publicActions)) {
+            return true;
+        }
 
         if (!($secretKey = $this->getRequest()->getParam(Mage_Adminhtml_Model_Url::SECRET_KEY_PARAM_NAME, null))
-            || $secretKey != $url->getSecretKey($url->getOriginalControllerName(), $url->getOriginalActionName())) {
+            || $secretKey != Mage::getSingleton('adminhtml/url')->getSecretKey()) {
             return false;
         }
         return true;

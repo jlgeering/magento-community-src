@@ -68,6 +68,17 @@ Validator.methods = {
 }
 
 var Validation = Class.create();
+Validation.defaultOptions = {
+    onSubmit : true,
+    stopOnFirst : false,
+    immediate : false,
+    focusOnError : true,
+    useTitles : false,
+    addClassNameToContainer: false,
+    containerClassName: '.input-box',
+    onFormValidate : function(result, form) {},
+    onElementValidate : function(result, elm) {}
+};
 
 Validation.prototype = {
     initialize : function(form, options){
@@ -76,22 +87,35 @@ Validation.prototype = {
             return;
         }
         this.options = Object.extend({
-            onSubmit : true,
-            stopOnFirst : false,
-            immediate : false,
-            focusOnError : true,
-            useTitles : false,
-            onFormValidate : function(result, form) {},
-            onElementValidate : function(result, elm) {}
+            onSubmit : Validation.defaultOptions.onSubmit,
+            stopOnFirst : Validation.defaultOptions.stopOnFirst,
+            immediate : Validation.defaultOptions.immediate,
+            focusOnError : Validation.defaultOptions.focusOnError,
+            useTitles : Validation.defaultOptions.useTitles,
+            onFormValidate : Validation.defaultOptions.onFormValidate,
+            onElementValidate : Validation.defaultOptions.onElementValidate
         }, options || {});
         if(this.options.onSubmit) Event.observe(this.form,'submit',this.onSubmit.bind(this),false);
         if(this.options.immediate) {
-            var useTitles = this.options.useTitles;
-            var callback = this.options.onElementValidate;
             Form.getElements(this.form).each(function(input) { // Thanks Mike!
-                Event.observe(input, 'blur', function(ev) { Validation.validate(Event.element(ev),{useTitle : useTitles, onElementValidate : callback}); });
-            });
+                if (input.tagName.toLowerCase() == 'select') {
+                    Event.observe(input, 'blur', this.onChange.bindAsEventListener(this));
+                }
+                if (input.type.toLowerCase() == 'radio' || input.type.toLowerCase() == 'checkbox') {
+                    Event.observe(input, 'click', this.onChange.bindAsEventListener(this));
+                } else {
+                    Event.observe(input, 'change', this.onChange.bindAsEventListener(this));
+                }
+            }, this);
         }
+    },
+    onChange : function (ev) {
+        Validation.isOnChange = true;
+        Validation.validate(Event.element(ev),{
+                useTitle : this.options.useTitles,
+                onElementValidate : this.options.onElementValidate
+        });
+        Validation.isOnChange = false;
     },
     onSubmit :  function(ev){
         if(!this.validate()) Event.stop(ev);
@@ -102,9 +126,19 @@ Validation.prototype = {
         var callback = this.options.onElementValidate;
         try {
             if(this.options.stopOnFirst) {
-                result = Form.getElements(this.form).all(function(elm) { return Validation.validate(elm,{useTitle : useTitles, onElementValidate : callback}); });
+                result = Form.getElements(this.form).all(function(elm) {
+                    if (elm.hasClassName('local-validation') && !this.isElementInForm(elm, this.form)) {
+                        return true;
+                    }
+                    return Validation.validate(elm,{useTitle : useTitles, onElementValidate : callback});
+                }, this);
             } else {
-                result = Form.getElements(this.form).collect(function(elm) { return Validation.validate(elm,{useTitle : useTitles, onElementValidate : callback}); }).all();
+                result = Form.getElements(this.form).collect(function(elm) {
+                    if (elm.hasClassName('local-validation') && !this.isElementInForm(elm, this.form)) {
+                        return true;
+                    }
+                    return Validation.validate(elm,{useTitle : useTitles, onElementValidate : callback});
+                }, this).all();
             }
         } catch (e) {
 
@@ -122,6 +156,13 @@ Validation.prototype = {
     },
     reset : function() {
         Form.getElements(this.form).each(Validation.reset);
+    },
+    isElementInForm : function(elm, form) {
+        var domForm = elm.up('form');
+        if (domForm == form) {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -144,8 +185,9 @@ Object.extend(Validation, {
         var container = $(elm).up('.field-row');
         if(container){
             Element.insert(container, {after: advice});
-        }
-        else if (elm.advaiceContainer && $(elm.advaiceContainer)) {
+        } else if (elm.up('td.value')) {
+            elm.up('td.value').insert({bottom: advice});
+        } else if (elm.advaiceContainer && $(elm.advaiceContainer)) {
             $(elm.advaiceContainer).update(advice);
         }
         else {
@@ -211,6 +253,20 @@ Object.extend(Validation, {
 
         elm.addClassName('validation-failed');
         elm.addClassName('validate-ajax');
+        if (Validation.defaultOptions.addClassNameToContainer && Validation.defaultOptions.containerClassName != '') {
+            var container = elm.up(Validation.defaultOptions.containerClassName);
+            if (container && this.allowContainerClassName(elm)) {
+                container.removeClassName('validation-passed');
+                container.addClassName('validation-error');
+            }
+        }
+    },
+    allowContainerClassName: function (elm) {
+        if (elm.type == 'radio' || elm.type == 'checkbox') {
+            return elm.hasClassName('change-container-classname');
+        }
+
+        return true;
     },
     test : function(name, elm, useTitle) {
         var v = Validation.get(name);
@@ -230,6 +286,14 @@ Object.extend(Validation, {
                 elm.removeClassName('validation-passed');
                 elm.addClassName('validation-failed');
             }
+
+           if (Validation.defaultOptions.addClassNameToContainer && Validation.defaultOptions.containerClassName != '') {
+                var container = elm.up(Validation.defaultOptions.containerClassName);
+                if (container && this.allowContainerClassName(elm)) {
+                    container.removeClassName('validation-passed');
+                    container.addClassName('validation-error');
+                }
+            }
             return false;
         } else {
             var advice = Validation.getAdvice(name, elm);
@@ -238,6 +302,17 @@ Object.extend(Validation, {
             elm[prop] = '';
             elm.removeClassName('validation-failed');
             elm.addClassName('validation-passed');
+            if (Validation.defaultOptions.addClassNameToContainer && Validation.defaultOptions.containerClassName != '') {
+                var container = elm.up(Validation.defaultOptions.containerClassName);
+                if (container && !container.down('.validation-failed') && this.allowContainerClassName(elm)) {
+                    if (!Validation.get('IsEmpty').test(elm.value) || !this.isVisible(elm)) {
+                        container.addClassName('validation-passed');
+                    } else {
+                        container.removeClassName('validation-passed');
+                    }
+                    container.removeClassName('validation-error');
+                }
+            }
             return true;
         }
         } catch(e) {
@@ -293,11 +368,20 @@ Object.extend(Validation, {
             var prop = '__advice'+value.camelize();
             if(elm[prop]) {
                 var advice = Validation.getAdvice(value, elm);
-                advice.hide();
+                if (advice) {
+                    advice.hide();
+                }
                 elm[prop] = '';
             }
             elm.removeClassName('validation-failed');
             elm.removeClassName('validation-passed');
+            if (Validation.defaultOptions.addClassNameToContainer && Validation.defaultOptions.containerClassName != '') {
+                var container = elm.up(Validation.defaultOptions.containerClassName);
+                if (container) {
+                    container.removeClassName('validation-passed');
+                    container.removeClassName('validation-error');
+                }
+            }
         });
     },
     add : function(className, error, test, options) {
@@ -365,15 +449,41 @@ Validation.addAllThese([
     ['validate-email', 'Please enter a valid email address. For example johndoe@domain.com.', function (v) {
                 //return Validation.get('IsEmpty').test(v) || /\w{1,}[@][\w\-]{1,}([.]([\w\-]{1,})){1,3}$/.test(v)
                 //return Validation.get('IsEmpty').test(v) || /^[\!\#$%\*/?|\^\{\}`~&\'\+\-=_a-z0-9][\!\#$%\*/?|\^\{\}`~&\'\+\-=_a-z0-9\.]{1,30}[\!\#$%\*/?|\^\{\}`~&\'\+\-=_a-z0-9]@([a-z0-9_-]{1,30}\.){1,5}[a-z]{2,4}$/i.test(v)
-                return Validation.get('IsEmpty').test(v) || /^[a-z0-9,!\#\$%&'\*\+/=\?\^_`\{\|}~-]+(\.[a-z0-9,!#\$%&'\*\+/=\?\^_`\{\|}~-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*\.([a-z]{2,})/i.test(v)
+                return Validation.get('IsEmpty').test(v) || /^[a-z0-9,!\#\$%&'\*\+\/=\?\^_`\{\|\}~-]+(\.[a-z0-9,!\#\$%&'\*\+\/=\?\^_`\{\|\}~-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*\.([a-z]{2,})/i.test(v)
             }],
+    ['validate-emailSender', 'Please use only visible characters and spaces.', function (v) {
+                return Validation.get('IsEmpty').test(v) ||  /^[\S ]+$/.test(v)
+                    }],
     ['validate-password', 'Please enter 6 or more characters. Leading or trailing spaces will be ignored.', function(v) {
                 var pass=v.strip(); /*strip leading and trailing spaces*/
                 return !(pass.length>0 && pass.length < 6);
             }],
+    ['validate-admin-password', 'Please enter 7 or more characters. Password should contain both numeric and alphabetic characters.', function(v) {
+                var pass=v.strip();
+                if (0 == pass.length) {
+                    return true;
+                }
+                if (!(/[a-z]/i.test(v)) || !(/[0-9]/.test(v))) {
+                    return false;
+                }
+                return !(pass.length < 7);
+            }],
     ['validate-cpassword', 'Please make sure your passwords match.', function(v) {
-                var pass = $('password') ? $('password') : $$('.validate-password')[0];
                 var conf = $('confirmation') ? $('confirmation') : $$('.validate-cpassword')[0];
+                var pass = false;
+                if ($('password')) {
+                    pass = $('password');
+                }
+                var passwordElements = $$('.validate-password');
+                for (var i = 0; i < passwordElements.size(); i++) {
+                    var passwordElement = passwordElements[i];
+                    if (passwordElement.up('form').id == conf.up('form').id) {
+                        pass = passwordElement;
+                    }
+                }
+                if ($$('.validate-admin-password').size()) {
+                    pass = $$('.validate-admin-password')[0];
+                }
                 return (pass.value == conf.value);
             }],
     ['validate-url', 'Please enter a valid URL. http:// is required', function (v) {
@@ -382,7 +492,7 @@ Validation.addAllThese([
     ['validate-clean-url', 'Please enter a valid URL. For example http://www.example.com or www.example.com', function (v) {
                 return Validation.get('IsEmpty').test(v) || /^(http|https|ftp):\/\/(([A-Z0-9][A-Z0-9_-]*)(\.[A-Z0-9][A-Z0-9_-]*)+.(com|org|net|dk|at|us|tv|info|uk|co.uk|biz|se)$)(:(\d+))?\/?/i.test(v) || /^(www)((\.[A-Z0-9][A-Z0-9_-]*)+.(com|org|net|dk|at|us|tv|info|uk|co.uk|biz|se)$)(:(\d+))?\/?/i.test(v)
             }],
-    ['validate-identifier', 'Please enter a valid Identifier. For example example-page, example-page.html or anotherlevel/example-page', function (v) {
+    ['validate-identifier', 'Please enter a valid URL Key. For example "example-page", "example-page.html" or "anotherlevel/example-page"', function (v) {
                 return Validation.get('IsEmpty').test(v) || /^[A-Z0-9][A-Z0-9_\/-]+(\.[A-Z0-9_-]+)*$/i.test(v)
             }],
     ['validate-xml-identifier', 'Please enter a valid XML-identifier. For example something_1, block5, id-4', function (v) {
@@ -422,11 +532,16 @@ Validation.addAllThese([
                 });
             }],
     ['validate-one-required-by-name', 'Please select one of the options.', function (v,elm) {
-                var inputs = $$('input');
+                var inputs = $$('input[name="' + elm.name.replace(/([\\"])/g, '\\$1') + '"]');
+
                 var error = 1;
-                for( i in inputs ) {
-                    if( inputs[i].checked == true && inputs[i].name == elm.name ) {
+                for(var i=0;i<inputs.length;i++) {
+                    if((inputs[i].type == 'checkbox' || inputs[i].type == 'radio') && inputs[i].checked == true) {
                         error = 0;
+                    }
+
+                    if(Validation.isOnChange && (inputs[i].type == 'checkbox' || inputs[i].type == 'radio')) {
+                        Validation.reset(inputs[i]);
                     }
                 }
 
@@ -508,15 +623,25 @@ Validation.addAllThese([
                     return false;
                 }
 
+                if (ccTypeContainer.hasClassName('validation-failed') && Validation.isOnChange) {
+                    Validation.validate(ccTypeContainer);
+                }
+
                 return true;
             }],
      ['validate-cc-type-select', 'Card type doesn\'t match credit card number', function(v, elm) {
                 var ccNumberContainer = $(elm.id.substr(0,elm.id.indexOf('_cc_type')) + '_cc_number');
+                if (Validation.isOnChange && Validation.get('IsEmpty').test(ccNumberContainer.value)) {
+                    return true;
+                }
+                if (Validation.get('validate-cc-type').test(ccNumberContainer.value, ccNumberContainer)) {
+                    Validation.validate(ccNumberContainer);
+                }
                 return Validation.get('validate-cc-type').test(ccNumberContainer.value, ccNumberContainer);
             }],
      ['validate-cc-exp', 'Incorrect credit card expiration date', function(v, elm) {
                 var ccExpMonth   = v;
-                var ccExpYear    = $('ccsave_expiration_yr').value;
+                var ccExpYear    = $(elm.id.substr(0,elm.id.indexOf('_expiration')) + '_expiration_yr').value;
                 var currentTime  = new Date();
                 var currentMonth = currentTime.getMonth() + 1;
                 var currentYear  = currentTime.getFullYear();
@@ -567,9 +692,10 @@ Validation.addAllThese([
                         }
                     });
                 return result;
-            }]
-]);
+            }],
+     ['validate-percents', 'Please enter a number lower than 100', {max:100}]
 
+]);
 
 // Credit Card Validation Javascript
 // copyright 12th May 2003, by Stephen Chapman, Felgall Pty Ltd
@@ -644,3 +770,5 @@ Validation.creditCartTypes = $H({
     'SS': [new RegExp('^((6759[0-9]{12})|(49[013][1356][0-9]{13})|(633[34][0-9]{12})|(633110[0-9]{10})|(564182[0-9]{10}))([0-9]{2,3})?$'), new RegExp('^([0-9]{3}|[0-9]{4})?$'), true],
     'OT': [false, new RegExp('^([0-9]{3}|[0-9]{4})?$'), false]
 });
+
+

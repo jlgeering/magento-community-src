@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleOptimizer
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleOptimizer
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -40,6 +40,8 @@ class Mage_GoogleOptimizer_Helper_Data extends Mage_Core_Helper_Abstract
 
     protected $_storeId = null;
 
+    protected $_activeForCmsFlag = null;
+
     public function setStoreId($storeId)
     {
         $this->_storeId = $storeId;
@@ -54,6 +56,31 @@ class Mage_GoogleOptimizer_Helper_Data extends Mage_Core_Helper_Abstract
     public function isOptimizerActive($store = null)
     {
         return Mage::getStoreConfig(self::XML_PATH_ENABLED, $store);
+    }
+
+    /**
+     * Return is active google optimizer for cms.
+     * Return true if optimizer is enabled only for one store|website.
+     *
+     * @return boolean
+     */
+    public function isOptimizerActiveForCms()
+    {
+        if (!is_null($this->_activeForCmsFlag)) {
+            return $this->_activeForCmsFlag;
+        }
+        $stores = array_merge(
+            array(0),
+            array_keys(Mage::getSingleton('adminhtml/system_store')->getStoreCollection())
+        );
+        foreach ($stores as $store) {
+            if ($this->isOptimizerActive($store)) {
+                $this->_activeForCmsFlag = true;
+                return $this->_activeForCmsFlag;
+            }
+        }
+        $this->_activeForCmsFlag = false;
+        return $this->_activeForCmsFlag;
     }
 
     /**

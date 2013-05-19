@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,11 +33,21 @@
  */
 class Mage_Bundle_Model_Mysql4_Option extends Mage_Core_Model_Mysql4_Abstract
 {
+    /**
+     * Initialize connection and define resource
+     *
+     */
     protected function _construct()
     {
         $this->_init('bundle/option', 'option_id');
     }
 
+    /**
+     * After save process
+     *
+     * @param Mage_Core_Model_Abstract $object
+     * @return Mage_Bundle_Model_Mysql4_Option
+     */
     protected function _afterSave(Mage_Core_Model_Abstract $object)
     {
         parent::_afterSave($object);
@@ -68,6 +78,12 @@ class Mage_Bundle_Model_Mysql4_Option extends Mage_Core_Model_Mysql4_Abstract
         return $this;
     }
 
+    /**
+     * After delete process
+     *
+     * @param Mage_Core_Model_Abstract $object
+     * @return Mage_Bundle_Model_Mysql4_Option
+     */
     protected function _afterDelete(Mage_Core_Model_Abstract $object)
     {
         parent::_afterDelete($object);
@@ -76,5 +92,31 @@ class Mage_Bundle_Model_Mysql4_Option extends Mage_Core_Model_Mysql4_Abstract
         $this->_getWriteAdapter()->delete($this->getTable('option_value'), $condition);
 
         return $this;
+    }
+
+/**
+     * Retrieve options searchable data
+     *
+     * @param int $productId
+     * @param int $storeId
+     * @return array
+     */
+    public function getSearchableData($productId, $storeId)
+    {
+        $select = $this->_getReadAdapter()->select()
+            ->from(array('option' => $this->getMainTable()), null)
+            ->join(
+                array('option_title_default' => $this->getTable('bundle/option_value')),
+                'option_title_default.option_id=option.option_id AND option_title_default.store_id=0',
+                array())
+            ->joinLeft(
+                array('option_title_store' => $this->getTable('bundle/option_value')),
+                'option_title_store.option_id=option.option_id AND option_title_store.store_id=' . intval($storeId),
+                array('title' => 'IFNULL(option_title_store.title, option_title_default.title)'))
+            ->where('option.parent_id=?', $productId);
+        if (!$searchData = $this->_getReadAdapter()->fetchCol($select)) {
+            $searchData = array();
+        }
+        return $searchData;
     }
 }

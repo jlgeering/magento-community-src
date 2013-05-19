@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogIndex
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogIndex
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -70,7 +70,7 @@ class Mage_CatalogIndex_Model_Mysql4_Indexer extends Mage_Core_Model_Mysql4_Abst
             if ($products instanceof Mage_Catalog_Model_Product) {
                 $products = $products->getId();
             } elseif ($products instanceof Mage_Catalog_Model_Product_Condition_Interface) {
-            	$suffix = 'entity_id IN ('.$products->getIdsSelect($this->_getWriteAdapter())->__toString().')';
+                $suffix = 'entity_id IN ('.$products->getIdsSelect($this->_getWriteAdapter())->__toString().')';
             }
             else if (!is_numeric($products) && !is_array($products)) {
                 Mage::throwException('Invalid products supplied for indexing');
@@ -605,6 +605,7 @@ class Mage_CatalogIndex_Model_Mysql4_Indexer extends Mage_Core_Model_Mysql4_Abst
         if (is_null($tableName)) {
             $tableName = $this->getTable('catalog/product_flat') . '_' . $storeId;
         }
+        $addChildData = Mage::helper('catalog/product_flat')->isAddChildData();
 
         $priceAttribute = Mage::getSingleton('eav/entity_attribute')
             ->getIdByCode('catalog_product', 'price');
@@ -623,11 +624,13 @@ class Mage_CatalogIndex_Model_Mysql4_Indexer extends Mage_Core_Model_Mysql4_Abst
                         . " AND `p`.`attribute_id`={$priceAttribute}"
                         . " AND `p`.`customer_group_id`={$group->getId()}"
                         . " AND `p`.`website_id`={$websiteId}",
-                    array($columnName => 'value'))
-                ->where('e.is_child=?', 0);
+                    array($columnName => 'value'));
+            if ($addChildData) {
+                $select->where('e.is_child=?', 0);
+            }
 
             if ($productIds instanceof Mage_Catalog_Model_Product_Condition_Interface) {
-            	$select->where('e.entity_id IN ('.$productIds->getIdsSelect($this->_getWriteAdapter())->__toString().')');
+                $select->where('e.entity_id IN ('.$productIds->getIdsSelect($this->_getWriteAdapter())->__toString().')');
             } elseif (!is_null($productIds)) {
                 $select->where("e.entity_id IN(?)", $productIds);
             }
@@ -635,27 +638,29 @@ class Mage_CatalogIndex_Model_Mysql4_Indexer extends Mage_Core_Model_Mysql4_Abst
             $sql = $select->crossUpdateFromSelect(array('e' => $tableName));
             $this->_getWriteAdapter()->query($sql);
 
-            /**
-             * Update prices for children products in flat table
-             */
-            $select = $this->_getWriteAdapter()->select()
-                ->join(
-                    array('p' => $this->getTable('catalogindex/price')),
-                    "`e`.`child_id`=`p`.`entity_id`"
-                        . " AND `p`.`attribute_id`={$priceAttribute}"
-                        . " AND `p`.`customer_group_id`={$group->getId()}"
-                        . " AND `p`.`website_id`={$websiteId}",
-                    array($columnName => 'value'))
-                ->where('e.is_child=?', 1);
+            if ($addChildData) {
+                /**
+                 * Update prices for children products in flat table
+                 */
+                $select = $this->_getWriteAdapter()->select()
+                    ->join(
+                        array('p' => $this->getTable('catalogindex/price')),
+                        "`e`.`child_id`=`p`.`entity_id`"
+                            . " AND `p`.`attribute_id`={$priceAttribute}"
+                            . " AND `p`.`customer_group_id`={$group->getId()}"
+                            . " AND `p`.`website_id`={$websiteId}",
+                        array($columnName => 'value'))
+                    ->where('e.is_child=?', 1);
 
-            if ($productIds instanceof Mage_Catalog_Model_Product_Condition_Interface) {
-            	$select->where('e.child_id IN ('.$productIds->getIdsSelect($this->_getWriteAdapter())->__toString().')');
-            } elseif (!is_null($productIds)) {
-                $select->where("e.child_id IN(?)", $productIds);
+                if ($productIds instanceof Mage_Catalog_Model_Product_Condition_Interface) {
+                    $select->where('e.child_id IN ('.$productIds->getIdsSelect($this->_getWriteAdapter())->__toString().')');
+                } elseif (!is_null($productIds)) {
+                    $select->where("e.child_id IN(?)", $productIds);
+                }
+
+                $sql = $select->crossUpdateFromSelect(array('e' => $tableName));
+                $this->_getWriteAdapter()->query($sql);
             }
-
-            $sql = $select->crossUpdateFromSelect(array('e' => $tableName));
-            $this->_getWriteAdapter()->query($sql);
 
         }
 

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -51,13 +51,23 @@ class Mage_Catalog_Block_Product_View_Options_Type_Date extends Mage_Catalog_Blo
     }
 
     /**
+     * Use JS calendar settings
+     *
+     * @return boolean
+     */
+    public function useCalendar()
+    {
+        return Mage::getSingleton('catalog/product_option_type_date')->useCalendar();
+    }
+
+    /**
      * Date input
      *
      * @return string Formatted Html
      */
     public function getDateHtml()
     {
-        if (Mage::getSingleton('catalog/product_option_type_date')->useCalendar()) {
+        if ($this->useCalendar()) {
             return $this->getCalendarDateHtml();
         } else {
             return $this->getDropDownsDateHtml();
@@ -78,7 +88,7 @@ class Mage_Catalog_Block_Product_View_Options_Type_Date extends Mage_Catalog_Blo
             ->setId('options_'.$this->getOption()->getId().'_date')
             ->setName('options['.$this->getOption()->getId().'][date]')
             ->setClass('product-custom-option datetime-picker input-text' . $require)
-            ->setImage(Mage::getDesign()->getSkinUrl('images/grid-cal.gif'))
+            ->setImage($this->getSkinUrl('images/calendar.gif'))
             ->setExtraParams('onchange="opConfig.reloadPrice()"')
             ->setFormat(Mage::app()->getLocale()->getDateStrFormat(Mage_Core_Model_Locale::FORMAT_TYPE_SHORT));
 
@@ -118,12 +128,13 @@ class Mage_Catalog_Block_Product_View_Options_Type_Date extends Mage_Catalog_Blo
      */
     public function getTimeHtml()
     {
-        $hourStart = 0;
         if (Mage::getSingleton('catalog/product_option_type_date')->is24hTimeFormat()) {
+            $hourStart = 0;
             $hourEnd = 23;
             $dayPartHtml = '';
         } else {
-            $hourEnd = 11;
+            $hourStart = 1;
+            $hourEnd = 12;
             $dayPartHtml = $this->_getHtmlSelect('day_part')
                 ->setOptions(array(
                     'am' => Mage::helper('catalog')->__('AM'),

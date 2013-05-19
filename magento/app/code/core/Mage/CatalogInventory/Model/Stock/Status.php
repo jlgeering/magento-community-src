@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogInventory
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -108,10 +108,10 @@ class Mage_CatalogInventory_Model_Stock_Status extends Mage_Core_Model_Abstract
 
         $websites = $this->_websites;
         if (!is_null($websiteId) && isset($this->_websites[$websiteId])) {
-            $websites = array($this->_websites[$websiteId]);
+            $websites = array($websiteId => $this->_websites[$websiteId]);
         }
 
-        return $this->_websites;
+        return $websites;
     }
 
     /**
@@ -291,6 +291,8 @@ class Mage_CatalogInventory_Model_Stock_Status extends Mage_Core_Model_Abstract
             foreach ($requiredChildrenIds as $groupedChildrenIds) {
                 $childrenIds = array_merge($childrenIds, $groupedChildrenIds);
             }
+            $childrenWebsites = Mage::getSingleton('catalog/product_website')
+                ->getWebsites($childrenIds);
             foreach ($websites as $websiteId => $storeId) {
                 $childrenStatus = $this->getProductStatusModel()
                     ->getProductStatus($childrenIds, $storeId);
@@ -301,6 +303,8 @@ class Mage_CatalogInventory_Model_Stock_Status extends Mage_Core_Model_Abstract
                     $optionStatus = false;
                     foreach ($groupedChildrenIds as $childId) {
                         if (isset($childrenStatus[$childId])
+                            and isset($childrenWebsites[$childId])
+                            and in_array($websiteId, $childrenWebsites[$childId])
                             and $childrenStatus[$childId] == $this->getProductStatusEnabled()
                             and isset($childrenStock[$childId])
                             and $childrenStock[$childId] == self::STATUS_IN_STOCK
@@ -478,6 +482,50 @@ class Mage_CatalogInventory_Model_Stock_Status extends Mage_Core_Model_Abstract
             $product->setStockItem($object);
         }
 
+        return $this;
+    }
+
+    /**
+     * Add stock status to prepare index select
+     *
+     * @param Varien_Db_Select $select
+     * @param Mage_Core_Model_Website $website
+     * @return Mage_CatalogInventory_Model_Stock_Status
+     */
+    public function addStockStatusToSelect(Varien_Db_Select $select, Mage_Core_Model_Website $website)
+    {
+        $this->_getResource()->addStockStatusToSelect($select, $website);
+        return $this;
+    }
+
+    /**
+     * Add stock status limitation to catalog product price index select object
+     *
+     * @param Varien_Db_Select $select
+     * @param string|Zend_Db_Expr $entityField
+     * @param string|Zend_Db_Expr $websiteField
+     * @return Mage_CatalogInventory_Model_Stock_Status
+     */
+    public function prepareCatalogProductIndexSelect(Varien_Db_Select $select, $entityField, $websiteField)
+    {
+        if (Mage::helper('cataloginventory')->isShowOutOfStock()) {
+            return $this;
+        }
+
+        $this->_getResource()->prepareCatalogProductIndexSelect($select, $entityField, $websiteField);
+
+        return $this;
+    }
+
+    /**
+     * Add only is in stock products filter to product collection
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Collection $collection
+     * @return Mage_CatalogInventory_Model_Stock_Status
+     */
+    public function addIsInStockFilterToCollection($collection)
+    {
+        $this->_getResource()->addIsInStockFilterToCollection($collection);
         return $this;
     }
 }

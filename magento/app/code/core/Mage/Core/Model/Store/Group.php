@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Core
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,6 +34,7 @@
 
 class Mage_Core_Model_Store_Group extends Mage_Core_Model_Abstract
 {
+    const ENTITY         = 'store_group';
     const CACHE_TAG      = 'store_group';
 
     protected $_cacheTag = true;
@@ -89,6 +90,11 @@ class Mage_Core_Model_Store_Group extends Mage_Core_Model_Abstract
      * @var Mage_Core_Model_Website
      */
     protected $_website;
+
+    /**
+     * @var bool
+     */
+    private $_isReadOnly = false;
 
     /**
      * init model
@@ -272,5 +278,19 @@ class Mage_Core_Model_Store_Group extends Mage_Core_Model_Abstract
     {
         $this->_protectFromNonAdmin();
         return parent::_beforeDelete();
+    }
+
+    /**
+     * Get/Set isReadOnly flag
+     *
+     * @param bool $value
+     * @return bool
+     */
+    public function isReadOnly($value = null)
+    {
+        if (null !== $value) {
+            $this->_isReadOnly = (bool)$value;
+        }
+        return $this->_isReadOnly;
     }
 }

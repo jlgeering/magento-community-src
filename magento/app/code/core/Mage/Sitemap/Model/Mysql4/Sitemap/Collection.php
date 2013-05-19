@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sitemap
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sitemap
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -43,4 +43,15 @@ class Mage_Sitemap_Model_Mysql4_Sitemap_Collection extends Mage_Core_Model_Mysql
         $this->_init('sitemap/sitemap');
     }
 
+    /**
+     * Filter collection by specified store ids
+     *
+     * @param array|int $storeIds
+     * @return Mage_Sitemap_Model_Mysql4_Sitemap_Collection
+     */
+    public function addStoreFilter($storeIds)
+    {
+        $this->getSelect()->where('main_table.store_id IN (?)', $storeIds);
+        return $this;
+    }
 }

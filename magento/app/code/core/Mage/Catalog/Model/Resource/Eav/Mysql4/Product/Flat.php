@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -53,7 +53,17 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
     }
 
     /**
-     * Set store scope for resource model
+     * Retrieve store for resource model
+     *
+     * @return int
+     */
+    public function getStoreId()
+    {
+        return $this->_storeId;
+    }
+
+    /**
+     * Set store for resource model
      *
      * @param mixed $store
      * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
@@ -72,8 +82,8 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
      */
     public function getFlatTableName($store = null)
     {
-        if (!is_numeric($store)) {
-            $store = Mage::app()->getStore($store)->getId();
+        if (is_null($store)) {
+            $store = $this->getStoreId();
         }
         return $this->getTable('catalog/product_flat') . '_' . $store;
     }
@@ -85,7 +95,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
      */
     public function getTypeId()
     {
-        return Mage::getSingleton('eav/config')
+        return Mage::getSingleton('catalog/config')
             ->getEntityType('catalog_product')
             ->getEntityTypeId();
     }
@@ -138,5 +148,69 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
     {
         $describe = $this->_getWriteAdapter()->describeTable($this->getFlatTableName());
         return array_keys($describe);
+    }
+
+    /**
+     * Check whether the attribute is a real field in entity table
+     * Rewrited for EAV Collection
+     *
+     * @param integer|string|Mage_Eav_Model_Entity_Attribute_Abstract $attribute
+     * @return bool
+     */
+    public function isAttributeStatic($attribute)
+    {
+        $attributeCode = null;
+        if ($attribute instanceof Mage_Eav_Model_Entity_Attribute_Interface) {
+            $attributeCode = $attribute->getAttributeCode();
+        }
+        elseif (is_string($attribute)) {
+            $attributeCode = $attribute;
+        }
+        elseif (is_numeric($attribute)) {
+            $attributeCode = $this->getAttribute($attribute)
+                ->getAttributeCode();
+        }
+
+        if ($attributeCode) {
+            $columns = $this->getAllTableColumns();
+            if (in_array($attributeCode, $columns)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    /**
+     * Retrieve entity id field name in entity table
+     * Rewrited for EAV collection compatible
+     *
+     * @return string
+     */
+    public function getEntityIdField()
+    {
+        return $this->getIdFieldName();
+    }
+
+    /**
+     * Retrieve attribute instance
+     * Special for non static flat table
+     *
+     * @param mixed $attribute
+     * @return Mage_Eav_Model_Entity_Attribute_Abstract
+     */
+    public function getAttribute($attribute)
+    {
+        return Mage::getSingleton('catalog/config')
+            ->getAttribute('catalog_product', $attribute);
+    }
+
+    /**
+     * Retrieve main resource table name
+     *
+     * @return string
+     */
+    public function getMainTable()
+    {
+        return $this->getFlatTableName($this->getStoreId());
     }
 }

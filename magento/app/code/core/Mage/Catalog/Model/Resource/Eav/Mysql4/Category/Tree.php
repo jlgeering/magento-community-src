@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -52,6 +52,20 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
     protected $_joinUrlRewriteIntoCollection = false;
 
     /**
+     * Inactive categories ids
+     *
+     * @var array
+     */
+    protected $_inactiveCategoryIds = null;
+
+    /**
+     * store id
+     *
+     * @var integer
+     */
+    protected $_storeId = null;
+
+    /**
      * Enter description here...
      *
      */
@@ -60,7 +74,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         $resource = Mage::getSingleton('core/resource');
 
         parent::__construct(
-            $resource->getConnection('catalog_read'),
+            $resource->getConnection('catalog_write'),
             $resource->getTableName('catalog/category'),
             array(
                 Varien_Data_Tree_Dbp::ID_FIELD       => 'entity_id',
@@ -69,6 +83,31 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
                 Varien_Data_Tree_Dbp::LEVEL_FIELD    => 'level',
             )
         );
+    }
+
+    /**
+     * Set store id
+     *
+     * @param integer $storeId
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
+     */
+    public function setStoreId($storeId)
+    {
+        $this->_storeId = (int) $storeId;
+        return $this;
+    }
+
+    /**
+     * Return store id
+     *
+     * @return integer
+     */
+    public function getStoreId()
+    {
+        if ($this->_storeId === null) {
+            $this->_storeId = Mage::app()->getStore()->getId();
+        }
+        return $this->_storeId;
     }
 
     /**
@@ -90,12 +129,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
             $exclude = array($exclude);
         }
 
-        $collection->initCache(
-            Mage::app()->getCache(),
-            'tree',
-            array(Mage_Catalog_Model_Category::CACHE_TAG)
-        );
-
         $nodeIds = array();
         foreach ($this->getNodes() as $node) {
             if (!in_array($node->getId(), $exclude)) {
@@ -104,6 +137,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         }
         $collection->addIdFilter($nodeIds);
         if ($onlyActive) {
+
             $disabledIds = $this->_getDisabledIds($collection);
             if ($disabledIds) {
                 $collection->addFieldToFilter('entity_id', array('nin'=>$disabledIds));
@@ -121,7 +155,15 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
 
             foreach ($collection as $category) {
                 if ($this->getNodeById($category->getId())) {
-                    $this->getNodeById($category->getId())->addData($category->getData());
+                    $this->getNodeById($category->getId())
+                        ->addData($category->getData());
+                }
+            }
+
+
+            foreach ($this->getNodes() as $node) {
+                if (!$collection->getItemById($node->getId()) && $node->getParent()) {
+                    $this->removeNode($node);
                 }
             }
         }
@@ -129,10 +171,58 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         return $this;
     }
 
+    /**
+     * Add inactive categories ids
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Flat
+     */
+    public function addInactiveCategoryIds($ids)
+    {
+        if (!is_array($this->_inactiveCategoryIds)) {
+            $this->_initInactiveCategoryIds();
+        }
+        $this->_inactiveCategoryIds = array_merge($ids, $this->_inactiveCategoryIds);
+        return $this;
+    }
+
+    /**
+     * Retreive inactive categories ids
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Flat
+     */
+    protected function _initInactiveCategoryIds()
+    {
+        $this->_inactiveCategoryIds = array();
+        Mage::dispatchEvent('catalog_category_tree_init_inactive_category_ids', array('tree'=>$this));
+        return $this;
+    }
+
+    /**
+     * Retreive inactive categories ids
+     *
+     * @return array
+     */
+    public function getInactiveCategoryIds()
+    {
+        if (!is_array($this->_inactiveCategoryIds)) {
+            $this->_initInactiveCategoryIds();
+        }
+
+        return $this->_inactiveCategoryIds;
+    }
+
     protected function _getDisabledIds($collection)
     {
         $storeId = Mage::app()->getStore()->getId();
-        $this->_inactiveItems = $this->_getInactiveItemIds($collection, $storeId);
+
+        $this->_inactiveItems = $this->getInactiveCategoryIds();
+
+
+        $this->_inactiveItems = array_merge(
+            $this->_getInactiveItemIds($collection, $storeId),
+            $this->_inactiveItems
+        );
+
 
         $allIds = $collection->getAllIds();
         $disabledIds = array();
@@ -175,7 +265,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
             ->where('d.store_id = ?', 0)
             ->where('d.entity_id IN (?)', new Zend_Db_Expr($filter))
             ->joinLeft(array('c'=>$table), "c.attribute_id = '{$attributeId}' AND c.store_id = '{$storeId}' AND c.entity_id = d.entity_id", array())
-            ->where('IFNULL(c.value, d.value) = ?', 0);
+            ->where('IF(c.value_id>0, c.value, d.value) = ?', 0);
 
         return $this->_conn->fetchCol($select);
     }
@@ -230,9 +320,12 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         $collection = Mage::getModel('catalog/category')->getCollection();
         /* @var $collection Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection */
 
-        $collection->addAttributeToSelect('name')
-            ->addAttributeToSelect('url_key')
-            ->addAttributeToSelect('is_active');
+        $attributes = Mage::getConfig()->getNode('frontend/category/collection/attributes');
+        if ($attributes) {
+            $attributes = $attributes->asArray();
+            $attributes = array_keys($attributes);
+        }
+        $collection->addAttributeToSelect($attributes);
 
         if ($sorted) {
             if (is_string($sorted)) {
@@ -246,16 +339,62 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         return $collection;
      }
 
+
+    /**
+     * Move tree before
+     *
+     * @param Varien_Data_Tree_Node $node
+     * @param Varien_Data_Tree_Node $newParent
+     * @param Varien_Data_Tree_Node $prevNode
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
+     */
+    protected function _beforeMove($category, $newParent, $prevNode)
+    {
+        Mage::dispatchEvent('catalog_category_tree_move_before',
+            array(
+                'category' => $category,
+                'prev_parent' => $prevNode,
+                'parent' => $newParent
+        ));
+
+        return $this;
+    }
+
     /**
      * Executing parents move method and cleaning cache after it
      *
      */
     public function move($category, $newParent, $prevNode = null) {
+
+        $this->_beforeMove($category, $newParent, $prevNode);
         Mage::getResourceSingleton('catalog/category')->move($category->getId(), $newParent->getId());
         parent::move($category, $newParent, $prevNode);
-        Mage::app()->getCache()->clean(Zend_Cache::CLEANING_MODE_MATCHING_TAG,
-            array(Mage_Catalog_Model_Category::CACHE_TAG));
+
+        $this->_afterMove($category, $newParent, $prevNode);
     }
+
+        /**
+     * Move tree after
+     *
+     * @param Varien_Data_Tree_Node $node
+     * @param Varien_Data_Tree_Node $newParent
+     * @param Varien_Data_Tree_Node $prevNode
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
+     */
+    protected function _afterMove($category, $newParent, $prevNode)
+    {
+        Mage::app()->cleanCache(array(Mage_Catalog_Model_Category::CACHE_TAG));
+
+        Mage::dispatchEvent('catalog_category_tree_move_after',
+            array(
+                'category' => $category,
+                'prev_node' => $prevNode,
+                'parent' => $newParent
+        ));
+
+        return $this;
+    }
+
 
     /**
      * Load whole category tree, that will include specified categories ids.
@@ -264,7 +403,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
      * @param bool $addCollectionData
      * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree
      */
-    public function loadByIds($ids, $addCollectionData = true)
+    public function loadByIds($ids, $addCollectionData = true, $updateAnchorProductCount = true)
     {
         // load first two levels, if no ids specified
         if (empty($ids)) {
@@ -312,7 +451,9 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
         if (!$arrNodes) {
             return false;
         }
-        $this->_updateAnchorProductCount($arrNodes);
+        if ($updateAnchorProductCount) {
+            $this->_updateAnchorProductCount($arrNodes);
+        }
         $childrenItems = array();
         foreach ($arrNodes as $key => $nodeInfo) {
             $pathToParent = explode('/', $nodeInfo[$this->_pathField]);
@@ -394,13 +535,21 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Tree extends Varien_Data_T
             $attribute = Mage::getResourceSingleton('catalog/category')->getAttribute($attributeCode);
             // join non-static attribute table
             if (!$attribute->getBackend()->isStatic()) {
-                $tableAs   = "_$attributeCode";
+                $defaultTableAs   = "default_$attributeCode";
+                $storeTableAs   = "store_$attributeCode";
                 $select->joinLeft(
-                    array($tableAs => $attribute->getBackend()->getTable()),
+                    array($defaultTableAs => $attribute->getBackend()->getTable()),
                     sprintf('`%1$s`.entity_id=e.entity_id AND `%1$s`.attribute_id=%2$d AND `%1$s`.entity_type_id=e.entity_type_id AND `%1$s`.store_id=%3$d',
-                        $tableAs, $attribute->getData('attribute_id'), Mage_Core_Model_App::ADMIN_STORE_ID
+                        $defaultTableAs, $attribute->getData('attribute_id'), Mage_Core_Model_App::ADMIN_STORE_ID
                     ),
                     array($attributeCode => 'value')
+                )
+                ->joinLeft(
+                    array($storeTableAs => $attribute->getBackend()->getTable()),
+                    sprintf('`%1$s`.entity_id=e.entity_id AND `%1$s`.attribute_id=%2$d AND `%1$s`.entity_type_id=e.entity_type_id AND `%1$s`.store_id=%3$d',
+                        $storeTableAs, $attribute->getData('attribute_id'), $this->getStoreId()
+                    ),
+                    array($attributeCode => new Zend_Db_Expr("IF(`{$storeTableAs}`.value>0, `{$storeTableAs}`.value, `$defaultTableAs`.value)"))
                 );
             }
         }

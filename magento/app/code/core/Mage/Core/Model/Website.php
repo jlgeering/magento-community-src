@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Core
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,6 +34,7 @@
 
 class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
 {
+    const ENTITY    = 'core_website';
     const CACHE_TAG = 'website';
     protected $_cacheTag = true;
 
@@ -123,6 +124,11 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
      * @var bool
      */
     protected $_isCanDelete;
+
+    /**
+     * @var bool
+     */
+    private $_isReadOnly = false;
 
     /**
      * init model
@@ -420,7 +426,7 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
      */
     public function isCanDelete()
     {
-        if (!$this->getId()) {
+        if ($this->_isReadOnly || !$this->getId()) {
             return false;
         }
         if (is_null($this->_isCanDelete)) {
@@ -516,7 +522,22 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
      * @param $withDefault include/exclude default admin website
      * @return Varien_Db_Select
      */
-    public function getDefaultStoresSelect($withDefault = false) {
+    public function getDefaultStoresSelect($withDefault = false)
+    {
         return $this->getResource()->getDefaultStoresSelect($withDefault);
+    }
+
+    /**
+     * Get/Set isReadOnly flag
+     *
+     * @param bool $value
+     * @return bool
+     */
+    public function isReadOnly($value = null)
+    {
+        if (null !== $value) {
+            $this->_isReadOnly = (bool)$value;
+        }
+        return $this->_isReadOnly;
     }
 }

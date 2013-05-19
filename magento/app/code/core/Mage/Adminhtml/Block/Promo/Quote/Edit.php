@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -45,7 +45,25 @@ class Mage_Adminhtml_Block_Promo_Quote_Edit extends Mage_Adminhtml_Block_Widget_
 
         $this->_updateButton('save', 'label', Mage::helper('salesrule')->__('Save Rule'));
         $this->_updateButton('delete', 'label', Mage::helper('salesrule')->__('Delete Rule'));
-        
+
+        $rule = Mage::registry('current_promo_quote_rule');
+
+        if (!$rule->isDeleteable()) {
+            $this->_removeButton('delete');
+        }
+
+        if ($rule->isReadonly()) {
+            $this->_removeButton('save');
+            $this->_removeButton('reset');
+        } else {
+            $this->_addButton('save_and_continue', array(
+                'label'     => Mage::helper('salesrule')->__('Save And Continue Edit'),
+                'onclick'   => 'saveAndContinueEdit()',
+                'class' => 'save'
+            ), 10);
+            $this->_formScripts[] = " function saveAndContinueEdit(){ editForm.submit($('edit_form').action + 'back/edit/') } ";
+        }
+
         #$this->setTemplate('promo/quote/edit.phtml');
     }
 
@@ -59,7 +77,7 @@ class Mage_Adminhtml_Block_Promo_Quote_Edit extends Mage_Adminhtml_Block_Widget_
             return Mage::helper('salesrule')->__('New Rule');
         }
     }
-    
+
     public function getProductsJson()
     {
         return '{}';

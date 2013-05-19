@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Core
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Core
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -75,10 +75,10 @@ class Mage_Core_Model_Mysql4_Store_Group_Collection extends Mage_Core_Model_Mysq
     public function addWebsiteFilter($website)
     {
         if (is_array($website)) {
-            $condition = $this->getConnection()->quoteInto('website_id IN(?)', $website);
+            $condition = $this->getConnection()->quoteInto('main_table.website_id IN(?)', $website);
         }
         else {
-            $condition = $this->getConnection()->quoteInto('website_id=?', $website);
+            $condition = $this->getConnection()->quoteInto('main_table.website_id=?', $website);
         }
         return $this->addFilter('website_id', $condition, 'string');
     }

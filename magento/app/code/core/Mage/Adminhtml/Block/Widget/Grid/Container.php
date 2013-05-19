@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -45,13 +45,11 @@ class Mage_Adminhtml_Block_Widget_Grid_Container extends Mage_Adminhtml_Block_Wi
 
         $this->setTemplate('widget/grid/container.phtml');
 
-        if( $this->_enabledAddNewButton() === true ) {
-            $this->_addButton('add', array(
-                'label'     => $this->getAddButtonLabel(),
-                'onclick'   => 'setLocation(\'' . $this->getCreateUrl() .'\')',
-                'class'     => 'add',
-            ));
-        }
+        $this->_addButton('add', array(
+            'label'     => $this->getAddButtonLabel(),
+            'onclick'   => 'setLocation(\'' . $this->getCreateUrl() .'\')',
+            'class'     => 'add',
+        ));
     }
 
     protected function _prepareLayout()
@@ -99,10 +97,5 @@ class Mage_Adminhtml_Block_Widget_Grid_Container extends Mage_Adminhtml_Block_Wi
     public function getHeaderWidth()
     {
         return 'width:50%;';
-    }
-
-    protected function _enabledAddNewButton()
-    {
-        return true;
     }
 }

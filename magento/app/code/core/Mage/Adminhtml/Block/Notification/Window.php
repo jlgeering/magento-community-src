@@ -18,21 +18,37 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 class Mage_Adminhtml_Block_Notification_Window extends Mage_Adminhtml_Block_Notification_Toolbar
 {
-    protected $_available = null;
+    /**
+     * XML path of Severity icons url
+     */
+    const XML_SEVERITY_ICONS_URL_PATH  = 'system/adminnotification/severity_icons_url';
 
-    protected $_httpsObjectUrl = 'https://widgets.magentocommerce.com/notificationPopup';
-    protected $_httpObjectUrl = 'http://widgets.magentocommerce.com/notificationPopup';
+    /**
+     * Severity icons url
+     *
+     * @var string
+     */
+    protected $_severityIconsUrl;
 
-    protected $_aclResourcePath = 'admin/system/adminnotification/show_toolbar';
+    /**
+     * Is available flag
+     *
+     * @var bool
+     */
+    protected $_available;
 
+    /**
+     * Initialize block window
+     *
+     */
     protected function _construct()
     {
         parent::_construct();
@@ -75,16 +91,27 @@ class Mage_Adminhtml_Block_Notification_Window extends Mage_Adminhtml_Block_Noti
      */
     public function canShow()
     {
+        if (!Mage::getSingleton('admin/session')->isFirstPageAfterLogin()) {
+            $this->_available = false;
+            return false;
+        }
+
+        if (!$this->isOutputEnabled('Mage_AdminNotification')) {
+            $this->_available = false;
+            return false;
+        }
+
+        if (!$this->_getHelper()->isReadablePopupObject()) {
+            $this->_available = false;
+            return false;
+        }
+
         if (!$this->_isAllowed()) {
             $this->_available = false;
             return false;
         }
 
         if (is_null($this->_available)) {
-            if (!Mage::getSingleton('admin/session')->isFirstPageAfterLogin()) {
-                $this->_available = false;
-                return false;
-            }
             $this->_available = $this->isShow();
         }
         return $this->_available;
@@ -98,16 +125,44 @@ class Mage_Adminhtml_Block_Notification_Window extends Mage_Adminhtml_Block_Noti
      */
     public function getObjectUrl()
     {
-        if (!empty($_SERVER['HTTPS'])) {
-            return $this->_httpsObjectUrl;
-        } else {
-            return $this->_httpObjectUrl;
-        }
+        return $this->_getHelper()->getPopupObjectUrl();
     }
 
+    /**
+     * Retrieve Last Notice object
+     *
+     * @return Mage_AdminNotification_Model_Inbox
+     */
     public function getLastNotice()
     {
-        return Mage::helper('adminnotification')->getLatestNotice();
+        return $this->_getHelper()->getLatestNotice();
+    }
+
+    /**
+     * Retrieve severity icons url
+     *
+     * @return string
+     */
+    public function getSeverityIconsUrl()
+    {
+        if (is_null($this->_severityIconsUrl)) {
+            $this->_severityIconsUrl =
+                (Mage::app()->getFrontController()->getRequest()->isSecure() ? 'https://' : 'http://')
+                . sprintf(Mage::getStoreConfig(self::XML_SEVERITY_ICONS_URL_PATH), Mage::getVersion(),
+                    $this->getNoticeSeverity())
+            ;
+        }
+        return $this->_severityIconsUrl;
+    }
+
+    /**
+     * Retrieve severity text
+     *
+     * @return string
+     */
+    public function getSeverityText()
+    {
+        return strtolower(str_replace('SEVERITY_', '', $this->getNoticeSeverity()));
     }
 
     /**
@@ -119,8 +174,10 @@ class Mage_Adminhtml_Block_Notification_Window extends Mage_Adminhtml_Block_Noti
     protected function _isAllowed()
     {
         if (!is_null($this->_aclResourcePath)) {
-            return Mage::getSingleton('admin/session')->isAllowed($this->_aclResourcePath);
-        } else {
+            return Mage::getSingleton('admin/session')
+                ->isAllowed('admin/system/adminnotification/show_toolbar');
+        }
+        else {
             return true;
         }
     }

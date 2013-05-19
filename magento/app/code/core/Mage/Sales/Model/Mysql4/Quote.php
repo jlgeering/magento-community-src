@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -140,5 +140,25 @@ class Mage_Sales_Model_Mysql4_Quote extends Mage_Sales_Model_Mysql4_Abstract
                 ' where qi.product_id = "' . $product->getId() . '" and q.entity_id = qi.quote_id and qi.parent_item_id is null'
             );
         }
+    }
+
+    /**
+     * Mark recollect contain product(s) quotes
+     *
+     * @param array|int $productIds
+     * @return Mage_Sales_Model_Mysql4_Quote
+     */
+    public function markQuotesRecollect($productIds)
+    {
+        $this->_getWriteAdapter()->query("
+            UPDATE `{$this->getTable('sales/quote')}` SET `trigger_recollect` = 1
+            WHERE `entity_id` IN (
+                SELECT DISTINCT `quote_id`
+                FROM `{$this->getTable('sales/quote_item')}`
+                WHERE `product_id` IN (?)
+            )", $productIds
+        );
+
+        return $this;
     }
 }

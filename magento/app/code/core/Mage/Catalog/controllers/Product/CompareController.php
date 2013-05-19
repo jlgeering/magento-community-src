@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -34,14 +34,20 @@
  */
 class Mage_Catalog_Product_CompareController extends Mage_Core_Controller_Front_Action
 {
+    /**
+     * Action list where need check enabled cookie
+     *
+     * @var array
+     */
+    protected $_cookieCheckActions = array('add');
+
     public function indexAction()
     {
         $items = $this->getRequest()->getParam('items');
 
-        if($this->getRequest()->getParam(self::PARAM_NAME_BASE64_URL)) {
-            Mage::getSingleton('catalog/session')->setBeforeCompareUrl(
-                Mage::helper('core')->urlDecode($this->getRequest()->getParam(self::PARAM_NAME_BASE64_URL))
-            );
+        if ($beforeUrl = $this->getRequest()->getParam(self::PARAM_NAME_URL_ENCODED)) {
+            Mage::getSingleton('catalog/session')
+                ->setBeforeCompareUrl(Mage::helper('core')->urlDecode($beforeUrl));
         }
 
         if ($items) {
@@ -69,7 +75,7 @@ class Mage_Catalog_Product_CompareController extends Mage_Core_Controller_Front_
             if ($product->getId()/* && !$product->isSuper()*/) {
                 Mage::getSingleton('catalog/product_compare_list')->addProduct($product);
                 Mage::getSingleton('catalog/session')->addSuccess(
-                    $this->__('Product %s successfully added to compare list', $product->getName())
+                    $this->__('Product %s successfully added to compare list', Mage::helper('core')->htmlEscape($product->getName()))
                 );
                 Mage::dispatchEvent('catalog_product_compare_add_product', array('product'=>$product));
             }

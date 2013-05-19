@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogIndex
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogIndex
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 class Mage_CatalogIndex_Model_Mysql4_Data_Configurable extends Mage_CatalogIndex_Model_Mysql4_Data_Abstract
@@ -36,14 +36,8 @@ class Mage_CatalogIndex_Model_Mysql4_Data_Configurable extends Mage_CatalogIndex
      * @param int $id
      * @param array $additionalWheres
      */
-    protected function _prepareLinkFetchSelect($store, $table, $idField, $whereField, $id, $additionalWheres = array()) {
-        $statusAttribute = Mage::getSingleton('eav/entity_attribute')->getIdByCode('catalog_product', 'status');
-
-        $this->_getLinkSelect()
-            ->joinLeft(array('s'=>$this->getTable('cataloginventory/stock_item')), "s.product_id=l.{$idField}", array())
-            ->where('s.is_in_stock = 1')
-            ->joinLeft(array('a'=>$this->getTable('catalog/product') . '_int'), "a.entity_id=l.{$idField} AND a.store_id = {$store} AND a.attribute_id = '{$statusAttribute}'", array())
-            ->joinLeft(array('d'=>$this->getTable('catalog/product') . '_int'), "d.entity_id=l.{$idField} AND d.store_id = 0 AND d.attribute_id = '{$statusAttribute}'", array())
-            ->where('a.value = 1 OR (a.value is null AND d.value = 1)');
+    protected function _prepareLinkFetchSelect($store, $table, $idField, $whereField, $id, $additionalWheres = array())
+    {
+        $this->_addAttributeFilter($this->_getLinkSelect(), 'required_options', 'l', $idField, $store, 0);
     }
 }

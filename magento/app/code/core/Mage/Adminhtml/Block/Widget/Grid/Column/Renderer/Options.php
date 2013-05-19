@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,15 +33,27 @@
  */
 class Mage_Adminhtml_Block_Widget_Grid_Column_Renderer_Options extends Mage_Adminhtml_Block_Widget_Grid_Column_Renderer_Text
 {
+    /**
+     * Render a grid cell as options
+     *
+     * @param Varien_Object $row
+     * @return string
+     */
     public function render(Varien_Object $row)
     {
         $options = $this->getColumn()->getOptions();
+        $showMissingOptionValues = (bool)$this->getColumn()->getShowMissingOptionValues();
         if (!empty($options) && is_array($options)) {
             $value = $row->getData($this->getColumn()->getIndex());
             if (is_array($value)) {
                 $res = array();
                 foreach ($value as $item) {
-                    $res[] = isset($options[$item]) ? $options[$item] : $item;
+                    if (isset($options[$item])) {
+                        $res[] = $options[$item];
+                    }
+                    elseif ($showMissingOptionValues) {
+                        $res[] = $item;
+                    }
                 }
                 return implode(', ', $res);
             }

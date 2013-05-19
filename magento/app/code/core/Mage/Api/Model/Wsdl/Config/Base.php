@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Api
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Api
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -39,6 +39,8 @@ class Mage_Api_Model_Wsdl_Config_Base extends Varien_Simplexml_Config
      * @var Varien_Object
      */
     protected $_wsdlVariables = null;
+
+    protected $_loadedFiles = array();
 
     public function __construct($sourceData=null)
     {
@@ -90,5 +92,25 @@ class Mage_Api_Model_Wsdl_Config_Base extends Varien_Simplexml_Config
         $text = $template->filter($text);
 
         return $text;
+    }
+
+    public function addLoadedFile($file)
+    {
+        if (!in_array($file, $this->_loadedFiles)) {
+            $this->_loadedFiles[] = $file;
+        }
+        return $this;
+    }
+
+    public function loadFile($file)
+    {
+        if (in_array($file, $this->_loadedFiles)) {
+            return false;
+        }
+        $res = parent::loadFile($file);
+        if ($res) {
+            $this->addLoadedFile($file);
+        }
+        return $this;
     }
 }

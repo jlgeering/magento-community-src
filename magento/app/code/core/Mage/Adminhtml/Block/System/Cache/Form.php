@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -62,7 +62,7 @@ class Mage_Adminhtml_Block_System_Cache_Form extends Mage_Adminhtml_Block_Widget
         foreach (Mage::helper('core')->getCacheTypes() as $type=>$label) {
             $fieldset->addField('enable_'.$type, 'checkbox', array(
                 'name'=>'enable['.$type.']',
-                'label'=>$label,
+                'label'=>Mage::helper('adminhtml')->__($label),
                 'value'=>1,
                 'checked'=>(int)Mage::app()->useCache($type),
                 //'options'=>$options,
@@ -76,7 +76,7 @@ class Mage_Adminhtml_Block_System_Cache_Form extends Mage_Adminhtml_Block_Widget
         foreach (Mage::helper('core')->getCacheBetaTypes() as $type=>$label) {
             $fieldset->addField('beta_enable_'.$type, 'checkbox', array(
                 'name'=>'beta['.$type.']',
-                'label'=>$label,
+                'label'=>Mage::helper('adminhtml')->__($label),
                 'value'=>1,
                 'checked'=>(int)Mage::app()->useCache($type),
             ));

@@ -159,6 +159,16 @@ class Varien_Image
         return $this->_getAdapter()->backgroundColor($value);
     }
 
+    /**
+     * Get/set quality, values in percentage from 0 to 100
+     *
+     * @param int $value
+     * @return int
+     */
+    public function quality($value)
+    {
+        return $this->_getAdapter()->quality($value);
+    }
 
     /**
      * Adds watermark to our image.
@@ -224,24 +234,60 @@ class Varien_Image
         $this->_getAdapter()->imageBackgroundColor = intval($color);
     }
 
+    /**
+     * Set watermark position
+     *
+     * @param string $position
+     * @return Varien_Image
+     */
     public function setWatermarkPosition($position)
     {
         $this->_getAdapter()->setWatermarkPosition($position);
         return $this;
     }
 
+    /**
+     * Set watermark image opacity
+     *
+     * @param int $imageOpacity
+     * @return Varien_Image
+     */
+    public function setWatermarkImageOpacity($imageOpacity)
+    {
+        $this->_getAdapter()->setWatermarkImageOpacity($imageOpacity);
+        return $this;
+    }
+
+    /**
+     * Set watermark width
+     *
+     * @param int $width
+     * @return Varien_Image
+     */
     public function setWatermarkWidth($width)
     {
         $this->_getAdapter()->setWatermarkWidth($width);
         return $this;
     }
 
+    /**
+     * Set watermark heigth
+     *
+     * @param int $heigth
+     * @return Varien_Image
+     */
     public function setWatermarkHeigth($heigth)
     {
         $this->_getAdapter()->setWatermarkHeigth($heigth);
         return $this;
     }
 
+    /**
+     * Retrieve image adapter object
+     *
+     * @param string $adapter
+     * @return Varien_Image_Adapter_Abstract
+     */
     protected function _getAdapter($adapter=null)
     {
         if( !isset($this->_adapter) ) {
@@ -250,4 +296,23 @@ class Varien_Image
         return $this->_adapter;
     }
 
+    /**
+     * Retrieve original image width
+     *
+     * @return int|null
+     */
+    public function getOriginalWidth()
+    {
+        return $this->_getAdapter()->getOriginalWidth();
+    }
+
+    /**
+     * Retrieve original image height
+     *
+     * @return int|null
+     */
+    public function getOriginalHeight()
+    {
+        return $this->_getAdapter()->getOriginalHeight();
+    }
 }

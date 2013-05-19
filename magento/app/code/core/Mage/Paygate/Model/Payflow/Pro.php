@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Paygate
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Paygate
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -73,7 +73,15 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
     protected $_canUseCheckout          = true;
     protected $_canUseForMultishipping  = true;
     protected $_canSaveCc = false;
-	protected $_isProxy = false;
+    protected $_isProxy = false;
+
+    /**
+     * Fields that should be replaced in debug with '***'
+     *
+     * @var array
+     */
+    protected $_debugReplacePrivateDataKeys = array('user', 'pwd', 'acct',
+                                                    'expdate', 'cvv2');
 
     /**
      * 3 = Authorisation approved
@@ -81,6 +89,19 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
      * 9 = Authorisation captured
      */
     protected $_validVoidTransState = array(3,6,9);
+
+    /**
+     * Centinel cardinal fields map
+     *
+     * @var string
+     */
+    protected $_centinelFieldMap = array(
+        'centinel_mpivendor' => 'MPIVENDOR3DS',
+        'centinel_authstatus'      => 'AUTHSTATUS3DS',
+        'centinel_cavv'          => 'CAVV',
+        'centinel_eci'      => 'ECI',
+        'centinel_xid'           => 'XID',
+    );
 
     public function authorize(Varien_Object $payment, $amount)
     {
@@ -91,7 +112,9 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
 
             $request = $this->_buildRequest($payment);
             $result = $this->_postRequest($request);
-            $payment->setCcTransId($result->getPnref());
+            $payment->setCcTransId($result->getPnref())
+                ->setTransactionId($result->getPnref())
+                ->setIsTransactionClosed(0);
 
             switch ($result->getResultCode()){
                 case self::RESPONSE_CODE_APPROVED:
@@ -99,7 +122,8 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
                      break;
 
                 case self::RESPONSE_CODE_FRAUDSERVICE_FILTER:
-                    $payment->setFraudFlag(true);
+                    $payment->setIsTransactionPending(true);
+                    $payment->getTransactionPendingStatus($this->getConfigData('fraud_order_status'));
                     break;
 
                 default:
@@ -147,17 +171,18 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
                  $payment->setStatus(self::STATUS_APPROVED);
                  //$payment->setCcTransId($result->getPnref());
                  $payment->setLastTransId($result->getPnref());
+                 $payment->setTransactionId($result->getPnref());
                  break;
 
             case self::RESPONSE_CODE_FRAUDSERVICE_FILTER:
-                $payment->setFraudFlag(true);
+                $payment->setIsTransactionPending(true);
+                $payment->getTransactionPendingStatus($this->getConfigData('fraud_order_status'));
                 break;
 
             default:
                 if ($result->getRespmsg()) {
                     $error = $result->getRespmsg();
-                }
-                else {
+                } else {
                     $error = Mage::helper('paygate')->__('Error in capturing the payment');
                 }
             break;
@@ -183,10 +208,6 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
             $payment->setTransactionId($payment->getCcTransId());
             $request=$this->_buildBasicRequest($payment);
             $result = $this->_postRequest($request);
-            if ($this->getConfigData('debug')) {
-              $payment->setCcDebugRequestBody($result->getRequestBody())
-                ->setCcDebugResponseSerialized(serialize($result));
-            }
 
             if($result->getResultCode()==self::RESPONSE_CODE_APPROVED){
                 if($result->getTransstate()>1000){
@@ -219,19 +240,16 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
     public function void(Varien_Object $payment)
     {
          $error = false;
-         if($payment->getVoidTransactionId()){
+         if($payment->getParentTransactionId()){
             $payment->setTrxtype(self::TRXTYPE_DELAYED_VOID);
-            $payment->setTransactionId($payment->getVoidTransactionId());
+            $payment->setTransactionId($payment->getParentTransactionId());
             $request=$this->_buildBasicRequest($payment);
             $result = $this->_postRequest($request);
 
-            if ($this->getConfigData('debug')) {
-              $payment->setCcDebugRequestBody($result->getRequestBody())
-                ->setCcDebugResponseSerialized(serialize($result));
-            }
             if($result->getResultCode()==self::RESPONSE_CODE_APPROVED){
                  $payment->setStatus(self::STATUS_SUCCESS);
                  $payment->setCcTransId($result->getPnref());
+                 $payment->setTransactionId($result->getPnref());
             }else{
                 $payment->setStatus(self::STATUS_ERROR);
                 $error = $result->getRespmsg();
@@ -269,10 +287,6 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
             $request->setAmt(round($amount,2));
             $result = $this->_postRequest($request);
 
-            if ($this->getConfigData('debug')) {
-              $payment->setCcDebugRequestBody($result->getRequestBody())
-                ->setCcDebugResponseSerialized(serialize($result));
-            }
             if($result->getResultCode()==self::RESPONSE_CODE_APPROVED){
                  $payment->setStatus(self::STATUS_SUCCESS);
                  $payment->setCcTransId($result->getPnref());
@@ -296,7 +310,16 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
     protected function _postRequest(Varien_Object $request)
     {
         if ($this->getConfigData('debug')) {
-            foreach( $request->getData() as $key => $value ) {
+            $requestDebug = clone $request;
+
+
+            foreach ($this->_debugReplacePrivateDataKeys as $key) {
+                if ($requestDebug->hasData($key)) {
+                    $requestDebug->setData($key, '***');
+                }
+            }
+
+            foreach( $requestDebug->getData() as $key => $value ) {
                 $value = (string)$value;
                 $requestData[] = strtoupper($key) . '[' . strlen($value) . ']=' . $value;
             }
@@ -305,26 +328,26 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
 
             $debug = Mage::getModel('paygate/authorizenet_debug')
                 ->setRequestBody($requestData)
-                ->setRequestSerialized(serialize($request->getData()))
-                ->setRequestDump(print_r($request->getData(),1))
+                ->setRequestSerialized(serialize($requestDebug->getData()))
+                ->setRequestDump(print_r($requestDebug->getData(),1))
                 ->save();
         }
 
         $client = new Varien_Http_Client();
 
-    	$_config = array(
+        $_config = array(
                         'maxredirects'=>5,
                         'timeout'=>30,
                     );
 
-    	$_isProxy = $this->getConfigData('use_proxy', false);
-    	if($_isProxy){
-    		$_config['proxy'] = $this->getConfigData('proxy_host') . ':' . $this->getConfigData('proxy_port');//http://proxy.shr.secureserver.net:3128',
-    		$_config['httpproxytunnel'] = true;
-    		$_config['proxytype'] = CURLPROXY_HTTP;
-    	}
+        $_isProxy = $this->getConfigData('use_proxy', false);
+        if($_isProxy){
+            $_config['proxy'] = $this->getConfigData('proxy_host') . ':' . $this->getConfigData('proxy_port');//http://proxy.shr.secureserver.net:3128',
+            $_config['httpproxytunnel'] = true;
+            $_config['proxytype'] = CURLPROXY_HTTP;
+        }
 
-	    $uri = $this->getConfigData('url');
+        $uri = $this->getConfigData('url');
         $client->setUri($uri)
             ->setConfig($_config)
             ->setMethod(Zend_Http_Client::POST)
@@ -386,6 +409,12 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
             ->setRequestId($this->_generateRequestId())
             ;
 
+        if ($this->getIsCentinelValidationEnabled()){
+            $params = array();
+            $params = $this->getCentinelValidator()->exportCmpiData($params);
+            $request = Varien_Object_Mapper::accumulateByMap($params, $request, $this->_centinelFieldMap);
+        }
+
         if($payment->getAmount()){
             $request->setAmt(round($payment->getAmount(),2));
             $request->setCurrency($payment->getOrder()->getBaseCurrencyCode());
@@ -432,7 +461,7 @@ class Mage_Paygate_Model_Payflow_Pro extends  Mage_Payment_Model_Method_Cc
 
     protected function _generateRequestId()
     {
-        return md5(microtime() . rand(0, time()));
+        return Mage::helper('core')->uniqHash();
     }
 
      /**

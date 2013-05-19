@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Rating
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Rating
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -91,8 +91,8 @@ class Mage_Rating_Model_Mysql4_Rating_Option
             );
 
             if( !$option->getDoUpdate() ) {
-                $data['remote_ip'] = $action->getRequest()->getServer('REMOTE_ADDR');
-                $data['remote_ip_long'] = ip2long($action->getRequest()->getServer('REMOTE_ADDR'));
+                $data['remote_ip'] = Mage::helper('core/http')->getRemoteAddr();
+                $data['remote_ip_long'] = Mage::helper('core/http')->getRemoteAddr(true);
                 $data['customer_id'] = Mage::getSingleton('customer/session')->getCustomerId();
                 $data['entity_pk_value'] = $option->getEntityPkValue();
                 $data['rating_id'] = $option->getRatingId();

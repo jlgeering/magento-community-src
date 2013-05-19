@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Api
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Api
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,17 +34,51 @@
 class Mage_Api_Model_Session extends Mage_Core_Model_Session_Abstract
 {
     public $sessionIds = array();
+    protected $_currentSessId = null;
 
     public function start($sessionName=null)
     {
-        parent::start($sessionName=null);
+//        parent::start($sessionName=null);
+        $this->_currentSessId = md5(time() . $sessionName);
         $this->sessionIds[] = $this->getSessionId();
+        return $this;
+    }
+
+    public function init($namespace, $sessionName=null)
+    {
+        if (is_null($this->_currentSessId)) {
+            $this->start();
+        }
+        return $this;
+    }
+
+    public function getSessionId()
+    {
+        return $this->_currentSessId;
+    }
+
+    public function setSessionId($sessId = null)
+    {
+        if (!is_null($sessId)) {
+            $this->_currentSessId = $sessId;
+        }
         return $this;
     }
 
     public function revalidateCookie()
     {
         // In api we don't use cookies
+    }
+
+    public function clear() {
+        if ($sessId = $this->getSessionId()) {
+            try {
+                Mage::getModel('api/user')->logoutBySessId($sessId);
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public function login($username, $apiKey)
@@ -105,17 +139,17 @@ class Mage_Api_Model_Session extends Mage_Core_Model_Session_Abstract
         $acl = $this->getAcl();
 
         if ($user && $acl) {
-    	    try {
-        	    if ($acl->isAllowed($user->getAclRole(), 'all', null)){
-        	        return true;
-        	    }
-    	    } catch (Exception $e) {}
+            try {
+                if ($acl->isAllowed($user->getAclRole(), 'all', null)){
+                    return true;
+                }
+            } catch (Exception $e) {}
 
-        	try {
+            try {
                 return $acl->isAllowed($user->getAclRole(), $resource, $privilege);
-        	} catch (Exception $e) {
-        	    return false;
-        	}
+            } catch (Exception $e) {
+                return false;
+            }
         }
         return false;
     }
@@ -161,10 +195,14 @@ class Mage_Api_Model_Session extends Mage_Core_Model_Session_Abstract
         if (!$user->getId() || !$user->getSessid()) {
             return false;
         }
+
         if ($user->getSessid() == $sessId && !$this->isSessionExpired($user)) {
             $this->setUser($user);
             $this->setAcl(Mage::getResourceModel('api/acl')->loadAcl());
-            $user->getResource()->recordLogin($user);
+
+            $user->getResource()->recordLogin($user)
+                ->recordSession($user);
+
             return true;
         }
         return false;

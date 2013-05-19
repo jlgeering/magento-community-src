@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -65,7 +65,7 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
         $postData = $this->getRequest()->getPost();
         if (empty($postData)) {
             $this->_redirect('*/*');
-            return $this;
+            return;
         }
 
         /**
@@ -78,8 +78,9 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
 
         $e = $this->getRequest()->getPost('enable');
         $enable = array();
-        $clean = array();
-        foreach (Mage::helper('core')->getCacheTypes() as $type=>$label) {
+        $clean  = array();
+        $cacheTypes = array_keys(Mage::helper('core')->getCacheTypes());
+        foreach ($cacheTypes as $type) {
             $flag = $allCache!='disable' && (!empty($e[$type]) || $allCache=='enable');
             $enable[$type] = $flag ? 1 : 0;
             if ($allCache=='' && !$flag) {
@@ -87,8 +88,10 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
             }
         }
 
+        // beta cache enabler (?)
         $beta = $this->getRequest()->getPost('beta');
-        foreach (Mage::helper('core')->getCacheBetaTypes() as $type=>$label) {
+        $betaCache = array_keys(Mage::helper('core')->getCacheBetaTypes());
+        foreach ($betaCache as $type) {
             if (empty($beta[$type])) {
                 $clean[] = $type;
             } else {
@@ -96,15 +99,28 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
             }
         }
 
+        // clean all requested system cache and update cache usage
         if (!empty($clean)) {
             Mage::app()->cleanCache($clean);
         }
         Mage::app()->saveUseCache($enable);
 
+        // clean javascript/css cache
+        if ($this->getRequest()->getPost('jscss_action')) {
+            if (Mage::getDesign()->cleanMergedJsCss()) {
+                $this->_getSession()->addSuccess(
+                    Mage::helper('adminhtml')->__('JavaScript/CSS cache has been cleared successfully.')
+                );
+            } else {
+                $this->_getSession()->addError(Mage::helper('adminhtml')->__('Failed to clear JavaScript/CSS cache.'));
+            }
+        }
+
         /**
          * Run catalog actions
          */
         if ($catalogAction = $this->getRequest()->getPost('catalog_action')) {
+
             switch ($catalogAction) {
                 case 'refresh_catalog_rewrites':
                     try {
@@ -217,6 +233,19 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
                     }
                     break;
 
+                case 'rebuild_catalog_index':
+                    try {
+                        Mage::getSingleton('catalog/index')->rebuild();
+                        $this->_getSession()->addSuccess(Mage::helper('adminhtml')->__('Catalog Index was rebuilt successfully'));
+                    }
+                    catch (Mage_Core_Exception $e) {
+                        $this->_getSession()->addError($e->getMessage());
+                    }
+                    catch (Exception $e) {
+                        $this->_getSession()->addException($e, Mage::helper('adminhtml')->__('Catalog Index rebuild error. Please try again later'));
+                    }
+                    break;
+
                 case 'rebuild_flat_catalog_category':
                     try {
                         Mage::getResourceModel('catalog/category_flat')->rebuild();
@@ -239,8 +268,6 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
                         $this->_getSession()->addError($e->getMessage());
                     }
                     catch (Exception $e) {
-                        echo $e;
-                        die();
                         $this->_getSession()->addException($e, Mage::helper('adminhtml')->__('Flat Catalog Product rebuild error. Please try again later'));
                     }
                     break;
@@ -309,6 +336,6 @@ class Mage_Adminhtml_System_CacheController extends Mage_Adminhtml_Controller_Ac
 
     protected function _isAllowed()
     {
-	    return Mage::getSingleton('admin/session')->isAllowed('system/cache');
+        return Mage::getSingleton('admin/session')->isAllowed('system/cache');
     }
 }

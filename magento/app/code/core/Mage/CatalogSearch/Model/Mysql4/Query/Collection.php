@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogSearch
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogSearch
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -83,7 +83,7 @@ class Mage_CatalogSearch_Model_Mysql4_Query_Collection extends Mage_Core_Model_M
         $this->getSelect()->reset(Zend_Db_Select::FROM)->distinct(true)
             ->from(
                 array('main_table' => $this->getTable('catalogsearch/search_query')),
-                array('query' => "IF(IFNULL(synonim_for,'')<>'', synonim_for, query_text)", 'num_results')
+                array('query' => "IF(IFNULL(synonym_for,'')<>'', synonym_for, query_text)", 'num_results')
             )
             ->where('num_results>0 AND display_in_terms=1 AND query_text LIKE ?', $query.'%')
             ->order('popularity desc');
@@ -105,12 +105,15 @@ class Mage_CatalogSearch_Model_Mysql4_Query_Collection extends Mage_Core_Model_M
         $this->getSelect()->reset(Zend_Db_Select::FROM)->distinct(true)
             ->from(
                 array('main_table'=>$this->getTable('catalogsearch/search_query')),
-                array('name'=>"if(ifnull(synonim_for,'')<>'', synonim_for, query_text)", 'num_results')
+                array('name'=>"if(ifnull(synonym_for,'')<>'', synonym_for, query_text)", 'num_results')
             );
         if ($storeIds) {
-            $this->getSelect()->where('num_results>0 and store_id in (?)', $storeIds);
-        } else if ($storeIds === null){
-            $this->getSelect()->where('num_results>0 and store_id=?',Mage::app()->getStore()->getId());
+            $this->addStoreFilter($storeIds);
+            $this->getSelect()->where('num_results > 0');
+        }
+        elseif (null === $storeIds) {
+            $this->addStoreFilter(Mage::app()->getStore()->getId());
+            $this->getSelect()->where('num_results > 0');
         }
 
         $this->getSelect()->order(array('popularity desc','name'));
@@ -126,6 +129,21 @@ class Mage_CatalogSearch_Model_Mysql4_Query_Collection extends Mage_Core_Model_M
     public function setRecentQueryFilter()
     {
         $this->setOrder('updated_at', 'desc');
+        return $this;
+    }
+
+    /**
+     * Filter collection by specified store ids
+     *
+     * @param array|int $storeIds
+     * @return Mage_CatalogSearch_Model_Mysql4_Query_Collection
+     */
+    public function addStoreFilter($storeIds)
+    {
+        if (!is_array($storeIds)) {
+            $storeIds = array($storeIds);
+        }
+        $this->getSelect()->where('main_table.store_id IN (?)', $storeIds);
         return $this;
     }
 }

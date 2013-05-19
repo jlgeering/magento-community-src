@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,11 +34,6 @@
 
 class Mage_Adminhtml_Block_Sales_Order_Create_Billing_Address extends Mage_Adminhtml_Block_Sales_Order_Create_Form_Address
 {
-    protected function _prepareLayout()
-    {
-        return parent::_prepareLayout();
-    }
-
     public function getHeaderText()
     {
         return Mage::helper('sales')->__('Billing Address');
@@ -52,7 +47,7 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Billing_Address extends Mage_Admin
     protected function _prepareForm()
     {
         if (!$this->_form) {
-        	parent::_prepareForm();
+            parent::_prepareForm();
             $this->_form->addFieldNameSuffix('order[billing_address]');
             $this->_form->setHtmlNamePrefix('order[billing_address]');
             $this->_form->setHtmlIdPrefix('order-billing_address_');

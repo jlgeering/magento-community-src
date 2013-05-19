@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Log
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Log
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -90,6 +90,8 @@ class Mage_Log_Model_Mysql4_Visitor_Collection extends Varien_Data_Collection_Db
      */
     protected $_quoteTable;
 
+    protected $_isOnlineFilterUsed = false;
+
     protected $_fieldMap = array(
         'customer_firstname' => 'customer_firstname_table.value',
         'customer_lastname'  => 'customer_lastname_table.value',
@@ -149,7 +151,7 @@ class Mage_Log_Model_Mysql4_Visitor_Collection extends Varien_Data_Collection_Db
         $email  = $customersCollection->getAttribute('email');
 
         $this->_select
-            ->from('', array('type' => 'IF(customer_id, \''.Mage_Log_Model_Visitor::VISITOR_TYPE_CUSTOMER.'\', \''.Mage_Log_Model_Visitor::VISITOR_TYPE_VISITOR.'\')'))
+            ->columns(array('type' => 'IF(customer_id, \''.Mage_Log_Model_Visitor::VISITOR_TYPE_CUSTOMER.'\', \''.Mage_Log_Model_Visitor::VISITOR_TYPE_VISITOR.'\')'))
             ->joinLeft(
                 array('customer_lastname_table'=>$lastname->getBackend()->getTable()),
                 'customer_lastname_table.entity_id=customer_table.customer_id
@@ -169,6 +171,7 @@ class Mage_Log_Model_Mysql4_Visitor_Collection extends Varien_Data_Collection_Db
                 'customer_email_table.entity_id=customer_table.customer_id',
                 array('customer_email'=>'email')
              );
+        $this->_isOnlineFilterUsed = true;
         return $this;
     }
 
@@ -288,4 +291,27 @@ class Mage_Log_Model_Mysql4_Visitor_Collection extends Varien_Data_Collection_Db
         }
     }
 
+    public function load($printQuery = false, $logQuery = false)
+    {
+        if ($this->isLoaded()) {
+            return $this;
+        }
+        Mage::dispatchEvent('log_visitor_collection_load_before', array('collection' => $this));
+        return parent::load($printQuery, $logQuery);
+    }
+
+    public function getIsOnlineFilterUsed()
+    {
+        return $this->_isOnlineFilterUsed;
+    }
+
+    /**
+     * Filter visitors by specified store ids
+     *
+     * @param array|int $storeIds
+     */
+    public function addVisitorStoreFilter($storeIds)
+    {
+        $this->_select->where('visitor_table.store_id IN (?)', $storeIds);
+    }
 }

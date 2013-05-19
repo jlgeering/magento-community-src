@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -40,6 +40,8 @@ class Mage_Adminhtml_UrlrewriteController extends Mage_Adminhtml_Controller_Acti
      */
     protected function _initRegistry()
     {
+        $this->_title($this->__('Rewrite Rules'));
+
         // initialize urlrewrite, product and category models
         Mage::register('current_urlrewrite', Mage::getModel('core/url_rewrite')
             ->load($this->getRequest()->getParam('id', 0))
@@ -63,9 +65,9 @@ class Mage_Adminhtml_UrlrewriteController extends Mage_Adminhtml_Controller_Acti
      */
     public function indexAction()
     {
+        $this->_initRegistry();
         $this->loadLayout();
         $this->_setActiveMenu('catalog/urlrewrite');
-        $this->_initRegistry();
         $this->_addContent(
             $this->getLayout()->createBlock('adminhtml/urlrewrite')
         );
@@ -78,9 +80,12 @@ class Mage_Adminhtml_UrlrewriteController extends Mage_Adminhtml_Controller_Acti
      */
     public function editAction()
     {
+        $this->_initRegistry();
+
+        $this->_title($this->__('URL Rewrite'));
+
         $this->loadLayout();
         $this->_setActiveMenu('catalog/urlrewrite');
-        $this->_initRegistry();
         $this->_addContent($this->getLayout()->createBlock('adminhtml/urlrewrite_edit'));
         $this->getLayout()->getBlock('head')->setCanLoadExtJs(true);
         $this->renderLayout();
@@ -150,9 +155,9 @@ class Mage_Adminhtml_UrlrewriteController extends Mage_Adminhtml_Controller_Acti
 
                 // save and redirect
                 $model->save();
-                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('adminhtml')->__(
-                    'Urlrewrite has been successfully saved'
-                ));
+                Mage::getSingleton('adminhtml/session')->addSuccess(
+                    Mage::helper('adminhtml')->__('URL Rewrite has been successfully saved')
+                );
                 $this->_redirect('*/*/');
                 return;
             }
@@ -178,9 +183,9 @@ class Mage_Adminhtml_UrlrewriteController extends Mage_Adminhtml_Controller_Acti
         if (Mage::registry('current_urlrewrite')->getId()) {
             try {
                 Mage::registry('current_urlrewrite')->delete();
-                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('adminhtml')->__(
-                    'Urlrewrite has been successfully deleted'
-                ));
+                Mage::getSingleton('adminhtml/session')->addSuccess(
+                    Mage::helper('adminhtml')->__('URL Rewrite has been successfully deleted')
+                );
             }
             catch (Exception $e) {
                 Mage::getSingleton('adminhtml/session')->addError($e->getMessage());

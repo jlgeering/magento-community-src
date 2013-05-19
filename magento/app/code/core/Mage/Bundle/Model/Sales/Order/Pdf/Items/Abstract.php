@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -32,7 +32,7 @@
  * @package    Mage_Bundle
  * @author     Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_Order_Pdf_Items_Abstract
+abstract class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_Order_Pdf_Items_Abstract
 {
     /**
      * Getting all available childs for Invoice, Shipmen or Creditmemo item
@@ -54,7 +54,8 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
 
         if ($_items) {
             foreach ($_items as $_item) {
-                if ($parentItem = $_item->getOrderItem()->getParentItem()) {
+                $parentItem = $_item->getOrderItem()->getParentItem();
+                if ($parentItem) {
                     $_itemsArray[$parentItem->getId()][$_item->getOrderItemId()] = $_item;
                 } else {
                     $_itemsArray[$_item->getOrderItem()->getId()][$_item->getOrderItemId()] = $_item;
@@ -69,23 +70,35 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         }
     }
 
+    /**
+     * Retrieve is Shipment Separately flag for Item
+     *
+     * @param Varien_Object $item
+     * @return bool
+     */
     public function isShipmentSeparately($item = null)
     {
         if ($item) {
             if ($item->getOrderItem()) {
                 $item = $item->getOrderItem();
             }
-            if ($parentItem = $item->getParentItem()) {
-                if ($options = $parentItem->getProductOptions()) {
-                    if (isset($options['shipment_type']) && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
+
+            $parentItem = $item->getParentItem();
+            if ($parentItem) {
+                $options = $parentItem->getProductOptions();
+                if ($options) {
+                    if (isset($options['shipment_type'])
+                        && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
                         return true;
                     } else {
                         return false;
                     }
                 }
             } else {
-                if ($options = $item->getProductOptions()) {
-                    if (isset($options['shipment_type']) && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
+                $options = $item->getProductOptions();
+                if ($options) {
+                    if (isset($options['shipment_type'])
+                        && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
                         return false;
                     } else {
                         return true;
@@ -94,22 +107,33 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
             }
         }
 
-        if ($options = $this->getOrderItem()->getProductOptions()) {
-            if (isset($options['shipment_type']) && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
+        $options = $this->getOrderItem()->getProductOptions();
+        if ($options) {
+            if (isset($options['shipment_type'])
+                && $options['shipment_type'] == Mage_Catalog_Model_Product_Type_Abstract::SHIPMENT_SEPARATELY) {
                 return true;
             }
         }
         return false;
     }
 
+    /**
+     * Retrieve is Child Calculated
+     *
+     * @param Varien_Object $item
+     * @return bool
+     */
     public function isChildCalculated($item = null)
     {
         if ($item) {
             if ($item->getOrderItem()) {
                 $item = $item->getOrderItem();
             }
-            if ($parentItem = $item->getParentItem()) {
-                if ($options = $parentItem->getProductOptions()) {
+
+            $parentItem = $item->getParentItem();
+            if ($parentItem) {
+                $options = $parentItem->getProductOptions();
+                if ($options) {
                     if (isset($options['product_calculations']) && $options['product_calculations'] == Mage_Catalog_Model_Product_Type_Abstract::CALCULATE_CHILD) {
                         return true;
                     } else {
@@ -117,7 +141,8 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
                     }
                 }
             } else {
-                if ($options = $item->getProductOptions()) {
+                $options = $item->getProductOptions();
+                if ($options) {
                     if (isset($options['product_calculations']) && $options['product_calculations'] == Mage_Catalog_Model_Product_Type_Abstract::CALCULATE_CHILD) {
                         return false;
                     } else {
@@ -127,7 +152,8 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
             }
         }
 
-        if ($options = $this->getOrderItem()->getProductOptions()) {
+        $options = $this->getOrderItem()->getProductOptions();
+        if ($options) {
             if (isset($options['product_calculations'])
                 && $options['product_calculations'] == Mage_Catalog_Model_Product_Type_Abstract::CALCULATE_CHILD) {
                 return true;
@@ -136,9 +162,16 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         return false;
     }
 
-    public function getBundleOptions($item = null) {
-
-        if ($options = $this->getOrderItem()->getProductOptions()) {
+    /**
+     * Retrieve Bundle Options
+     *
+     * @param Varien_Object $item
+     * @return array
+     */
+    public function getBundleOptions($item = null)
+    {
+        $options = $this->getOrderItem()->getProductOptions();
+        if ($options) {
             if (isset($options['bundle_options'])) {
                 return $options['bundle_options'];
             }
@@ -146,7 +179,14 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         return array();
     }
 
-    public function getSelectionAttributes($item) {
+    /**
+     * Retrieve Selection attributes
+     *
+     * @param Varien_Object $item
+     * @return mixed
+     */
+    public function getSelectionAttributes($item)
+    {
         if ($item instanceof Mage_Sales_Model_Order_Item) {
             $options = $item->getProductOptions();
         } else {
@@ -158,11 +198,18 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         return null;
     }
 
+    /**
+     * Retrieve Order options
+     *
+     * @param Varien_Object $item
+     * @return array
+     */
     public function getOrderOptions($item = null)
     {
         $result = array();
 
-        if ($options = $this->getOrderItem()->getProductOptions()) {
+        $options = $this->getOrderItem()->getProductOptions();
+        if ($options) {
             if (isset($options['options'])) {
                 $result = array_merge($result, $options['options']);
             }
@@ -176,6 +223,11 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         return $result;
     }
 
+    /**
+     * Retrieve Order Item
+     *
+     * @return Mage_Sales_Order_Item
+     */
     public function getOrderItem()
     {
         if ($this->getItem() instanceof Mage_Sales_Order_Item) {
@@ -185,22 +237,36 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
         }
     }
 
+    /**
+     * Retrieve Value HTML
+     *
+     * @param Mage_Sales_Order_Item $item
+     * @return string
+     */
     public function getValueHtml($item)
     {
         $result = strip_tags($item->getName());
         if (!$this->isShipmentSeparately($item)) {
-            if ($attributes = $this->getSelectionAttributes($item)) {
+            $attributes = $this->getSelectionAttributes($item);
+            if ($attributes) {
                 $result =  sprintf('%d', $attributes['qty']) . ' x ' . $result;
             }
         }
         if (!$this->isChildCalculated($item)) {
-            if ($attributes = $this->getSelectionAttributes($item)) {
+            $attributes = $this->getSelectionAttributes($item);
+            if ($attributes) {
                 $result .= " " . strip_tags($this->getOrderItem()->getOrder()->formatPrice($attributes['price']));
             }
         }
         return $result;
     }
 
+    /**
+     * Can show price info for item
+     *
+     * @param Mage_Sales_Order_Item $item
+     * @return bool
+     */
     public function canShowPriceInfo($item)
     {
         if (($item->getOrderItem()->getParentItem() && $this->isChildCalculated())
@@ -208,14 +274,5 @@ class Mage_Bundle_Model_Sales_Order_Pdf_Items_Abstract extends Mage_Sales_Model_
             return true;
         }
         return false;
-    }
-
-    /**
-     * This abstract method of parent will
-     * be redeclared in childs of this class
-     *
-     */
-    public function draw()
-    {
     }
 }

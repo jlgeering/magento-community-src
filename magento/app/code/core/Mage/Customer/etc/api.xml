@@ -21,8 +21,8 @@
  *
  * @category    Mage
  * @package     Mage_Customer
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 -->
 <config>
@@ -80,7 +80,7 @@
                 <acl>customer</acl>
                 <methods>
                     <list translate="title" module="customer">
-                        <title>Retrieve customer's groups</title>
+                        <title>Retrieve customer groups</title>
                         <method>items</method>
                     </list>
                 </methods>
@@ -154,7 +154,7 @@
                         <title>Delete</title>
                      </delete>
                      <info translate="title" module="customer">
-                        <title>Retrieve customers info</title>
+                        <title>Retrieve customer info</title>
                      </info>
                      <address translate="title" module="customer">
                          <title>Addresses</title>

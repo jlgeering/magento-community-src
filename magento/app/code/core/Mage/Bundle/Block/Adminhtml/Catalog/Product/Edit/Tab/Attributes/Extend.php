@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -43,14 +43,14 @@ class Mage_Bundle_Block_Adminhtml_Catalog_Product_Edit_Tab_Attributes_Extend ext
         $switchAttributeCode = $this->getAttribute()->getAttributeCode().'_type';
         $switchAttributeValue = $this->getProduct()->getData($switchAttributeCode);
 
-        $html = '<select name="product[' . $switchAttributeCode . ']" id="' . $switchAttributeCode . '" type="select" class="required-entry select next-toinput"' . ($this->getProduct()->getId() && $this->getAttribute()->getAttributeCode() == 'price' ? ' disabled="disabled"' : '') . '>
+        $html = '<select name="product[' . $switchAttributeCode . ']" id="' . $switchAttributeCode . '" type="select" class="required-entry select next-toinput"' . ($this->getProduct()->getId() && $this->getAttribute()->getAttributeCode() == 'price' || $this->getElement()->getReadonly() ? ' disabled="disabled"' : '') . '>
             <option value="">' . $this->__('--Select--') . '</option>
             <option ' . ($switchAttributeValue == self::DYNAMIC ? 'selected' : '') . ' value="' . self::DYNAMIC . '">' . $this->__('Dynamic') . '</option>
             <option ' . ($switchAttributeValue == self::FIXED ? 'selected' : '') . ' value="' . self::FIXED . '">' . $this->__('Fixed') . '</option>
         </select>';
 
         $html .= '<span class="next-toselect">'.$elementHtml.'</span>';
-        if ($this->getDisableChild()) {
+        if ($this->getDisableChild() && !$this->getElement()->getReadonly()) {
             $html .= "<script type=\"text/javascript\">
                 function " . $switchAttributeCode . "_change() {
                     if ($('" . $switchAttributeCode . "').value == '" . self::DYNAMIC . "') {

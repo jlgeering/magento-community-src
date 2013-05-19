@@ -18,18 +18,19 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
+
 
 /**
  * Product reports admin controller
  *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_Action
 {
@@ -49,8 +50,16 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
         return $this;
     }
 
+    /**
+     * Bestsellers
+     *
+     */
     public function orderedAction()
     {
+        $this->_title($this->__('Reports'))
+             ->_title($this->__('Products'))
+             ->_title($this->__('Bestsellers'));
+
         $this->_initAction()
             ->_setActiveMenu('report/product/ordered')
             ->_addBreadcrumb(Mage::helper('reports')->__('Bestsellers'), Mage::helper('reports')->__('Bestsellers'))
@@ -60,6 +69,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products bestsellers report to CSV format
+     *
      */
     public function exportOrderedCsvAction()
     {
@@ -72,6 +82,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products bestsellers report to XML format
+     *
      */
     public function exportOrderedExcelAction()
     {
@@ -82,8 +93,61 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
         $this->_prepareDownloadResponse($fileName, $content);
     }
 
+    /**
+     * Sold Products Report Action
+     *
+     */
+    public function soldAction()
+    {
+        $this->_title($this->__('Reports'))
+             ->_title($this->__('Products'))
+             ->_title($this->__('Products Ordered'));
+
+        $this->_initAction()
+            ->_setActiveMenu('report/product/sold')
+            ->_addBreadcrumb(Mage::helper('reports')->__('Products Ordered'), Mage::helper('reports')->__('Products Ordered'))
+            ->_addContent($this->getLayout()->createBlock('adminhtml/report_product_sold'))
+            ->renderLayout();
+    }
+
+    /**
+     * Export Sold Products report to CSV format action
+     *
+     */
+    public function exportSoldCsvAction()
+    {
+        $fileName   = 'products_ordered.csv';
+        $content    = $this->getLayout()
+            ->createBlock('adminhtml/report_product_sold_grid')
+            ->getCsv();
+
+        $this->_prepareDownloadResponse($fileName, $content);
+    }
+
+    /**
+     * Export Sold Products report to XML format action
+     *
+     */
+    public function exportSoldExcelAction()
+    {
+        $fileName   = 'products_ordered.xml';
+        $content    = $this->getLayout()
+            ->createBlock('adminhtml/report_product_sold_grid')
+            ->getExcel($fileName);
+
+        $this->_prepareDownloadResponse($fileName, $content);
+    }
+
+    /**
+     * Most viewed products
+     *
+     */
     public function viewedAction()
     {
+        $this->_title($this->__('Reports'))
+             ->_title($this->__('Products'))
+             ->_title($this->__('Most Viewed'));
+
         $this->_initAction()
             ->_setActiveMenu('report/product/viewed')
             ->_addBreadcrumb(Mage::helper('reports')->__('Most viewed'), Mage::helper('reports')->__('Most viewed'))
@@ -93,6 +157,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products most viewed report to CSV format
+     *
      */
     public function exportViewedCsvAction()
     {
@@ -105,6 +170,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products most viewed report to XML format
+     *
      */
     public function exportViewedExcelAction()
     {
@@ -115,8 +181,16 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
         $this->_prepareDownloadResponse($fileName, $content);
     }
 
+    /**
+     * Low stock action
+     *
+     */
     public function lowstockAction()
     {
+        $this->_title($this->__('Reports'))
+             ->_title($this->__('Products'))
+             ->_title($this->__('Low Stock'));
+
         $this->_initAction()
             ->_setActiveMenu('report/product/lowstock')
             ->_addBreadcrumb(Mage::helper('reports')->__('Low stock'), Mage::helper('reports')->__('Low stock'))
@@ -126,6 +200,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export low stock products report to CSV format
+     *
      */
     public function exportLowstockCsvAction()
     {
@@ -139,6 +214,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export low stock products report to XML format
+     *
      */
     public function exportLowstockExcelAction()
     {
@@ -150,8 +226,16 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
         $this->_prepareDownloadResponse($fileName, $content);
     }
 
+    /**
+     * Downloads action
+     *
+     */
     public function downloadsAction()
     {
+        $this->_title($this->__('Reports'))
+             ->_title($this->__('Products'))
+             ->_title($this->__('Downloads'));
+
         $this->_initAction()
             ->_setActiveMenu('report/product/downloads')
             ->_addBreadcrumb(Mage::helper('reports')->__('Downloads'), Mage::helper('reports')->__('Downloads'))
@@ -161,6 +245,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products downloads report to CSV format
+     *
      */
     public function exportDownloadsCsvAction()
     {
@@ -174,6 +259,7 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
 
     /**
      * Export products downloads report to XLS format
+     *
      */
     public function exportDownloadsExcelAction()
     {
@@ -185,6 +271,11 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
         $this->_prepareDownloadResponse($fileName, $content);
     }
 
+    /**
+     * Check is allowed for report
+     *
+     * @return bool
+     */
     protected function _isAllowed()
     {
         switch ($this->getRequest()->getActionName()) {
@@ -193,6 +284,9 @@ class Mage_Adminhtml_Report_ProductController extends Mage_Adminhtml_Controller_
                 break;
             case 'viewed':
                 return Mage::getSingleton('admin/session')->isAllowed('report/products/viewed');
+                break;
+            case 'sold':
+                return Mage::getSingleton('admin/session')->isAllowed('report/products/sold');
                 break;
             case 'lowstock':
                 return Mage::getSingleton('admin/session')->isAllowed('report/products/lowstock');

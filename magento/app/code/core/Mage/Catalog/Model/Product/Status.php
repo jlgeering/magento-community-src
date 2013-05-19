@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -36,6 +36,13 @@ class Mage_Catalog_Model_Product_Status extends Mage_Core_Model_Abstract
 {
     const STATUS_ENABLED    = 1;
     const STATUS_DISABLED   = 2;
+
+    /**
+     * Reference to the attribute instance
+     *
+     * @var Mage_Catalog_Model_Resource_Eav_Attribute
+     */
+    protected $_attribute;
 
     /**
      * Initialize resource model
@@ -183,39 +190,28 @@ class Mage_Catalog_Model_Product_Status extends Mage_Core_Model_Abstract
      */
     public function updateProductStatus($productId, $storeId, $value)
     {
-        $stores = array();
-        if ($storeId != 0) {
-            $attribute = $this->getProductAttribute('status');
-            if ($attribute->getIsGlobal() == Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_STORE) {
-                $stores[] = $storeId;
-            }
-            elseif ($attribute->getIsGlobal() == Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_WEBSITE) {
-                $website = Mage::app()->getStore($storeId)->getWebsite();
-                foreach ($website->getStores() as $store) {
-                    $stores[] = $store->getId();
-                }
-            }
-            else {
-                $stores[] = 0;
-            }
-        }
-        else {
-            $stores[] = $storeId;
+        Mage::getSingleton('catalog/product_action')
+            ->updateAttributes(array($productId), array('status' => $value), $storeId);
+
+        // add back compatibility event
+        $status = $this->_getResource()->getProductAttribute('status');
+        if ($status->isScopeWebsite()) {
+            $website = Mage::app()->getStore($storeId)->getWebsite();
+            $stores  = $website->getStoreIds();
+        } else if ($status->isScopeStore()) {
+            $stores = array($storeId);
+        } else {
+            $stores = array_keys(Mage::app()->getStores());
         }
 
         foreach ($stores as $storeId) {
-            $this->_getResource()->updateProductStatus($productId, $storeId, $value);
-            Mage::getResourceModel('catalog/category')->refreshProductIndex(
-                array(),
-                array($productId),
-                $storeId ? array($storeId) : array()
-            );
             Mage::dispatchEvent('catalog_product_status_update', array(
                 'product_id'    => $productId,
                 'store_id'      => $storeId,
                 'status'        => $value
             ));
         }
+
         return $this;
     }
 
@@ -269,30 +265,67 @@ class Mage_Catalog_Model_Product_Status extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Set attribute instance
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @return Mage_Eav_Model_Entity_Attribute_Frontend_Abstract
+     */
+    public function setAttribute($attribute)
+    {
+        $this->_attribute = $attribute;
+        return $this;
+    }
+
+    /**
+     * Get attribute instance
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Attribute
+     */
+    public function getAttribute()
+    {
+        return $this->_attribute;
+    }
+
+    /**
      * Add Value Sort To Collection Select
      *
      * @param Mage_Eav_Model_Entity_Collection_Abstract $collection
      * @param string $dir direction
      * @return Mage_Eav_Model_Entity_Attribute_Source_Abstract
      */
-    public function addValueSortToCollection($collection, $dir = 'asc') {
-        $valueTable1    = $this->getAttribute()->getAttributeCode() . '_t1';
-        $valueTable2    = $this->getAttribute()->getAttributeCode() . '_t2';
-        $collection->getSelect()
-            ->joinLeft(
-                array($valueTable1 => $this->getAttribute()->getBackend()->getTable()),
-                "`e`.`entity_id`=`{$valueTable1}`.`entity_id`"
-                . " AND `{$valueTable1}`.`attribute_id`='{$this->getAttribute()->getId()}'"
-                . " AND `{$valueTable1}`.`store_id`='0'",
-                array())
-            ->joinLeft(
-                array($valueTable2 => $this->getAttribute()->getBackend()->getTable()),
-                "`e`.`entity_id`=`{$valueTable2}`.`entity_id`"
-                . " AND `{$valueTable2}`.`attribute_id`='{$this->getAttribute()->getId()}'"
-                . " AND `{$valueTable2}`.`store_id`='{$collection->getStoreId()}'",
-                array()
-            );
-        $valueExpr = new Zend_Db_Expr("IFNULL(`{$valueTable2}`.`value`, `{$valueTable1}`.`value`)");
+    public function addValueSortToCollection($collection, $dir = 'asc')
+    {
+        if ($this->getAttribute()->isScopeGlobal()) {
+            $tableName = $this->getAttribute()->getAttributeCode() . '_t';
+            $collection->getSelect()
+                ->joinLeft(
+                    array($tableName => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$tableName}`.`entity_id`"
+                        . " AND `{$tableName}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$tableName}`.`store_id`='0'",
+                    array());
+            $valueExpr = $tableName . '.value';
+        }
+        else {
+            $valueTable1    = $this->getAttribute()->getAttributeCode() . '_t1';
+            $valueTable2    = $this->getAttribute()->getAttributeCode() . '_t2';
+            $collection->getSelect()
+                ->joinLeft(
+                    array($valueTable1 => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$valueTable1}`.`entity_id`"
+                        . " AND `{$valueTable1}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$valueTable1}`.`store_id`='0'",
+                    array())
+                ->joinLeft(
+                    array($valueTable2 => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$valueTable2}`.`entity_id`"
+                        . " AND `{$valueTable2}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$valueTable2}`.`store_id`='{$collection->getStoreId()}'",
+                    array()
+                );
+            $valueExpr = new Zend_Db_Expr("IF(`{$valueTable2}`.`value_id`>0, `{$valueTable2}`.`value`, `{$valueTable1}`.`value`)");
+        }
+
         $collection->getSelect()->order($valueExpr . ' ' . $dir);
         return $this;
     }

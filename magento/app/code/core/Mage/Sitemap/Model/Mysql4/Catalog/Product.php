@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sitemap
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sitemap
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -102,22 +102,23 @@ class Mage_Sitemap_Model_Mysql4_Catalog_Product extends Mage_Core_Model_Mysql4_A
             $this->_select->where('e.' . $attributeCode . $conditionRule, $value);
         }
         else {
-            if ($attribute['is_global']) {
+            $this->_select->join(
+                array('t1_'.$attributeCode => $attribute['table']),
+                'e.entity_id=t1_'.$attributeCode.'.entity_id AND t1_'.$attributeCode.'.store_id=0',
+                array()
+            )
+            ->where('t1_'.$attributeCode.'.attribute_id=?', $attribute['attribute_id']);
 
+            if ($attribute['is_global']) {
+                $this->_select->where('t1_'.$attributeCode.'.value'.$conditionRule, $value);
             }
             else {
-                $this->_select->join(
-                    array('t1_'.$attributeCode => $attribute['table']),
-                    'e.entity_id=t1_'.$attributeCode.'.entity_id AND t1_'.$attributeCode.'.store_id=0',
-                    array()
-                )
-                ->joinLeft(
+                $this->_select->joinLeft(
                     array('t2_'.$attributeCode => $attribute['table']),
                     $this->_getWriteAdapter()->quoteInto('t1_'.$attributeCode.'.entity_id = t2_'.$attributeCode.'.entity_id AND t1_'.$attributeCode.'.attribute_id = t2_'.$attributeCode.'.attribute_id AND t2_'.$attributeCode.'.store_id=?', $storeId),
                     array()
                 )
-                ->where('t1_'.$attributeCode.'.attribute_id=?', $attribute['attribute_id'])
-                ->where('IFNULL(t2_'.$attributeCode.'.value, t1_'.$attributeCode.'.value)'.$conditionRule, $value);
+                ->where('IF(t2_'.$attributeCode.'.value_id>0, t2_'.$attributeCode.'.value, t1_'.$attributeCode.'.value)'.$conditionRule, $value);
             }
         }
 
@@ -162,7 +163,7 @@ class Mage_Sitemap_Model_Mysql4_Catalog_Product extends Mage_Core_Model_Mysql4_A
             )
             ;
 
-        $this->_addFilter($storeId, 'visibility', Mage::getSingleton('catalog/product_visibility')->getVisibleInSearchIds(), 'in');
+        $this->_addFilter($storeId, 'visibility', Mage::getSingleton('catalog/product_visibility')->getVisibleInSiteIds(), 'in');
         $this->_addFilter($storeId, 'status', Mage::getSingleton('catalog/product_status')->getVisibleStatusIds(), 'in');
 
         $query = $this->_getWriteAdapter()->query($this->_select);

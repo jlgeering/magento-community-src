@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -31,14 +31,19 @@
  * @package    Mage_GoogleBase
  * @author     Magento Core Team <core@magentocommerce.com>
  */
-
 class Mage_GoogleBase_Block_Adminhtml_Store_Switcher extends Mage_Adminhtml_Block_Store_Switcher
 {
+    /**
+     * @var bool
+     */
+    protected $_hasDefaultOption = false;
+
+    /**
+     * Set overriden params
+     */
     public function __construct()
     {
         parent::__construct();
-        $this->setDefaultStoreName($this->__('Default Store (%s)', Mage::app()->getDefaultStoreView()->getName()))
-            ->setUseConfirm(false)
-            ->setSwitchUrl($this->getUrl('*/*/*', array('store'=>null)));
+        $this->setUseConfirm(false)->setSwitchUrl($this->getUrl('*/*/*', array('store' => null)));
     }
 }

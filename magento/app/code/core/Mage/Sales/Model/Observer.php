@@ -18,14 +18,28 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sales
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sales
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
+/**
+ * Sales observer
+ *
+ * @category   Mage
+ * @package    Mage_Sales
+ * @author     Magento Core Team <core@magentocommerce.com>
+ */
 class Mage_Sales_Model_Observer
 {
+    /**
+     * Clean expired quotes (cron process)
+     *
+     * @param Mage_Cron_Model_Schedule $schedule
+     * @return Mage_Sales_Model_Observer
+     */
     public function cleanExpiredQuotes($schedule)
     {
         $lifetimes = Mage::getConfig()->getStoresConfigByPath('checkout/cart/delete_quote_after');
@@ -40,26 +54,133 @@ class Mage_Sales_Model_Observer
             $quotes->addFieldToFilter('is_active', 0);
             $quotes->walk('delete');
         }
+        return $this;
     }
 
     /**
      * When deleting product, substract it from all quotes quantities
      *
      * @throws Exception
+     * @param Varien_Event_Observer
+     * @return Mage_Sales_Model_Observer
      */
     public function substractQtyFromQuotes($observer)
     {
         $product = $observer->getEvent()->getProduct();
         Mage::getResourceSingleton('sales/quote')->substractProductFromQuotes($product);
+        return $this;
     }
 
     /**
      * When applying a catalog price rule, make related quotes recollect on demand
      *
-     * @param object $observer
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Sales_Model_Observer
      */
     public function markQuotesRecollectOnCatalogRules($observer)
     {
         Mage::getResourceSingleton('sales/quote')->markQuotesRecollectOnCatalogRules();
+        return $this;
+    }
+
+    /**
+     * Catalog Product After Save (change status process)
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Sales_Model_Observer
+     */
+    public function catalogProductSaveAfter(Varien_Event_Observer $observer)
+    {
+        $product = $observer->getEvent()->getProduct();
+        if ($product->getStatus() == Mage_Catalog_Model_Product_Status::STATUS_ENABLED) {
+            return $this;
+        }
+
+        Mage::getResourceSingleton('sales/quote')->markQuotesRecollect($product->getId());
+
+        return $this;
+    }
+
+    /**
+     * Catalog Mass Status update process
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Sales_Model_Observer
+     */
+    public function catalogProductStatusUpdate(Varien_Event_Observer $observer)
+    {
+        $status     = $observer->getEvent()->getStatus();
+        if ($status == Mage_Catalog_Model_Product_Status::STATUS_ENABLED) {
+            return $this;
+        }
+        $productId  = $observer->getEvent()->getProductId();
+        Mage::getResourceSingleton('sales/quote')->markQuotesRecollect($productId);
+
+        return $this;
+    }
+
+    /**
+     * Refresh sales order report statistics for last day
+     *
+     * @param Mage_Cron_Model_Schedule $schedule
+     * @return Mage_Sales_Model_Observer
+     */
+    public function aggregateSalesReportOrderData($schedule)
+    {
+        Mage::app()->getLocale()->emulate(0);
+        $currentDate = Mage::app()->getLocale()->date();
+        $date = $currentDate->subHour(25);
+        Mage::getResourceModel('sales/order')->aggregate($date);
+        Mage::app()->getLocale()->revert();
+        return $this;
+    }
+
+    /**
+     * Refresh sales shipment report statistics for last day
+     *
+     * @param Mage_Cron_Model_Schedule $schedule
+     * @return Mage_Sales_Model_Observer
+     */
+    public function aggregateSalesReportShipmentData($schedule)
+    {
+        Mage::app()->getLocale()->emulate(0);
+        $currentDate = Mage::app()->getLocale()->date();
+        $date = $currentDate->subHour(25);
+        Mage::getResourceModel('sales/report_shipping')->aggregate($date);
+        Mage::app()->getLocale()->revert();
+        return $this;
+    }
+
+    /**
+     * Refresh sales invoiced report statistics for last day
+     *
+     * @param Mage_Cron_Model_Schedule $schedule
+     * @return Mage_Sales_Model_Observer
+     */
+    public function aggregateSalesReportInvoicedData($schedule)
+    {
+        Mage::app()->getLocale()->emulate(0);
+        $currentDate = Mage::app()->getLocale()->date();
+        $date = $currentDate->subHour(25);
+        Mage::getResourceModel('sales/report_invoiced')->aggregate($date);
+        Mage::app()->getLocale()->revert();
+        return $this;
+    }
+
+    /**
+     * Refresh sales refunded report statistics for last day
+     *
+     * @param Mage_Cron_Model_Schedule $schedule
+     * @return Mage_Sales_Model_Observer
+     */
+    public function aggregateSalesReportRefundedData($schedule)
+    {
+        Mage::app()->getLocale()->emulate(0);
+        $currentDate = Mage::app()->getLocale()->date();
+        $date = $currentDate->subHour(25);
+        Mage::getResourceModel('sales/report_refunded')->aggregate($date);
+        Mage::app()->getLocale()->revert();
+        return $this;
     }
 }
+

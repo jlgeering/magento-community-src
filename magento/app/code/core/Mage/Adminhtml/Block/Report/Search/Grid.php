@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -29,11 +29,14 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Block_Report_Search_Grid extends Mage_Adminhtml_Block_Widget_Grid
 {
-
+    /**
+     * Initialize Grid Properties
+     *
+     */
     public function __construct()
     {
         parent::__construct();
@@ -42,17 +45,24 @@ class Mage_Adminhtml_Block_Report_Search_Grid extends Mage_Adminhtml_Block_Widge
         $this->setDefaultDir('desc');
     }
 
+    /**
+     * Prepare Search Report collection for grid
+     *
+     * @return Mage_Adminhtml_Block_Report_Search_Grid
+     */
     protected function _prepareCollection()
     {
-
         $collection = Mage::getResourceModel('catalogsearch/query_collection');
         $this->setCollection($collection);
 
-        parent::_prepareCollection();
-
-        return $this;
+        return parent::_prepareCollection();
     }
 
+    /**
+     * Prepare Grid columns
+     *
+     * @return Mage_Adminhtml_Block_Report_Search_Grid
+     */
     protected function _prepareColumns()
     {
         $this->addColumn('query_id', array(
@@ -64,7 +74,7 @@ class Mage_Adminhtml_Block_Report_Search_Grid extends Mage_Adminhtml_Block_Widge
         ));
 
         $this->addColumn('query_text', array(
-            'header'    =>__('Search Query'),
+            'header'    =>Mage::helper('reports')->__('Search Query'),
             'filter'    =>false,
             'index'     =>'query_text'
         ));
@@ -101,5 +111,14 @@ class Mage_Adminhtml_Block_Report_Search_Grid extends Mage_Adminhtml_Block_Widge
         return parent::_prepareColumns();
     }
 
+    /**
+     * Retrieve Row Click callback URL
+     *
+     * @return string
+     */
+    public function getRowUrl($row)
+    {
+        return $this->getUrl('*/catalog_search/edit', array('id' => $row->getId()));
+    }
 }
 

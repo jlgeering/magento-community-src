@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -69,13 +69,11 @@ class Mage_Catalog_Model_Product_Flat_Observer
         /* @var $attribute Mage_Catalog_Model_Entity_Attribute */
 
         $enableBefore   = ($attribute->getOrigData('backend_type') == 'static')
-            || ($attribute->getOrigData('is_filterable') > 0)
-            || ($attribute->getOrigData('is_filterable_in_search') == 1)
+            || ($this->_getHelper()->isAddFilterableAttributes() && $attribute->getOrigData('is_filterable') > 0)
             || ($attribute->getOrigData('used_in_product_listing') == 1)
             || ($attribute->getOrigData('used_for_sort_by') == 1);
         $enableAfter    = ($attribute->getData('backend_type') == 'static')
-            || ($attribute->getData('is_filterable') > 0)
-            || ($attribute->getData('is_filterable_in_search') == 1)
+            || ($this->_getHelper()->isAddFilterableAttributes() && $attribute->getData('is_filterable') > 0)
             || ($attribute->getData('used_in_product_listing') == 1)
             || ($attribute->getData('used_for_sort_by') == 1);
 
@@ -285,6 +283,18 @@ class Mage_Catalog_Model_Product_Flat_Observer
             || $customerGroup->dataHasChangedFor('tax_class_id')) {
             $this->_getIndexer()->updateEventAttributes();
         }
+        return $this;
+    }
+
+    /**
+     * Update category ids in flat
+     *
+     * @deprecated 1.3.2.2
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Catalog_Model_Product_Flat_Observer
+     */
+    public function catalogCategoryChangeProducts(Varien_Event_Observer $observer)
+    {
         return $this;
     }
 }

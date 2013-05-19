@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -44,25 +44,25 @@ class Mage_Bundle_Model_Observer
         $request = $observer->getEvent()->getRequest();
         $product = $observer->getEvent()->getProduct();
 
-        if ($items = $request->getPost('bundle_options')) {
+        if (($items = $request->getPost('bundle_options')) && !$product->getCompositeReadonly()) {
             $product->setBundleOptionsData($items);
         }
 
-        if ($selections = $request->getPost('bundle_selections')) {
+        if (($selections = $request->getPost('bundle_selections')) && !$product->getCompositeReadonly()) {
             $product->setBundleSelectionsData($selections);
         }
 
-        if ($product->getPriceType() == '0') {
+        if ($product->getPriceType() == '0' && !$product->getOptionsReadonly()) {
             $product->setCanSaveCustomOptions(true);
             if ($customOptions = $product->getProductOptions()) {
-                foreach ($customOptions as $key => $customOption) {
+                foreach (array_keys($customOptions) as $key) {
                     $customOptions[$key]['is_delete'] = 1;
                 }
                 $product->setProductOptions($customOptions);
             }
         }
 
-        $product->setCanSaveBundleSelections((bool)$request->getPost('affect_bundle_product_selections'));
+        $product->setCanSaveBundleSelections((bool)$request->getPost('affect_bundle_product_selections') && !$product->getCompositeReadonly());
 
         return $this;
     }
@@ -75,39 +75,60 @@ class Mage_Bundle_Model_Observer
      */
     public function appendUpsellProducts($observer)
     {
+        /* @var $product Mage_Catalog_Model_Product */
         $product = $observer->getEvent()->getProduct();
 
-        if ($product->getTypeId() != Mage_Catalog_Model_Product_Type::TYPE_SIMPLE) {
+        /**
+         * Check is current product type is allowed for bundle selection product type
+         */
+        if (!in_array($product->getTypeId(), Mage::helper('bundle')->getAllowedSelectionTypes())) {
             return $this;
         }
 
+        /* @var $collection Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Link_Product_Collection */
         $collection = $observer->getEvent()->getCollection();
-        $limit = $observer->getEvent()->getLimit();
+        $limit      = $observer->getEvent()->getLimit();
+        if (is_array($limit)) {
+            if (isset($limit['upsell'])) {
+                $limit = $limit['upsell'];
+            } else {
+                $limit = 0;
+            }
+        }
 
-        $bundles = Mage::getModel('catalog/product')->getResourceCollection()
+        /* @var $resource Mage_Bundle_Model_Mysql4_Selection */
+        $resource   = Mage::getResourceSingleton('bundle/selection');
+
+        $productIds = array_keys($collection->getItems());
+        if ($limit <= count($productIds)) {
+            return $this;
+        }
+
+        // retrieve bundle product ids
+        $bundleIds  = $resource->getParentIdsByChild($product->getId());
+        // exclude up-sell product ids
+        $bundleIds  = array_diff($bundleIds, $productIds);
+
+        if (!$bundleIds) {
+            return $this;
+        }
+
+        /* @var $bundleCollection Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Collection */
+        $bundleCollection = $product->getCollection()
             ->addAttributeToSelect(Mage::getSingleton('catalog/config')->getProductAttributes())
             ->addStoreFilter()
             ->addMinimalPrice()
+            ->addFinalPrice()
+            ->addTaxPercents();
 
-            ->joinTable('bundle/option', 'parent_id=entity_id', array('option_id' => 'option_id'))
-            ->joinTable('bundle/selection', 'option_id=option_id', array('product_id' => 'product_id'), '{{table}}.product_id='.$product->getId());
+        Mage::getSingleton('catalog/product_visibility')
+            ->addVisibleInCatalogFilterToCollection($bundleCollection);
 
-        $ids = $collection->getAllIds();
-        if (count($ids)) {
-            $bundles->addIdFilter($ids, true);
-        }
+        $bundleCollection->setPageSize($limit - count($productIds))
+            ->addFieldToFilter('entity_id', array('in' => $bundleIds))
+            ->setFlag('do_not_use_category_id', true);
 
-        Mage::getSingleton('catalog/product_status')->addSaleableFilterToCollection($bundles);
-        Mage::getSingleton('catalog/product_visibility')->addVisibleInCatalogFilterToCollection($bundles);
-
-        $bundles->getSelect()->group('entity_id');
-
-        if (isset($limit['bundle'])) {
-            $bundles->setPageSize($limit['bundle']);
-        }
-        $bundles->load();
-
-        foreach ($bundles->getItems() as $item) {
+        foreach ($bundleCollection as $item) {
             $collection->addItem($item);
         }
 
@@ -135,21 +156,18 @@ class Mage_Bundle_Model_Observer
     }
 
     /**
-     * loadding product options for products if there is one bundle in collection
+     * Add price index data for catalog product collection
      * only for front end
      *
-     * @param Varien_Object $observer
+     * @param Varien_Event_Observer $observer
      * @return Mage_Bundle_Model_Observer
      */
     public function loadProductOptions($observer)
     {
         $collection = $observer->getEvent()->getCollection();
-        foreach ($collection->getItems() as $item){
-            if ($item->getTypeId() == Mage_Catalog_Model_Product_Type::TYPE_BUNDLE) {
-                $collection->addOptionsToResult();
-                return $this;
-            }
-        }
+        /* @var $collection Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Collection */
+        $collection->addPriceData();
+
         return $this;
     }
 
@@ -223,6 +241,42 @@ class Mage_Bundle_Model_Observer
             Mage::helper('adminhtml/catalog')
                 ->setAttributeTabBlock('bundle/adminhtml_catalog_product_edit_tab_attributes');
         }
+        return $this;
+    }
+
+    /**
+     * Add price index to bundle product after load
+     *
+     * @deprecated since 1.4.0.0
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Bundle_Model_Observer
+     */
+    public function catalogProductLoadAfter(Varien_Event_Observer $observer)
+    {
+        $product = $observer->getEvent()->getProduct();
+        if ($product->getTypeId() == Mage_Catalog_Model_Product_Type::TYPE_BUNDLE) {
+            Mage::getSingleton('bundle/price_index')
+                ->addPriceIndexToProduct($product);
+        }
+
+        return $this;
+    }
+
+    /**
+     * CatalogIndex Indexer after plain reindex process
+     *
+     * @deprecated since 1.4.0.0
+     * @see Mage_Bundle_Model_Mysql4_Indexer_Price
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_Bundle_Model_Observer
+     */
+    public function catalogIndexPlainReindexAfter(Varien_Event_Observer $observer)
+    {
+        $products = $observer->getEvent()->getProducts();
+        Mage::getSingleton('bundle/price_index')->reindex($products);
+
         return $this;
     }
 }

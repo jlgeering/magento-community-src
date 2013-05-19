@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -33,19 +33,14 @@ class Mage_Adminhtml_Model_System_Config_Source_Website
     {
         if (!$this->_options) {
             $this->_options = array();
-            foreach (Mage::getConfig()->getNode('websites')->children() as $code=>$config) {
-                $id = (string)$config->system->website->id;
-                $name = (string)$config->system->website->name;
+            foreach (Mage::app()->getWebsites() as $website) {
+                $id = $website->getId();
+                $name = $website->getName();
                 if ($id!=0) {
                     $this->_options[] = array('value'=>$id, 'label'=>$name);
                 }
             }
         }
-        return $this->_cleanupOptions($this->_options);
-    }
-
-    protected function _cleanupOptions($options)
-    {
-        return $options;
+        return $this->_options;
     }
 }

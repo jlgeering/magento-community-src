@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -68,6 +68,13 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      * @var bool
      */
     protected $_isComposite = false;
+
+    /**
+     * Whether product quantity is fractional number or not
+     *
+     * @var bool
+     */
+    protected $_canUseQtyDecimals  = true;
 
     /**
      * @deprecated
@@ -152,7 +159,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
     /**
      * Retrieve parent ids array by requered child
      *
-     * @param int $childId
+     * @param int|array $childId
      * @return array
      */
     public function getParentIdsByChild($childId)
@@ -168,29 +175,9 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     public function getSetAttributes($product = null)
     {
-        $cacheKey = '_cache_set_attributes';
-        if (!$this->getProduct($product)->hasData($cacheKey)) {
-            $attributes = $this->getProduct($product)->getResource()
-                ->loadAllAttributes($this->getProduct($product))
-                ->getAttributesByCode();
-            $setAttributes = array();
-            $attributeSetId = $this->getProduct($product)->getAttributeSetId();
-            foreach ($attributes as $attribute) {
-                if ($attribute->isInSet($attributeSetId)) {
-                    $attribute->setGroupSortPath($attribute->getData(
-                        "attribute_set_info/{$attributeSetId}/group_sort"
-                    ));
-                    $attribute->setSortPath($attribute->getData(
-                        "attribute_set_info/{$attributeSetId}/sort"
-                    ));
-                    $setAttributes[$attribute->getAttributeCode()] = $attribute;
-                }
-            }
-
-            uasort($setAttributes, array($this, 'attributesCompare'));
-            $this->getProduct($product)->setData($cacheKey, $setAttributes);
-        }
-        return $this->getProduct($product)->getData($cacheKey);
+        return $this->getProduct($product)->getResource()
+            ->loadAllAttributes($this->getProduct($product))
+            ->getSortedAttributes($this->getProduct($product)->getAttributeSetId());
     }
 
     /**
@@ -434,8 +421,11 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
                     $optionArr['options'][] = array(
                         'label' => $option->getTitle(),
                         'value' => $group->getFormattedOptionValue($quoteItemOption->getValue()),
+                        'print_value' => $group->getPrintableOptionValue($quoteItemOption->getValue()),
                         'option_id' => $option->getId(),
-                        'option_value' => $quoteItemOption->getValue()
+                        'option_type' => $option->getType(),
+                        'option_value' => $quoteItemOption->getValue(),
+                        'custom_view' => $group->isCustomizedView()
                     );
                 }
             }
@@ -487,6 +477,17 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
     }
 
     /**
+     * Check if product qty is fractional number
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return bool
+     */
+    public function canUseQtyDecimals()
+    {
+        return $this->_canUseQtyDecimals;
+    }
+
+    /**
      * Default action to get sku of product
      *
      * @param Mage_Catalog_Model_Product $product
@@ -503,11 +504,20 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
                     $quoteItemOption = $this->getProduct($product)->getCustomOption('option_'.$optionId);
 
                     $group = $option->groupFactory($option->getType())
-                        ->setOption($option);
+                        ->setOption($option)->setListener(new Varien_Object());
 
                     if ($optionSku = $group->getOptionSku($quoteItemOption->getValue(), $skuDelimiter)) {
                         $sku .= $skuDelimiter . $optionSku;
                     }
+
+                    if ($group->getListener()->getHasError()) {
+                        $this->getProduct($product)
+                                ->setHasError(true)
+                                ->setMessage(
+                                    $group->getListener()->getMessage()
+                                );
+                    }
+
                 }
             }
         }
@@ -647,6 +657,28 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
         if (isset($config['composite'])) {
             $this->_isComposite = (bool) $config['composite'];
         }
+
+        if (isset($config['can_use_qty_decimals'])) {
+            $this->_canUseQtyDecimals = (bool) $config['can_use_qty_decimals'];
+        }
+
         return $this;
+    }
+
+    /**
+     * Retrieve additional searchable data from type instance
+     * Using based on product id and store_id data
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return array
+     */
+    public function getSearchableData($product = null)
+    {
+        $product = $this->getProduct($product);
+
+        $searchData = Mage::getSingleton('catalog/product_option')
+            ->getSearchableData($product->getId(), $product->getStoreId());
+
+        return $searchData;
     }
 }

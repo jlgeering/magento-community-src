@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -102,11 +102,22 @@ class Mage_Catalog_ProductController extends Mage_Core_Controller_Front_Action
         $update->addHandle('PRODUCT_TYPE_'.$product->getTypeId());
         $update->addHandle('PRODUCT_'.$product->getId());
 
+        if ($product->getPageLayout()) {
+            $this->getLayout()->helper('page/layout')
+                ->applyHandle($product->getPageLayout());
+        }
+
         $this->loadLayoutUpdates();
+
 
         $update->addUpdate($product->getCustomLayoutUpdate());
 
         $this->generateLayoutXml()->generateLayoutBlocks();
+
+        if ($product->getPageLayout()) {
+            $this->getLayout()->helper('page/layout')
+                ->applyTemplate($product->getPageLayout());
+        }
 
         $currentCategory = Mage::registry('current_category');
         if ($root = $this->getLayout()->getBlock('root')) {
@@ -142,9 +153,9 @@ class Mage_Catalog_ProductController extends Mage_Core_Controller_Front_Action
             $this->renderLayout();
         }
         else {
-            if (isset($_GET['store'])  && $this->getRequest()->isDispatched()) {
+            if (isset($_GET['store'])  && !$this->getResponse()->isRedirect()) {
                 $this->_redirect('');
-            } elseif ($this->getRequest()->isDispatched()) {
+            } elseif (!$this->getResponse()->isRedirect()) {
                 $this->_forward('noRoute');
             }
         }
@@ -156,9 +167,9 @@ class Mage_Catalog_ProductController extends Mage_Core_Controller_Front_Action
     public function galleryAction()
     {
         if (!$this->_initProduct()) {
-            if (isset($_GET['store']) && $this->getRequest()->isDispatched()) {
+            if (isset($_GET['store']) && !$this->getResponse()->isRedirect()) {
                 $this->_redirect('');
-            } elseif ($this->getRequest()->isDispatched()) {
+            } elseif (!$this->getResponse()->isRedirect()) {
                 $this->_forward('noRoute');
             }
             return;

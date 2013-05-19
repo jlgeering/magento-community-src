@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -32,12 +32,6 @@
 class Mage_Adminhtml_Block_Sales_Order_Create_Form_Account extends Mage_Adminhtml_Block_Sales_Order_Create_Abstract
 {
     protected $_form;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->setTemplate('sales/order/create/form/account.phtml');
-    }
 
     protected function _prepareLayout()
     {
@@ -71,12 +65,8 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form_Account extends Mage_Adminhtm
     protected function _prepareForm()
     {
         if (!$this->_form) {
-            if ($this->getQuote()->getCustomerIsGuest()) {
-                $display = array('email' => 1);
-            }
-            else {
-                $display = array('group_id' => 1, 'email' =>2);
-            }
+
+            $display = $this->getDisplayFields();
 
             $this->_form = new Varien_Data_Form();
             $fieldset = $this->_form->addFieldset('main', array());
@@ -86,13 +76,15 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form_Account extends Mage_Adminhtm
                 if (!array_key_exists($attribute->getAttributeCode(), $display)) {
                     continue;
                 }
+
                 if ($inputType = $attribute->getFrontend()->getInputType()) {
+                    $field = $display[$attribute->getAttributeCode()];
                     $element = $fieldset->addField($attribute->getAttributeCode(), $inputType,
                         array(
                             'name'      => $attribute->getAttributeCode(),
                             'label'     => $attribute->getFrontend()->getLabel(),
-                            'class'     => $attribute->getFrontend()->getClass(),
-                            'required'  => $attribute->getIsRequired(),
+                            'class'     => isset($field['class']) ? $field['class'] : $attribute->getFrontend()->getClass(),
+                            'required'  => isset($field['required']) ? $field['required'] : $attribute->getIsRequired(),
                         )
                     )
                     ->setEntityAttribute($attribute)
@@ -126,13 +118,39 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form_Account extends Mage_Adminhtm
         return 0;
     }
 
+    /**
+     * Return new customer account fields for order
+     *
+     * @return array
+     */
+    public function getDisplayFields()
+    {
+        $fields = array(
+            'group_id' => array(
+                'order' => 1
+            ),
+            'email' => array(
+                'order' => 2,
+                'class' => 'validate-email',
+                'required' => true
+            ),
+        );
+
+        if ($this->getQuote()->getCustomerIsGuest()) {
+            unset($fields['group_id']);
+        }
+
+        return $fields;
+    }
+
+
     public function getCustomerData()
     {
         $data = $this->getCustomer()->getData();
         foreach ($this->getQuote()->getData() as $key=>$value) {
-        	if (strstr($key, 'customer_')) {
-        	    $data[str_replace('customer_', '', $key)] = $value;
-        	}
+            if (strstr($key, 'customer_')) {
+                $data[str_replace('customer_', '', $key)] = $value;
+            }
         }
         $data['group_id'] = $this->getCreateOrderModel()->getCustomerGroupId();
         $data['email'] = ($this->getQuote()->getCustomerEmail() ? $this->getQuote()->getCustomerEmail() :$this->getCustomer()->getData('email'));

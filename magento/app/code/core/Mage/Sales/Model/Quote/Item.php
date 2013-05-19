@@ -18,21 +18,36 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sales
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sales
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
 /**
- * Quote item model
+ * Sales Quote Item Model
  *
  * @category   Mage
  * @package    Mage_Sales
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
 {
+    /**
+     * Prefix of model events names
+     *
+     * @var string
+     */
     protected $_eventPrefix = 'sales_quote_item';
+
+    /**
+     * Parameter name in event
+     *
+     * In observe method you can use $observer->getEvent()->getObject() in this case
+     *
+     * @var string
+     */
     protected $_eventObject = 'item';
 
     /**
@@ -40,16 +55,43 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
      *
      * @var Mage_Sales_Model_Quote
      */
-    protected $_quote       = null;
-    protected $_options = array();
-    protected $_optionsByCode = array();
-    protected $_norRepresentOptions = array('info_buyRequest');
+    protected $_quote;
 
-    function _construct()
+    /**
+     * Item options array
+     *
+     * @var array
+     */
+    protected $_options             = array();
+
+    /**
+     * Item options by code cache
+     *
+     * @var array
+     */
+    protected $_optionsByCode       = array();
+
+    /**
+     * Not Represent options
+     *
+     * @var array
+     */
+    protected $_notRepresentOptions = array('info_buyRequest');
+
+    /**
+     * Initialize resource model
+     *
+     */
+    protected function _construct()
     {
         $this->_init('sales/quote_item');
     }
 
+    /**
+     * Quote Item Before Save prepare data process
+     *
+     * @return Mage_Sales_Model_Quote_Item
+     */
     protected function _beforeSave()
     {
         parent::_beforeSave();
@@ -83,6 +125,12 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
         return $this->_quote;
     }
 
+    /**
+     * Prepare quantity
+     *
+     * @param float|int $qty
+     * @return int|float
+     */
     protected function _prepareQty($qty)
     {
         $qty = Mage::app()->getLocale()->getNumber($qty);
@@ -93,8 +141,8 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     /**
      * Adding quantity to quote item
      *
-     * @param   float $qty
-     * @return  Mage_Sales_Model_Quote_Item
+     * @param float $qty
+     * @return Mage_Sales_Model_Quote_Item
      */
     public function addQty($qty)
     {
@@ -115,8 +163,8 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     /**
      * Declare quote item quantity
      *
-     * @param   float $qty
-     * @return  Mage_Sales_Model_Quote_Item
+     * @param float $qty
+     * @return Mage_Sales_Model_Quote_Item
      */
     public function setQty($qty)
     {
@@ -168,6 +216,23 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     }
 
     /**
+     * Checking item data
+     *
+     * @return Mage_Sales_Model_Quote_Item_Abstract
+     */
+    public function checkData()
+    {
+        $parent = parent::checkData();
+        if ($this->getProduct()->getHasError()) {
+            $this->setHasError(true);
+            $this->setMessage(Mage::helper('sales')->__('Item options declare error'));
+            $this->getQuote()->setHasError(true);
+            $this->getQuote()->addMessage($this->getProduct()->getMessage(), 'options');
+        }
+        return $parent;
+    }
+
+    /**
      * Setup product for quote item
      *
      * @param   Mage_Catalog_Model_Product $product
@@ -185,8 +250,10 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             ->setName($product->getName())
             ->setWeight($this->getProduct()->getWeight())
             ->setTaxClassId($product->getTaxClassId())
-            ->setCost($product->getCost())
-            ->setIsQtyDecimal($product->getIsQtyDecimal());
+            ->setBaseCost($product->getCost());
+            if ($product->getStockItem()) {
+                $this->setIsQtyDecimal($product->getStockItem()->getIsQtyDecimal());
+            }
 
         Mage::dispatchEvent('sales_quote_item_set_product', array(
             'product' => $product,
@@ -213,6 +280,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             $product = Mage::getModel('catalog/product')
                 ->setStoreId($this->getQuote()->getStoreId())
                 ->load($this->getProductId());
+
             $this->setProduct($product);
         }
 
@@ -237,20 +305,37 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             return false;
         }
 
-        $itemOptions    = $this->getOptions();
+        $itemOptions    = $this->getOptionsByCode();
         $productOptions = $product->getCustomOptions();
-        if (count($itemOptions) != count($productOptions)) {
+
+        if(!$this->compareOptions($itemOptions, $productOptions)){
             return false;
         }
+        if(!$this->compareOptions($productOptions, $itemOptions)){
+            return false;
+        }
+        return true;
+    }
 
-        foreach ($itemOptions as $option) {
+    /**
+     * Check if two options array are identical
+     * First options array is prerogative
+     * Second options array checked against first one
+     *
+     * @param array $options1
+     * @param array $options2
+     * @return bool
+     */
+    public function compareOptions($options1, $options2)
+    {
+        foreach ($options1 as $option) {
             $code = $option->getCode();
-            if (in_array($code, $this->_norRepresentOptions )) {
+            if (in_array($code, $this->_notRepresentOptions )) {
                 continue;
             }
-            if ( !isset($productOptions[$code])
-                || ($productOptions[$code]->getValue() === null)
-                || $productOptions[$code]->getValue() != $option->getValue()) {
+            if ( !isset($options2[$code])
+                || ($options2[$code]->getValue() === null)
+                || $options2[$code]->getValue() != $option->getValue()) {
                 return false;
             }
         }
@@ -322,6 +407,12 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
         return $this->_getData('product_type');
     }
 
+    /**
+     * Convert Quote Item to array
+     *
+     * @param array $arrAttributes
+     * @return array
+     */
     public function toArray(array $arrAttributes=array())
     {
         $data = parent::toArray($arrAttributes);
@@ -354,6 +445,16 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     public function getOptions()
     {
         return $this->_options;
+    }
+
+    /**
+     * Get all item options as array with codes in array key
+     *
+     * @return array
+     */
+    public function getOptionsByCode()
+    {
+        return $this->_optionsByCode;
     }
 
     /**

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -228,24 +228,7 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
             }
         }
 
-        return $this;
-    }
 
-    /**
-     * Retrieve url for add product to cart
-     * Rewrited for Product List and has required options products
-     *
-     * @param  Mage_Catalog_Model_Product $product
-     * @param array $additional
-     * @return string
-     */
-    public function getAddToCartUrl($product, $additional = array())
-    {
-        if ($product->hasRequiredOptions()) {
-            $url = $product->getProductUrl();
-            $link = (strpos($url, '?') !== false) ? '&' : '?';
-            return $url . $link . 'options=cart';
-        }
-        return parent::getAddToCartUrl($product, $additional);
+        return $this;
     }
 }

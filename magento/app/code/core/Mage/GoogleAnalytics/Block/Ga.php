@@ -18,24 +18,26 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleAnalytics
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleAnalytics
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
 /**
- * Google Analytics block
+ * GoogleAnalitics Page Block
  *
  * @category   Mage
  * @package    Mage_GoogleAnalytics
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_GoogleAnalytics_Block_Ga extends Mage_Core_Block_Text
 {
     /**
      * Retrieve Quote Data HTML
      *
-     * @return unknown
+     * @return string
      */
     public function getQuoteOrdersHtml()
     {
@@ -91,33 +93,33 @@ class Mage_GoogleAnalytics_Block_Ga extends Mage_Core_Block_Text
 
         $html  = '<script type="text/javascript">' . "\n";
         $html .= "//<![CDATA[\n";
-        $html .= 'pageTracker._addTrans(';
+        $html .= '_gaq.push(["_addTrans",';
         $html .= '"' . $order->getIncrementId() . '",';
         $html .= '"' . $order->getAffiliation() . '",';
-        $html .= '"' . $order->getGrandTotal() . '",';
-        $html .= '"' . $order->getTaxAmount() . '",';
-        $html .= '"' . $order->getShippingAmount() . '",';
-        $html .= '"' . $address->getCity() . '",';
-        $html .= '"' . $address->getRegion() . '",';
-        $html .= '"' . $address->getCountry() . '"';
-        $html .= ');' . "\n";
+        $html .= '"' . $order->getBaseGrandTotal() . '",';
+        $html .= '"' . $order->getBaseTaxAmount() . '",';
+        $html .= '"' . $order->getBaseShippingAmount() . '",';
+        $html .= '"' . $this->jsQuoteEscape($address->getCity(), '"') . '",';
+        $html .= '"' . $this->jsQuoteEscape($address->getRegion(), '"') . '",';
+        $html .= '"' . $this->jsQuoteEscape($address->getCountry(), '"') . '"';
+        $html .= ']);' . "\n";
 
         foreach ($order->getAllItems() as $item) {
             if ($item->getParentItemId()) {
                 continue;
             }
 
-            $html .= 'pageTracker._addItem(';
+            $html .= '_gaq.push(["_addItem",';
             $html .= '"' . $order->getIncrementId() . '",';
-            $html .= '"' . $item->getSku() . '",';
-            $html .= '"' . $item->getName() . '",';
+            $html .= '"' . $this->jsQuoteEscape($item->getSku(), '"') . '",';
+            $html .= '"' . $this->jsQuoteEscape($item->getName(), '"') . '",';
             $html .= '"' . $item->getCategory() . '",';
-            $html .= '"' . $item->getPrice() . '",';
+            $html .= '"' . $item->getBasePrice() . '",';
             $html .= '"' . $item->getQtyOrdered() . '"';
-            $html .= ');' . "\n";
+            $html .= ']);' . "\n";
         }
 
-        $html .= 'pageTracker._trackTrans();' . "\n";
+        $html .= '_gaq.push(["_trackTrans"]);' . "\n";
         $html .= '//]]>';
         $html .= '</script>';
 
@@ -169,14 +171,14 @@ class Mage_GoogleAnalytics_Block_Ga extends Mage_Core_Block_Text
 <!-- BEGIN GOOGLE ANALYTICS CODE -->
 <script type="text/javascript">
 //<![CDATA[
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src=\'" + gaJsHost + "google-analytics.com/ga.js\' type=\'text/javascript\'%3E%3C/script%3E"));
-//]]>
-</script>
-<script type="text/javascript">
-//<![CDATA[
-var pageTracker = _gat._getTracker("' . $this->getAccount() . '");
-pageTracker._trackPageview("'.$this->getPageName().'");
+    (function() {
+        var ga = document.createElement(\'script\'); ga.type = \'text/javascript\'; ga.async = true;
+        ga.src = (\'https:\' == document.location.protocol ? \'https://ssl\' : \'http://www\') + \'.google-analytics.com/ga.js\';
+        (document.getElementsByTagName(\'head\')[0] || document.getElementsByTagName(\'body\')[0]).appendChild(ga);
+    })();
+
+    _gaq.push(["_setAccount", "' . $this->getAccount() . '"]);
+    _gaq.push(["_trackPageview", "'.$this->getPageName().'"]);
 //]]>
 </script>
 <!-- END GOOGLE ANALYTICS CODE -->

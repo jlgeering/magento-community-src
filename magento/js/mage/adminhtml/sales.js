@@ -17,8 +17,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 var AdminOrder = new Class.create();
 AdminOrder.prototype = {
@@ -133,11 +135,9 @@ AdminOrder.prototype = {
         }
         data = data.toObject();
 
-        if(name == 'postcode' || name == 'country_id' || name == 'region_id'){
-            if( (type == 'billing' && this.shippingAsBilling)
-                || (type == 'shipping' && !this.shippingAsBilling) ) {
-                data['reset_shipping'] = true;
-            }
+        if( (type == 'billing' && this.shippingAsBilling)
+            || (type == 'shipping' && !this.shippingAsBilling) ) {
+            data['reset_shipping'] = true;
         }
 
         data['order['+type+'_address][customer_address_id]'] = $('order-'+type+'_address_customer_address_id').value;
@@ -210,7 +210,7 @@ AdminOrder.prototype = {
     resetShippingMethod : function(data){
         data['reset_shipping'] = 1;
         this.isShippingMethodReseted = true;
-        this.loadArea(['shipping_method', 'billing_method', 'totals', 'giftmessage'], true, data);
+        this.loadArea(['shipping_method', 'billing_method', 'shipping_address', 'totals', 'giftmessage'], true, data);
     },
 
     loadShippingRates : function(){
@@ -228,7 +228,7 @@ AdminOrder.prototype = {
         this.setPaymentMethod(method);
         var data = {};
         data['order[payment_method]'] = method;
-        this.saveData(data);
+        this.loadArea(['card_validation'], true, data);
     },
 
     setPaymentMethod : function(method){
@@ -240,7 +240,7 @@ AdminOrder.prototype = {
         }
 
         if(!this.paymentMethod || method){
-            $('order-billing_method').select('input', 'select').each(function(elem){
+            $('order-billing_method_form').select('input', 'select').each(function(elem){
                 if(elem.type != 'radio') elem.disabled = true;
             })
         }
@@ -254,7 +254,8 @@ AdminOrder.prototype = {
                 elements[i].disabled = false;
                 if(!elements[i].bindChange){
                     elements[i].bindChange = true;
-                    elements[i].paymentContainer = 'payment_form_'+method;
+                    elements[i].paymentContainer = 'payment_form_'+method; //@deprecated after 1.4.0.0-rc1
+                    elements[i].method = method;
                     elements[i].observe('change', this.changePaymentData.bind(this))
                 }
             }
@@ -263,17 +264,33 @@ AdminOrder.prototype = {
 
     changePaymentData : function(event){
         var elem = Event.element(event);
-        if(elem && elem.paymentContainer){
-            var data = {};
-            var fields = $(elem.paymentContainer).select('input', 'select');
-            for(var i=0;i<fields.length;i++){
-                data[fields[i].name] = fields[i].getValue();
-            }
-            if ((typeof data['payment[cc_type]']) != 'undefined' && (!data['payment[cc_type]'] || !data['payment[cc_number]'])) {
+        if(elem && elem.method){
+            var data = this.getPaymentData(elem.method);
+            if (data) {
+                 this.loadArea(['card_validation'], true, data);
+            } else {
                 return;
             }
-            this.saveData(data);
         }
+    },
+
+    getPaymentData : function(currentMethod){
+        if (typeof(currentMethod) == 'undefined') {
+            if (this.paymentMethod) {
+                currentMethod = this.paymentMethod;
+            } else {
+                return false;
+            }
+        }
+        var data = {};
+        var fields = $('payment_form_' + currentMethod).select('input', 'select');
+        for(var i=0;i<fields.length;i++){
+            data[fields[i].name] = fields[i].getValue();
+        }
+        if ((typeof data['payment[cc_type]']) != 'undefined' && (!data['payment[cc_type]'] || !data['payment[cc_number]'])) {
+            return false;
+        }
+        return data;
     },
 
     applyCoupon : function(code){
@@ -473,7 +490,8 @@ AdminOrder.prototype = {
         }
     },
 
-    itemChange : function(){
+    itemChange : function(event){
+        this.giftmessageOnItemChange(event);
         this.orderItemChanged = true;
     },
 
@@ -523,6 +541,22 @@ AdminOrder.prototype = {
         this.saveData(this.serializeData('order-giftmessage'));
     },
 
+    giftmessageOnItemChange : function(event) {
+        var element = Event.element(event);
+        if(element.name.indexOf("giftmessage") != -1 && element.type == "checkbox" && !element.checked) {
+            var messages = $("order-giftmessage").select('textarea');
+            var name;
+            for(var i=0; i<messages.length; i++) {
+                name = messages[i].id.split("_");
+                if(name.length < 2) continue;
+                if (element.name.indexOf("[" + name[1] + "]") != -1 && messages[i].value != "") {
+                    alert("First, clean the Message field in Gift Message form");
+                    element.checked = true;
+                }
+            }
+        }
+    },
+
     loadArea : function(area, indicator, params){
         var url = this.loadBaseUrl;
         if(area) url+= 'block/' + area
@@ -537,17 +571,25 @@ AdminOrder.prototype = {
                 loaderArea: indicator,
                 onSuccess: function(transport) {
                     var response = transport.responseText.evalJSON();
+                    if (response.error) {
+                        alert(response.message);
+                    }
+                    if(response.ajaxExpired && response.ajaxRedirect) {
+                        setLocation(response.ajaxRedirect);
+                    }
                     if(!this.loadingAreas){
                         this.loadingAreas = [];
                     }
                     if(typeof this.loadingAreas == 'string'){
                         this.loadingAreas = [this.loadingAreas];
                     }
-                    if(this.loadingAreas.indexOf('messages'==-1)) this.loadingAreas.push('messages');
+                    if(this.loadingAreas.indexOf('message'==-1)) this.loadingAreas.push('message');
                     for(var i=0; i<this.loadingAreas.length; i++){
                         var id = this.loadingAreas[i];
                         if($(this.getAreaId(id))){
-                            $(this.getAreaId(id)).update(response[id] ? response[id] : '');
+                            if ('message' != id || response[id]) {
+                                $(this.getAreaId(id)).update(response[id] ? response[id] : '');
+                            }
                             if ($(this.getAreaId(id)).callback) {
                                 this[$(this.getAreaId(id)).callback]();
                             }
@@ -637,20 +679,20 @@ AdminOrder.prototype = {
         }
     },
 
-    submit : function(){
-        //editForm.submit();
-        if(this.orderItemChanged){
-            if(confirm('You have item changes')){
-                //$('edit_form').submit();
-                editForm.submit();
-            }
-            else{
+    submit : function()
+    {
+        if (this.orderItemChanged) {
+            if (confirm('You have item changes')) {
+                if (editForm.submit()) {
+                    disableElements('save');
+                }
+            } else {
                 this.itemsUpdate();
             }
-        }
-        else{
-            //$('edit_form').submit();
-            editForm.submit();
+        } else {
+            if (editForm.submit()) {
+                disableElements('save');
+            }
         }
     },
 
@@ -685,6 +727,11 @@ AdminOrder.prototype = {
     processOverlay : function(elId, show)
     {
         var el = $(elId);
+
+        if (!el) {
+            return false;
+        }
+
         var parentEl = el.up(1);
         var parentPos = Element.cumulativeOffset(parentEl);
         if (show) {
@@ -696,7 +743,13 @@ AdminOrder.prototype = {
 
         if (Prototype.Browser.IE) {
             parentEl.select('select').each(function (elem) {
-                show ? elem .show() : elem.hide();
+                if (show) {
+                    elem.needShowOnSuccess = false;
+                    elem.style.visibility = '';
+                } else {
+                    elem.style.visibility = 'hidden';
+                    elem.needShowOnSuccess = true;
+                }
             });
         }
 

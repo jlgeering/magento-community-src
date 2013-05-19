@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Api
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Api
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -96,10 +96,11 @@ class Mage_Api_Model_Server_Adapter_Soap
     {
         $urlModel = Mage::getModel('core/url')
             ->setUseSession(false);
-        if ($this->getController()->getRequest()->getParam('wsdl')) {
+        if ($this->getController()->getRequest()->getParam('wsdl') !== null) {
             // Generating wsdl content from template
             $io   = new Varien_Io_File();
             $io->open(array('path'=>Mage::getModuleDir('etc', 'Mage_Api')));
+
             $wsdlContent = $io->read('wsdl.xml');
 
             $template = Mage::getModel('core/email_template_filter');

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Poll
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Poll
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -56,20 +56,30 @@ class Mage_Poll_Model_Mysql4_Poll_Collection extends Mage_Core_Model_Mysql4_Coll
     }
 
     /**
-     * Add Stores Filter
+     * Deprecated
      *
-     * @param int $storeId
+     * @param int|array $storeId
      * @return Mage_Poll_Model_Mysql4_Poll_Collection
      */
     public function addStoresFilter($store)
     {
+        return $this->addStoreFilter($store);
+    }
 
+    /**
+     * Add Stores Filter
+     *
+     * @param int|array $storeId
+     * @return Mage_Poll_Model_Mysql4_Poll_Collection
+     */
+    public function addStoreFilter($storeId, $withAdmin = true)
+    {
         $this->getSelect()->join(
             array('store_table' => $this->getTable('poll/poll_store')),
             'main_table.poll_id = store_table.poll_id',
             array()
         )
-        ->where('store_table.store_id in (?)', array(0, $store))
+        ->where('store_table.store_id in (?)', ($withAdmin ? array(0, $storeId) : $storeId))
         ->group('main_table.poll_id');
 
         return $this;

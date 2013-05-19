@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -38,6 +38,13 @@ class Mage_Catalog_Model_Product_Visibility extends Varien_Object
     const VISIBILITY_IN_CATALOG     = 2;
     const VISIBILITY_IN_SEARCH      = 3;
     const VISIBILITY_BOTH           = 4;
+
+    /**
+     * Reference to the attribute instance
+     *
+     * @var Mage_Catalog_Model_Resource_Eav_Attribute
+     */
+    protected $_attribute;
 
     /**
      * Initialize object
@@ -129,7 +136,7 @@ class Mage_Catalog_Model_Product_Visibility extends Varien_Object
     static public function getOptionArray()
     {
         return array(
-            self::VISIBILITY_NOT_VISIBLE=> Mage::helper('catalog')->__('Nowhere'),
+            self::VISIBILITY_NOT_VISIBLE=> Mage::helper('catalog')->__('Not Visible Individually'),
             self::VISIBILITY_IN_CATALOG => Mage::helper('catalog')->__('Catalog'),
             self::VISIBILITY_IN_SEARCH  => Mage::helper('catalog')->__('Search'),
             self::VISIBILITY_BOTH       => Mage::helper('catalog')->__('Catalog, Search')
@@ -185,7 +192,13 @@ class Mage_Catalog_Model_Product_Visibility extends Varien_Object
      */
     public function getFlatColums()
     {
-        return array();
+        return array($this->getAttribute()->getAttributeCode() => array(
+            'type'      => 'tinyint',
+            'unsigned'  => true,
+            'is_null'   => true,
+            'default'   => null,
+            'extra'     => null
+        ));
     }
 
     /**
@@ -201,12 +214,79 @@ class Mage_Catalog_Model_Product_Visibility extends Varien_Object
     /**
      * Retrieve Select For Flat Attribute update
      *
-     * @param Mage_Eav_Model_Entity_Attribute_Abstract $attribute
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
      * @param int $store
      * @return Varien_Db_Select|null
      */
     public function getFlatUpdateSelect($store)
     {
-        return null;
+        return Mage::getResourceSingleton('eav/entity_attribute')
+            ->getFlatUpdateSelect($this->getAttribute(), $store);
+    }
+
+    /**
+     * Set attribute instance
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @return Mage_Eav_Model_Entity_Attribute_Frontend_Abstract
+     */
+    public function setAttribute($attribute)
+    {
+        $this->_attribute = $attribute;
+        return $this;
+    }
+
+    /**
+     * Get attribute instance
+     *
+     * @return Mage_Catalog_Model_Resource_Eav_Attribute
+     */
+    public function getAttribute()
+    {
+        return $this->_attribute;
+    }
+
+    /**
+     * Add Value Sort To Collection Select
+     *
+     * @param Mage_Eav_Model_Entity_Collection_Abstract $collection
+     * @param string $dir direction
+     * @return Mage_Eav_Model_Entity_Attribute_Source_Abstract
+     */
+    public function addValueSortToCollection($collection, $dir = 'asc')
+    {
+        if ($this->getAttribute()->isScopeGlobal()) {
+            $tableName = $this->getAttribute()->getAttributeCode() . '_t';
+            $collection->getSelect()
+                ->joinLeft(
+                    array($tableName => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$tableName}`.`entity_id`"
+                        . " AND `{$tableName}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$tableName}`.`store_id`='0'",
+                    array());
+            $valueExpr = $tableName . '.value';
+        }
+        else {
+            $valueTable1    = $this->getAttribute()->getAttributeCode() . '_t1';
+            $valueTable2    = $this->getAttribute()->getAttributeCode() . '_t2';
+            $collection->getSelect()
+                ->joinLeft(
+                    array($valueTable1 => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$valueTable1}`.`entity_id`"
+                        . " AND `{$valueTable1}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$valueTable1}`.`store_id`='0'",
+                    array())
+                ->joinLeft(
+                    array($valueTable2 => $this->getAttribute()->getBackend()->getTable()),
+                    "`e`.`entity_id`=`{$valueTable2}`.`entity_id`"
+                        . " AND `{$valueTable2}`.`attribute_id`='{$this->getAttribute()->getId()}'"
+                        . " AND `{$valueTable2}`.`store_id`='{$collection->getStoreId()}'",
+                    array()
+                );
+            $valueExpr = new Zend_Db_Expr("IF(`{$valueTable2}`.`value_id`>0, `{$valueTable2}`.`value`, `{$valueTable1}`.`value`)");
+        }
+
+        $collection->getSelect()->order($valueExpr . ' ' . $dir);
+        return $this;
     }
 }

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Bundle
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,14 +33,29 @@
  */
 class Mage_Bundle_Model_Option extends Mage_Core_Model_Abstract
 {
+    /**
+     * Default selection object
+     *
+     * @var Mage_Bundle_Model_Selection
+     */
     protected $_defaultSelection = null;
 
+    /**
+     * Initialize resource model
+     *
+     */
     protected function _construct()
     {
         $this->_init('bundle/option');
         parent::_construct();
     }
 
+    /**
+     * Add selection to option
+     *
+     * @param Mage_Bundle_Model_Selection $selection
+     * @return Mage_Bundle_Model_Option
+     */
     public function addSelection($selection)
     {
         if (!$selection) {
@@ -54,6 +69,11 @@ class Mage_Bundle_Model_Option extends Mage_Core_Model_Abstract
         return $this;
     }
 
+    /**
+     * Check Is Saleable Option
+     *
+     * @return bool
+     */
     public function isSaleable()
     {
         $saleable = 0;
@@ -64,11 +84,17 @@ class Mage_Bundle_Model_Option extends Mage_Core_Model_Abstract
                 }
             }
             return (bool)$saleable;
-        } else {
+        }
+        else {
             return false;
         }
     }
 
+    /**
+     * Retrieve default Selection object
+     *
+     * @return Mage_Bundle_Model_Selection
+     */
     public function getDefaultSelection()
     {
         if (!$this->_defaultSelection && $this->getSelections()) {
@@ -98,6 +124,11 @@ class Mage_Bundle_Model_Option extends Mage_Core_Model_Abstract
          */
     }
 
+    /**
+     * Check is multi Option selection
+     *
+     * @return bool
+     */
     public function isMultiSelection()
     {
         if ($this->getType() == 'checkbox' || $this->getType() == 'multi') {
@@ -105,5 +136,18 @@ class Mage_Bundle_Model_Option extends Mage_Core_Model_Abstract
         } else {
             return false;
         }
+    }
+
+    /**
+     * Retrieve options searchable data
+     *
+     * @param int $productId
+     * @param int $storeId
+     * @return array
+     */
+    public function getSearchableData($productId, $storeId)
+    {
+        return $this->_getResource()
+            ->getSearchableData($productId, $storeId);
     }
 }

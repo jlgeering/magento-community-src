@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -31,43 +31,59 @@
  * @package    Mage_Adminhtml
  * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Adminhtml_Block_Catalog_Product extends Mage_Adminhtml_Block_Template
+class Mage_Adminhtml_Block_Catalog_Product extends Mage_Adminhtml_Block_Widget_Container
 {
-
+    /**
+     * Set template
+     */
     public function __construct()
     {
         parent::__construct();
         $this->setTemplate('catalog/product.phtml');
     }
 
+    /**
+     * Prepare button and grid
+     *
+     * @return Mage_Adminhtml_Block_Catalog_Product
+     */
     protected function _prepareLayout()
     {
-        $this->setChild('add_new_button',
-            $this->getLayout()->createBlock('adminhtml/widget_button')
-                ->setData(array(
-                    'label'     => Mage::helper('catalog')->__('Add Product'),
-                    'onclick'   => "setLocation('".$this->getUrl('*/*/new')."')",
-                    'class'   => 'add'
-                    ))
-                );
+        $this->_addButton('add_new', array(
+            'label'   => Mage::helper('catalog')->__('Add Product'),
+            'onclick' => "setLocation('{$this->getUrl('*/*/new')}')",
+            'class'   => 'add'
+        ));
 
         $this->setChild('grid', $this->getLayout()->createBlock('adminhtml/catalog_product_grid', 'product.grid'));
         return parent::_prepareLayout();
     }
 
+    /**
+     * Deprecated since 1.3.2
+     *
+     * @return string
+     */
     public function getAddNewButtonHtml()
     {
-        if( $this->_enabledAddNewButton() ) {
-            return $this->getChildHtml('add_new_button');
-        }
-        return '';
+        return $this->getChildHtml('add_new_button');
     }
 
+    /**
+     * Render grid
+     *
+     * @return string
+     */
     public function getGridHtml()
     {
         return $this->getChildHtml('grid');
     }
 
+    /**
+     * Check whether it is single store mode
+     *
+     * @return bool
+     */
     public function isSingleStoreMode()
     {
         if (!Mage::app()->isSingleStoreMode()) {
@@ -75,10 +91,4 @@ class Mage_Adminhtml_Block_Catalog_Product extends Mage_Adminhtml_Block_Template
         }
         return true;
     }
-
-    protected function _enabledAddNewButton()
-    {
-        return true;
-    }
 }
-

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Poll
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Poll
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,6 +33,13 @@
 
 class Mage_Poll_VoteController extends Mage_Core_Controller_Front_Action
 {
+    /**
+     * Action list where need check enabled cookie
+     *
+     * @var array
+     */
+    protected $_cookieCheckActions = array('add');
+
     public function addAction()
     {
         $pollId     = intval($this->getRequest()->getParam('poll_id'));
@@ -46,7 +53,7 @@ class Mage_Poll_VoteController extends Mage_Core_Controller_Front_Action
         if ($poll->getId() && !$poll->getClosed() && !$poll->isVoted()) {
             $vote = Mage::getModel('poll/poll_vote')
                 ->setPollAnswerId($answerId)
-                ->setIpAddress(ip2long($this->getRequest()->getServer('REMOTE_ADDR')))
+                ->setIpAddress(Mage::helper('core/http')->getRemoteAddr(true))
                 ->setCustomerId(Mage::getSingleton('customer/session')->getCustomerId());
 
             $poll->addVote($vote);

@@ -19,43 +19,43 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Rss
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @category    Mage
+ * @package     Mage_Rss
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 -->
 <config>
-   <modules>
-      <Mage_Rss>
-         <version>0.8.0</version>
-      </Mage_Rss>
-   </modules>
-   <global>
-      <models>
-         <rss>
-            <class>Mage_Rss_Model</class>
-            <resourceModel>rss_mysql4</resourceModel>
-         </rss>
-         <rss_mysql4>
-            <class>Mage_Rss_Model_Mysql4</class>
-         </rss_mysql4>
-      </models>
-      <blocks>
-         <rss><class>Mage_Rss_Block</class></rss>
-      </blocks>
-   </global>
+    <modules>
+        <Mage_Rss>
+            <version>0.8.0</version>
+        </Mage_Rss>
+    </modules>
+    <global>
+        <models>
+            <rss>
+                <class>Mage_Rss_Model</class>
+                <resourceModel>rss_mysql4</resourceModel>
+            </rss>
+            <rss_mysql4>
+                <class>Mage_Rss_Model_Mysql4</class>
+            </rss_mysql4>
+        </models>
+        <blocks>
+            <rss><class>Mage_Rss_Block</class></rss>
+        </blocks>
+    </global>
 
-   <admin>
-      <routers>
-         <rss>
-            <use>admin</use>
-            <args>
-               <module>Mage_Rss</module>
-               <frontName>rss</frontName>
-            </args>
-         </rss>
-      </routers>
+    <admin>
+        <!--routers>
+            <adminhtml>
+                <args>
+                    <modules>
+                        <Mage_Rss before="Mage_Adminhtml">Mage_Rss</Mage_Rss>
+                    </modules>
+                </args>
+            </adminhtml>
+        </routers-->
     </admin>
 
     <adminhtml>
@@ -69,34 +69,32 @@
             </modules>
         </translate>
         <layout>
-          <updates>
-              <rss>
-                  <file>rss.xml</file>
-              </rss>
-          </updates>
-      </layout>
-        <acl>
-            <resources>
-                <admin>
-                    <children>
-                        <system>
-                            <children>
-                                <config>
-                                    <children>
-                                        <rss translate="title">
-                                            <title>Rss Feeds Section</title>
-                                            <sort_order>135</sort_order>
-                                        </rss>
-                                    </children>
-                                </config>
-                            </children>
-                        </system>
-                    </children>
-                </admin>
-            </resources>
-        </acl>
+            <updates>
+                <rss>
+                    <file>rss.xml</file>
+                </rss>
+            </updates>
+        </layout>
     </adminhtml>
     <frontend>
+        <events>
+            <sales_order_item_save_after>
+                <observers>
+                    <notifystock>
+                        <class>rss/observer</class>
+                        <method>salesOrderItemSaveAfterNotifyStock</method>
+                    </notifystock>
+                </observers>
+            </sales_order_item_save_after>
+            <sales_order_item_save_after>
+                <observers>
+                    <ordernew>
+                        <class>rss/observer</class>
+                        <method>salesOrderItemSaveAfterOrderNew</method>
+                    </ordernew>
+                </observers>
+            </sales_order_item_save_after>
+        </events>
         <translate>
             <modules>
                 <Mage_Rss>
@@ -106,25 +104,25 @@
                 </Mage_Rss>
             </modules>
         </translate>
-      <secure_url>
-          <rss_catalog_review>/rss/catalog/review</rss_catalog_review>
-           <rss_order_new>/rss/catalog/review</rss_order_new>
-      </secure_url>
-      <routers>
-         <rss>
-            <use>standard</use>
-            <args>
-               <module>Mage_Rss</module>
-               <frontName>rss</frontName>
-            </args>
-         </rss>
-      </routers>
-      <layout>
-              <updates>
-                  <rss>
-                      <file>rss.xml</file>
-                  </rss>
-              </updates>
-          </layout>
-   </frontend>
+        <secure_url>
+            <rss_catalog_review>/rss/catalog/review</rss_catalog_review>
+            <rss_order_new>/rss/catalog/review</rss_order_new>
+        </secure_url>
+        <routers>
+            <rss>
+                <use>standard</use>
+                <args>
+                    <module>Mage_Rss</module>
+                    <frontName>rss</frontName>
+                </args>
+            </rss>
+        </routers>
+        <layout>
+            <updates>
+                <rss>
+                    <file>rss.xml</file>
+                </rss>
+            </updates>
+        </layout>
+    </frontend>
 </config>

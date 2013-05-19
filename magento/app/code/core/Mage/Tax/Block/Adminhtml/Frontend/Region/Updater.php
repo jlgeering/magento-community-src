@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   design_default
- * @package    Mage
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Tax
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 class Mage_Tax_Block_Adminhtml_Frontend_Region_Updater
@@ -30,8 +30,22 @@ class Mage_Tax_Block_Adminhtml_Frontend_Region_Updater
     protected function _getElementHtml(Varien_Data_Form_Element_Abstract $element)
     {
         $html = parent::_getElementHtml($element);
-        $html .= "<script type=\"text/javascript\">var updater = new RegionUpdater('tax_defaults_country', 'none', 'tax_defaults_region', ".$this->helper('directory')->getRegionJson().", 'nullify');updater.update()</script>";
 
+        $js = '<script type="text/javascript">
+               var updater = new RegionUpdater("tax_defaults_country", "none", "tax_defaults_region", %s, "nullify");
+               if(updater.lastCountryId) {
+                   var tmpRegionId = $("tax_defaults_region").value;
+                   var tmpCountryId = updater.lastCountryId;
+                   updater.lastCountryId=false;
+                   updater.update();
+                   updater.lastCountryId = tmpCountryId;
+                   $("tax_defaults_region").value = tmpRegionId;
+               } else {
+                   updater.update();
+               }
+               </script>';
+
+        $html .= sprintf($js, $this->helper('directory')->getRegionJson());
         return $html;
     }
 }

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sales
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sales
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -66,16 +66,38 @@ class Mage_Sales_Model_Quote_Payment extends Mage_Payment_Model_Info
     }
 
     /**
-     * Import data
+     * Import data array to payment method object,
+     * Method calls quote totals collect because payment method availability
+     * can be related to quote totals
      *
      * @param   array $data
+     * @throws  Mage_Core_Exception
      * @return  Mage_Sales_Model_Quote_Payment
      */
     public function importData(array $data)
     {
         $data = new Varien_Object($data);
+        Mage::dispatchEvent(
+            $this->_eventPrefix . '_import_data_before',
+            array(
+                $this->_eventObject=>$this,
+                'input'=>$data,
+            )
+        );
+
         $this->setMethod($data->getMethod());
         $method = $this->getMethodInstance();
+        $method->setStore($this->getQuote()->getStore());
+
+        /**
+         * Payment avalability related with quote totals.
+         * We have recollect quote totals before checking
+         */
+        $this->getQuote()->collectTotals();
+
+        if (!$method->isAvailable($this->getQuote())) {
+            Mage::throwException(Mage::helper('sales')->__('Requested Payment Method is not available'));
+        }
 
         $method->assignData($data);
         /*
@@ -99,22 +121,36 @@ class Mage_Sales_Model_Quote_Payment extends Mage_Payment_Model_Info
         }
         $method->prepareSave();
         if ($this->getQuote()) {
-            $this->setParentId($this->getQuote()->getId());
+            $this->setQuoteId($this->getQuote()->getId());
         }
         return parent::_beforeSave();
     }
 
+    /**
+     * Checkout redirect URL getter
+     *
+     * @return string
+     */
     public function getCheckoutRedirectUrl()
     {
         $method = $this->getMethodInstance();
-
-        return $method ? $method->getCheckoutRedirectUrl() : false;
+        if ($method) {
+            return $method->getCheckoutRedirectUrl();
+        }
+        return '';
     }
 
+    /**
+     * Checkout order place redirect URL getter
+     *
+     * @return string
+     */
     public function getOrderPlaceRedirectUrl()
     {
         $method = $this->getMethodInstance();
-
-        return $method ? $method->getOrderPlaceRedirectUrl() : false;
+        if ($method) {
+            return $method->getOrderPlaceRedirectUrl();
+        }
+        return '';
     }
 }

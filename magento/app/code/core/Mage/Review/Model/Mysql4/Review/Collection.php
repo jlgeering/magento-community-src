@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Review
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Review
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -69,12 +69,13 @@ class Mage_Review_Model_Mysql4_Review_Collection extends Varien_Data_Collection_
     /**
      * Add store filter
      *
-     * @param   int $storeId
+     * @param   int|array $storeId
      * @return  Varien_Data_Collection_Db
      */
     public function addStoreFilter($storeId)
     {
-        $this->_select->join(array('store'=>$this->_reviewStoreTable), 'main_table.review_id=store.review_id AND store.store_id=' . (int)$storeId, array());
+        $this->getSelect()->join(array('store'=>$this->_reviewStoreTable), 'main_table.review_id=store.review_id', array());
+        $this->getSelect()->where('store.store_id IN (?)', $storeId);
         return $this;
     }
 
@@ -184,6 +185,7 @@ class Mage_Review_Model_Mysql4_Review_Collection extends Varien_Data_Collection_
         if ($this->isLoaded()) {
             return $this;
         }
+        Mage::dispatchEvent('review_review_collection_load_before', array('collection' => $this));
         parent::load($printQuery, $logQuery);
         if($this->_addStoreDataFlag) {
             $this->_addStoreData();

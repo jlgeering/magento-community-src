@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -33,10 +33,10 @@
  */
 class Mage_GoogleBase_Model_Mysql4_Item_Collection extends Mage_Core_Model_Mysql4_Collection_Abstract
 {
-	protected function _construct()
-	{
-		$this->_init('googlebase/item');
-	}
+    protected function _construct()
+    {
+        $this->_init('googlebase/item');
+    }
 
     protected function _initSelect()
     {
@@ -45,9 +45,26 @@ class Mage_GoogleBase_Model_Mysql4_Item_Collection extends Mage_Core_Model_Mysql
         return $this;
     }
 
+    /**
+     * Deprecated
+     *
+     * @param int $storeId
+     * @return Mage_GoogleBase_Model_Mysql4_Item_Collection
+     */
     public function addStoreFilterId($storeId)
     {
-        $this->getSelect()->where('main_table.store_id=?', $storeId);
+        return $this->addStoreFilter($storeId);
+    }
+
+    /**
+     * Filter collection by specified store ids
+     *
+     * @param array|int $storeIds
+     * @return Mage_GoogleBase_Model_Mysql4_Item_Collection
+     */
+    public function addStoreFilter($storeIds)
+    {
+        $this->getSelect()->where('main_table.store_id IN (?)', $storeIds);
         return $this;
     }
 
@@ -60,7 +77,7 @@ class Mage_GoogleBase_Model_Mysql4_Item_Collection extends Mage_Core_Model_Mysql
     public function addFieldToFilter($field, $condition=null)
     {
         if ($field == 'name') {
-            $conditionSql = $this->_getConditionSql('p.value', $condition);
+            $conditionSql = $this->_getConditionSql('IFNULL(p.value, p_d.value)', $condition);
             $this->getSelect()->where($conditionSql);
         } else {
             parent::addFieldToFilter($field, $condition);

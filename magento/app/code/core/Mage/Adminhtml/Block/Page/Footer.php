@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -43,7 +43,7 @@ class Mage_Adminhtml_Block_Page_Footer extends Mage_Adminhtml_Block_Template
 
     public function getChangeLocaleUrl()
     {
-        return $this->getUrl('*/index/changeLocale');
+        return $this->getUrl('adminhtml/index/changeLocale');
     }
 
     public function getUrlForReferer()
@@ -64,7 +64,7 @@ class Mage_Adminhtml_Block_Page_Footer extends Mage_Adminhtml_Block_Template
             ->setTitle(Mage::helper('page')->__('Interface Language'))
             ->setExtraParams('style="width:200px"')
             ->setValue(Mage::app()->getLocale()->getLocaleCode())
-            ->setOptions(Mage::app()->getLocale()->getOptionLocales())
+            ->setOptions(Mage::app()->getLocale()->getTranslatedOptionLocales())
             ->getHtml();
         return $html;
     }

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -92,20 +92,11 @@ class Mage_Adminhtml_Block_Catalog_Product_Edit_Action_Attribute_Tab_Attributes
      */
     protected function _getAdditionalElementHtml($element)
     {
-        if( $this->_returnAdditionalElementHtml($element) === true ) {
-            return '<span class="attribute-change-checkbox"><input type="checkbox" id="' . $element->getId()
-                 . '-checkbox" onclick="toogleFieldEditMode(this, \'' . $element->getId()
-                 . '\')" /><label for="' . $element->getId() . '-checkbox">' . Mage::helper('catalog')->__('Change')
-                 . '</label></span>
-                    <script type="text/javascript">initDisableFields(\''.$element->getId().'\')</script>';
-        } else {
-            return '';
-        }
-    }
-
-    protected function _returnAdditionalElementHtml($element)
-    {
-        return true;
+        return '<span class="attribute-change-checkbox"><input type="checkbox" id="' . $element->getId()
+             . '-checkbox" onclick="toogleFieldEditMode(this, \'' . $element->getId()
+             . '\')" /><label for="' . $element->getId() . '-checkbox">' . Mage::helper('catalog')->__('Change')
+             . '</label></span>
+                <script type="text/javascript">initDisableFields(\''.$element->getId().'\')</script>';
     }
 
     /**

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -95,6 +95,15 @@ class Mage_GoogleBase_Block_Adminhtml_Items_Product extends Mage_Adminhtml_Block
             ->load()
             ->toOptionHash();
 
+        $this->addColumn('type',
+            array(
+                'header'=> Mage::helper('catalog')->__('Type'),
+                'width' => '60px',
+                'index' => 'type_id',
+                'type'  => 'options',
+                'options' => Mage::getSingleton('catalog/product_type')->getOptionArray(),
+        ));
+
         $this->addColumn('set_name',
             array(
                 'header'=> Mage::helper('catalog')->__('Attrib. Set Name'),
@@ -153,6 +162,6 @@ class Mage_GoogleBase_Block_Adminhtml_Items_Product extends Mage_Adminhtml_Block
 
     protected function _getStore()
     {
-        return $this->getLayout()->getBlockSingleton('googlebase/adminhtml_items')->getStore();
+        return Mage::app()->getStore($this->getRequest()->getParam('store'));
     }
 }

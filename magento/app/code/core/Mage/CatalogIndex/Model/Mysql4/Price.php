@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogIndex
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogIndex
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -72,24 +72,24 @@ class Mage_CatalogIndex_Model_Mysql4_Price extends Mage_CatalogIndex_Model_Mysql
         $select->reset(Zend_Db_Select::LIMIT_COUNT);
         $select->reset(Zend_Db_Select::LIMIT_OFFSET);
 
-        if ($attribute->getAttributeCode() == 'price') {
-            $select->where('price_table.customer_group_id = ?', $this->getCustomerGroupId());
-        }
+        $response = new Varien_Object();
+        $response->setAdditionalCalculations(array());
 
         $select->join(array('price_table'=>$this->getMainTable()), 'price_table.entity_id=e.entity_id', array());
 
-        $response = new Varien_Object();
-        $response->setAdditionalCalculations(array());
-        $args = array(
-            'select'=>$select,
-            'table'=>'price_table',
-            'store_id'=>$this->getStoreId(),
-            'response_object'=>$response,
-        );
-        Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
+        if ($attribute->getAttributeCode() == 'price') {
+            $select->where('price_table.customer_group_id = ?', $this->getCustomerGroupId());
+            $args = array(
+                'select'=>$select,
+                'table'=>'price_table',
+                'store_id'=>$this->getStoreId(),
+                'response_object'=>$response,
+            );
+            Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
+        }
 
         $select
-            ->from('', "MAX(price_table.value".implode('', $response->getAdditionalCalculations()).")")
+            ->columns("MAX(price_table.value".implode('', $response->getAdditionalCalculations()).")")
             ->where('price_table.website_id = ?', $this->getWebsiteId())
             ->where('price_table.attribute_id = ?', $attribute->getId());
 
@@ -105,27 +105,28 @@ class Mage_CatalogIndex_Model_Mysql4_Price extends Mage_CatalogIndex_Model_Mysql
         $select->reset(Zend_Db_Select::LIMIT_OFFSET);
 
         $select->join(array('price_table'=>$this->getMainTable()), 'price_table.entity_id=e.entity_id', array());
+        $response = new Varien_Object();
+        $response->setAdditionalCalculations(array());
 
         if ($attribute->getAttributeCode() == 'price') {
             $select->where('price_table.customer_group_id = ?', $this->getCustomerGroupId());
+            $args = array(
+                'select'=>$select,
+                'table'=>'price_table',
+                'store_id'=>$this->getStoreId(),
+                'response_object'=>$response,
+            );
+            Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
         }
 
-        $response = new Varien_Object();
-        $response->setAdditionalCalculations(array());
-        $args = array(
-            'select'=>$select,
-            'table'=>'price_table',
-            'store_id'=>$this->getStoreId(),
-            'response_object'=>$response,
-        );
-        Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
 
         $fields = array('count'=>'COUNT(DISTINCT price_table.entity_id)', 'range'=>"FLOOR(((price_table.value".implode('', $response->getAdditionalCalculations()).")*{$this->getRate()})/{$range})+1");
 
-        $select->from('', $fields)
+        $select->columns($fields)
             ->group('range')
             ->where('price_table.website_id = ?', $this->getWebsiteId())
             ->where('price_table.attribute_id = ?', $attribute->getId());
+
 
         $result = $this->_getReadAdapter()->fetchAll($select);
 
@@ -144,13 +145,6 @@ class Mage_CatalogIndex_Model_Mysql4_Price extends Mage_CatalogIndex_Model_Mysql
 
         $response = new Varien_Object();
         $response->setAdditionalCalculations(array());
-        $args = array(
-            'select'=>$select,
-            'table'=>$tableName,
-            'store_id'=>$this->getStoreId(),
-            'response_object'=>$response,
-        );
-        Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
 
         $select
             ->distinct(true)
@@ -160,12 +154,59 @@ class Mage_CatalogIndex_Model_Mysql4_Price extends Mage_CatalogIndex_Model_Mysql
 
         if ($attribute->getAttributeCode() == 'price') {
             $select->where($tableName . '.customer_group_id = ?', $this->getCustomerGroupId());
+            $args = array(
+                'select'=>$select,
+                'table'=>$tableName,
+                'store_id'=>$this->getStoreId(),
+                'response_object'=>$response,
+            );
+            Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
         }
 
         $select->where("(({$tableName}.value".implode('', $response->getAdditionalCalculations()).")*{$this->getRate()}) >= ?", ($index-1)*$range);
         $select->where("(({$tableName}.value".implode('', $response->getAdditionalCalculations()).")*{$this->getRate()}) < ?", $index*$range);
 
+
         return $this->_getReadAdapter()->fetchCol($select);
+    }
+
+    public function applyFilterToCollection($collection, $attribute, $range, $index, $tableName = 'price_table')
+    {
+        /**
+         * Distinct required for removing duplicates in case when we have grouped products
+         * which contain multiple rows for one product id
+         */
+        $collection->getSelect()->distinct(true);
+        $tableName = $tableName.'_'.$attribute->getAttributeCode();
+        $collection->getSelect()->joinLeft(
+            array($tableName => $this->getMainTable()),
+            $tableName .'.entity_id=e.entity_id',
+            array()
+        );
+
+        $response = new Varien_Object();
+        $response->setAdditionalCalculations(array());
+
+        $collection->getSelect()
+            ->where($tableName . '.website_id = ?', $this->getWebsiteId())
+            ->where($tableName . '.attribute_id = ?', $attribute->getId());
+
+        if ($attribute->getAttributeCode() == 'price') {
+            $collection->getSelect()->where($tableName . '.customer_group_id = ?', $this->getCustomerGroupId());
+            $args = array(
+                'select'=>$collection->getSelect(),
+                'table'=>$tableName,
+                'store_id'=>$this->getStoreId(),
+                'response_object'=>$response,
+            );
+
+            Mage::dispatchEvent('catalogindex_prepare_price_select', $args);
+        }
+
+        $collection->getSelect()->where("(({$tableName}.value".implode('', $response->getAdditionalCalculations()).")*{$this->getRate()}) >= ?", ($index-1)*$range);
+        $collection->getSelect()->where("(({$tableName}.value".implode('', $response->getAdditionalCalculations()).")*{$this->getRate()}) < ?", $index*$range);
+
+        return $this;
     }
 
     public function getMinimalPrices($ids)

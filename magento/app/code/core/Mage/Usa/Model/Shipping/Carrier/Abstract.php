@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Usa
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Usa
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -72,5 +72,49 @@ abstract class Mage_Usa_Model_Shipping_Carrier_Abstract extends Mage_Shipping_Mo
     public function isZipCodeRequired()
     {
         return true;
+    }
+
+    /**
+     * Processing additional validation to check is carrier applicable.
+     *
+     * @param Mage_Shipping_Model_Rate_Request $request
+     * @return Mage_Shipping_Model_Carrier_Abstract|Mage_Shipping_Model_Rate_Result_Error|boolean
+     */
+    public function proccessAdditionalValidation(Mage_Shipping_Model_Rate_Request $request)
+    {
+        //Skip by item validation if there is no items in request
+        if(!count($request->getAllItems())) {
+            return $this;
+        }
+
+        $maxAllowedWeight = (float) $this->getConfigData('max_package_weight');
+        $errorMsg = '';
+        $configErrorMsg = $this->getConfigData('specificerrmsg');
+        $defaultErrorMsg = Mage::helper('shipping')->__('The shipping module is not available.');
+        $showMethod = $this->getConfigData('showmethod');
+
+        foreach ($request->getAllItems() as $item) {
+            if ($item->getProduct() && $item->getProduct()->getId()) {
+                if ($item->getProduct()->getWeight() > $maxAllowedWeight) {
+                    $errorMsg = ($configErrorMsg) ? $configErrorMsg : $defaultErrorMsg;
+                    break;
+                }
+            }
+        }
+
+        if (!$errorMsg && !$request->getDestPostcode() && $this->isZipCodeRequired()) {
+            $errorMsg = Mage::helper('shipping')->__('This shipping method is not available, please specify ZIP-code');
+        }
+
+        if ($errorMsg && $showMethod) {
+            $error = Mage::getModel('shipping/rate_result_error');
+            $error->setCarrier($this->_code);
+            $error->setCarrierTitle($this->getConfigData('title'));
+            $error->setErrorMessage($errorMsg);
+            return $error;
+        } elseif ($errorMsg) {
+            return false;
+        }
+        return $this;
     }
 }

@@ -18,20 +18,29 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
+
 
 /**
- * Price attribute backend model
+ * Catalog product price attribute backend model
  *
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @category   Mage
+ * @package    Mage_Catalog
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
-
 class Mage_Catalog_Model_Product_Attribute_Backend_Price extends Mage_Eav_Model_Entity_Attribute_Backend_Abstract
 {
+    /**
+     * Set Attribute instance
+     * Rewrite for redefine attribute scope
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @return Mage_Catalog_Model_Product_Attribute_Backend_Price
+     */
     public function setAttribute($attribute)
     {
         parent::setAttribute($attribute);
@@ -39,31 +48,43 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Price extends Mage_Eav_Model_
         return $this;
     }
 
+    /**
+     * Redefine Attribute scope
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @return Mage_Catalog_Model_Product_Attribute_Backend_Price
+     */
     public function setScope($attribute)
     {
-        $priceScope = (int) Mage::app()->getStore()->getConfig(Mage_Core_Model_Store::XML_PATH_PRICE_SCOPE);
-
-        if ($priceScope == Mage_Core_Model_Store::PRICE_SCOPE_GLOBAL) {
+        if (Mage::helper('catalog')->isPriceGlobal()) {
             $attribute->setIsGlobal(Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL);
-        } else {
+        }
+        else {
             $attribute->setIsGlobal(Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_WEBSITE);
         }
+
+        return $this;
     }
 
+    /**
+     * After Save Attribute manipulation
+     *
+     * @param Mage_Catalog_Model_Product $object
+     * @return Mage_Catalog_Model_Product_Attribute_Backend_Price
+     */
     public function afterSave($object)
     {
         $value = $object->getData($this->getAttribute()->getAttributeCode());
         /**
          * Orig value is only for existing objects
          */
-        $origValue= $object->getOrigData($this->getAttribute()->getAttributeCode());
-        if ($object->getStoreId() != 0 || !$value || $origValue) {
-            return;
+        $oridData = $object->getOrigData();
+        $origValueExist = $oridData && array_key_exists($this->getAttribute()->getAttributeCode(), $oridData);
+        if ($object->getStoreId() != 0 || !$value || $origValueExist) {
+            return $this;
         }
 
-        $scope = (int) Mage::app()->getStore()->getConfig(Mage_Core_Model_Store::XML_PATH_PRICE_SCOPE);
-
-        if ($scope == Mage_Core_Model_Store::PRICE_SCOPE_WEBSITE) {
+        if ($this->getAttribute()->getIsGlobal() == Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_WEBSITE) {
             $baseCurrency = Mage::app()->getBaseCurrencyCode();
 
             $storeIds = $object->getStoreIds();
@@ -75,7 +96,7 @@ class Mage_Catalog_Model_Product_Attribute_Backend_Price extends Mage_Eav_Model_
                     }
                     $rate = Mage::getModel('directory/currency')->load($baseCurrency)->getRate($storeCurrency);
                     if (!$rate) {
-                        $rate=1;
+                        $rate = 1;
                     }
                     $newValue = $value * $rate;
                     $object->addAttributeUpdate($this->getAttribute()->getAttributeCode(), $newValue, $storeId);

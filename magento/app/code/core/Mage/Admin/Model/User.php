@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Admin
- * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -36,6 +36,7 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
     const XML_PATH_FORGOT_EMAIL_TEMPLATE    = 'admin/emails/forgot_email_template';
     const XML_PATH_FORGOT_EMAIL_IDENTITY    = 'admin/emails/forgot_email_identity';
     const XML_PATH_STARTUP_PAGE             = 'admin/startup/page';
+    const MIN_PASSWORD_LENGTH = 7;
 
     protected $_eventPrefix = 'admin_user';
 
@@ -43,6 +44,8 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
      * @var Mage_Admin_Model_Roles
      */
     protected $_role;
+
+    protected $_hasAvailableResources = true;
 
     /**
      * Varien constructor
@@ -53,13 +56,12 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Save user
+     * Processing data before model save
      *
      * @return Mage_Admin_Model_User
      */
-    public function save()
+    protected function _beforeSave()
     {
-        $this->_beforeSave();
         $data = array(
             'firstname' => $this->getFirstname(),
             'lastname'  => $this->getLastname(),
@@ -76,15 +78,10 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
             $data['username'] = $this->getUsername();
         }
 
-        if ($this->getPassword()) {
-            $data['password'] = $this->_getEncodedPassword($this->getPassword());
-        }
-
-        if ($this->getNewPassword()) {
+        if ($this->getNewPassword()) { // change password
             $data['password'] = $this->_getEncodedPassword($this->getNewPassword());
-        }
-        elseif ($this->getPassword()) {
-            $data['new_password'] = $this->getPassword();
+        } elseif ($this->getPassword() && $this->getPassword() != $this->getOrigData('password')) { // new user password
+            $data['password'] = $this->_getEncodedPassword($this->getPassword());
         }
 
         if ( !is_null($this->getIsActive()) ) {
@@ -92,19 +89,22 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
         }
 
         $this->addData($data);
-        $this->_getResource()->save($this);
-        $this->_afterSave();
-        return $this;
+
+        return parent::_beforeSave();
     }
 
     /**
-     * Delete user
+     * Save admin user extra data (like configuration sections state)
      *
-     * @return Mage_Admin_Model_User
+     * @param   array $data
+     * @return  Mage_Admin_Model_User
      */
-    public function delete()
+    public function saveExtra($data)
     {
-        $this->_getResource()->delete($this);
+        if (is_array($data)) {
+            $data = serialize($data);
+        }
+        $this->_getResource()->saveExtra($this, $data);
         return $this;
     }
 
@@ -224,28 +224,29 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
      */
     public function authenticate($username, $password)
     {
+        $config = Mage::getStoreConfigFlag('admin/security/use_case_sensitive_login');
         $result = false;
+
         try {
             $this->loadByUsername($username);
-            if ($this->getId()) {
+            $sensitive = ($config) ? $username==$this->getUsername() : true;
+
+            if ($sensitive && $this->getId() && Mage::helper('core')->validateHash($password, $this->getPassword())) {
                 if ($this->getIsActive() != '1') {
                     Mage::throwException(Mage::helper('adminhtml')->__('This account is inactive.'));
                 }
-                if (Mage::helper('core')->validateHash($password, $this->getPassword())) {
-                    $result = true;
+                if (!$this->hasAssigned2Role($this->getId())) {
+                    Mage::throwException(Mage::helper('adminhtml')->__('Access Denied.'));
                 }
+                $result = true;
             }
 
-            Mage::dispatchEvent('admin_user_authenticated', array(
+            Mage::dispatchEvent('admin_user_authenticate_after', array(
                 'username' => $username,
                 'password' => $password,
                 'user'     => $this,
                 'result'   => $result,
             ));
-
-            if (!$this->hasAssigned2Role($this->getId())) {
-                Mage::throwException(Mage::helper('adminhtml')->__('Access Denied.'));
-            }
         }
         catch (Mage_Core_Exception $e) {
             $this->unsetData();
@@ -270,14 +271,6 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
         if ($this->authenticate($username, $password)) {
             $this->getResource()->recordLogin($this);
         }
-
-        // dispatch event regardless the user was logged in or not
-        Mage::dispatchEvent('admin_user_on_login', array(
-           'user'     => $this,
-           'username' => $username,
-           'password' => $password,
-        ));
-
         return $this;
     }
 
@@ -316,7 +309,7 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
     public function findFirstAvailableMenu($parent=null, $path='', $level=0)
     {
         if ($parent == null) {
-            $parent = Mage::getConfig()->getNode('adminhtml/menu');
+            $parent = Mage::getSingleton('admin/config')->getAdminhtmlConfig()->getNode('menu');
         }
         foreach ($parent->children() as $childName=>$child) {
             $aclResource = 'admin/' . $path . $childName;
@@ -329,6 +322,18 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
                 }
             }
         }
+        $this->_hasAvailableResources = false;
+        return '*/*/denied';
+    }
+
+    /**
+     * Check if user has available resources
+     *
+     * @return bool
+     */
+    public function hasAvailableResources()
+    {
+        return $this->_hasAvailableResources;
     }
 
     /**
@@ -353,12 +358,63 @@ class Mage_Admin_Model_User extends Mage_Core_Model_Abstract
         $startupPage = Mage::getStoreConfig(self::XML_PATH_STARTUP_PAGE);
         $aclResource = 'admin/' . $startupPage;
         if (Mage::getSingleton('admin/session')->isAllowed($aclResource)) {
-            $nodePath = 'adminhtml/menu/' . join('/children/', split('/', $startupPage)) . '/action';
-            if ($url = Mage::getConfig()->getNode($nodePath)) {
+            $nodePath = 'menu/' . join('/children/', explode('/', $startupPage)) . '/action';
+            $url = Mage::getSingleton('admin/config')->getAdminhtmlConfig()->getNode($nodePath);
+            if ($url) {
                 return $url;
             }
         }
         return $this->findFirstAvailableMenu();
+    }
+
+    /**
+     * Validate user attribute values.
+     * Returns TRUE or array of errors.
+     *
+     * @return mixed
+     */
+    public function validate()
+    {
+        $errors = array();
+
+        if (!Zend_Validate::is($this->getUsername(), 'NotEmpty')) {
+            $errors[] = Mage::helper('adminhtml')->__('User Name is required field.');
+        }
+
+        if (!Zend_Validate::is($this->getFirstname(), 'NotEmpty')) {
+            $errors[] = Mage::helper('adminhtml')->__('First Name is required field.');
+        }
+
+        if (!Zend_Validate::is($this->getLastname(), 'NotEmpty')) {
+            $errors[] = Mage::helper('adminhtml')->__('Last Name is required field.');
+        }
+
+        if (!Zend_Validate::is($this->getEmail(), 'EmailAddress')) {
+            $errors[] = Mage::helper('adminhtml')->__('Please enter a valid email.');
+        }
+
+        if ($this->hasNewPassword()) {
+            if (Mage::helper('core/string')->strlen($this->getNewPassword()) < self::MIN_PASSWORD_LENGTH) {
+                $errors[] = Mage::helper('adminhtml')->__('Password must be at least of %d characters.', self::MIN_PASSWORD_LENGTH);
+            }
+
+            if (!preg_match('/[a-z]/iu', $this->getNewPassword()) || !preg_match('/[0-9]/u', $this->getNewPassword())) {
+                $errors[] = Mage::helper('adminhtml')->__('Password must include both numeric and alphabetic characters.');
+            }
+
+            if ($this->hasPasswordConfirmation() && $this->getNewPassword() != $this->getPasswordConfirmation()) {
+                $errors[] = Mage::helper('adminhtml')->__('Password confirmation must be same as password.');
+            }
+        }
+
+        if ($this->userExists()) {
+            $errors[] = Mage::helper('adminhtml')->__('User with the same User Name or Email aleady exists');
+        }
+
+        if (empty($errors)) {
+            return true;
+        }
+        return $errors;
     }
 
 }

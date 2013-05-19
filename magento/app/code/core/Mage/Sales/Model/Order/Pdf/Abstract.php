@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Sales
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Sales
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -49,6 +49,20 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
     const XML_PATH_SALES_PDF_SHIPMENT_PUT_ORDER_ID = 'sales_pdf/shipment/put_order_id';
     const XML_PATH_SALES_PDF_CREDITMEMO_PUT_ORDER_ID = 'sales_pdf/creditmemo/put_order_id';
 
+    /**
+     * Zend PDF object
+     *
+     * @var Zend_Pdf
+     */
+    protected $_pdf;
+
+    protected $_defaultTotalModel = 'sales/order_pdf_total_default';
+
+    /**
+     * Retrieve PDF
+     *
+     * @return Zend_Pdf
+     */
     abstract public function getPdf();
 
     /**
@@ -67,7 +81,8 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
      */
     public function widthForStringUsingFontSize($string, $font, $fontSize)
     {
-        $drawingString = iconv('UTF-8', 'UTF-16BE//IGNORE', $string);
+        $drawingString = '"libiconv"' == ICONV_IMPL ? iconv('UTF-8', 'UTF-16BE//IGNORE', $string) : @iconv('UTF-8', 'UTF-16BE', $string);
+
         $characters = array();
         for ($i = 0; $i < strlen($drawingString); $i++) {
             $characters[] = (ord($drawingString[$i++]) << 8) | ord($drawingString[$i]);
@@ -154,7 +169,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
     protected function _formatAddress($address)
     {
         $return = array();
-        foreach (split("\|", $address) as $str) {
+        foreach (explode('|', $address) as $str) {
             foreach (Mage::helper('core/string')->str_split($str, 65, true, true) as $part) {
                 if (empty($part)) {
                     continue;
@@ -327,7 +342,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
                         $carrierTitle = Mage::helper('sales')->__('Custom Value');
                     }
 
-                    $truncatedCarrierTitle = substr($carrierTitle, 0, 35) . (strlen($carrierTitle) > 35 ? '...' : '');
+                    //$truncatedCarrierTitle = substr($carrierTitle, 0, 35) . (strlen($carrierTitle) > 35 ? '...' : '');
                     $truncatedTitle = substr($track->getTitle(), 0, 45) . (strlen($track->getTitle()) > 45 ? '...' : '');
                     //$page->drawText($truncatedCarrierTitle, 285, $yShipments , 'UTF-8');
                     $page->drawText($truncatedTitle, 300, $yShipments , 'UTF-8');
@@ -350,74 +365,83 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         }
     }
 
-    protected function insertTotals(&$page, $source){
+    protected function _sortTotalsList($a, $b) {
+        if (!isset($a['sort_order']) || !isset($b['sort_order'])) {
+            return 0;
+        }
+
+        if ($a['sort_order'] == $b['sort_order']) {
+            return 0;
+        }
+
+        return ($a['sort_order'] > $b['sort_order']) ? 1 : -1;
+    }
+
+    protected function _getTotalsList($source)
+    {
+        $totals = Mage::getConfig()->getNode('global/pdf/totals')->asArray();
+        usort($totals, array($this, '_sortTotalsList'));
+        $totalModels = array();
+        foreach ($totals as $index => $totalInfo) {
+            if (!empty($totalInfo['model'])) {
+                $totalModel = Mage::getModel($totalInfo['model']);
+                if ($totalModel instanceof Mage_Sales_Model_Order_Pdf_Total_Default) {
+                    $totalInfo['model'] = $totalModel;
+                } else {
+                    Mage::throwException(
+                        Mage::helper('sales')->__('Pdf total model should extend Mage_Sales_Model_Order_Pdf_Total_Default')
+                    );
+                }
+            } else {
+                $totalModel = Mage::getModel($this->_defaultTotalModel);
+            }
+            $totalModel->setData($totalInfo);
+            $totalModels[] = $totalModel;
+        }
+
+        return $totalModels;
+    }
+
+    protected function insertTotals($page, $source){
         $order = $source->getOrder();
-        $font = $this->_setFontBold($page);
+        $totals = $this->_getTotalsList($source);
+        $lineBlock = array(
+            'lines'  => array(),
+            'height' => 15
+        );
+        foreach ($totals as $total) {
+            $total->setOrder($order)
+                ->setSource($source);
 
-        $order_subtotal = Mage::helper('sales')->__('Order Subtotal:');
-        $page->drawText($order_subtotal, 475-$this->widthForStringUsingFontSize($order_subtotal, $font, 7), $this->y, 'UTF-8');
-
-        $order_subtotal = $order->formatPriceTxt($source->getSubtotal());
-        $page->drawText($order_subtotal, 565-$this->widthForStringUsingFontSize($order_subtotal, $font, 7), $this->y, 'UTF-8');
-        $this->y -=15;
-
-        if ((float)$source->getDiscountAmount()){
-            $discount = Mage::helper('sales')->__('Discount :');
-            $page->drawText($discount, 475-$this->widthForStringUsingFontSize($discount, $font, 7), $this->y, 'UTF-8');
-
-            $discount = $order->formatPriceTxt(0.00 - $source->getDiscountAmount());
-            $page->drawText($discount, 565-$this->widthForStringUsingFontSize($discount, $font, 7), $this->y, 'UTF-8');
-            $this->y -=15;
+            if ($total->canDisplay()) {
+                foreach ($total->getTotalsForDisplay() as $totalData) {
+                    $lineBlock['lines'][] = array(
+                        array(
+                            'text'      => $totalData['label'],
+                            'feed'      => 475,
+                            'align'     => 'right',
+                            'font_size' => $totalData['font_size'],
+                            'font'      => 'bold'
+                        ),
+                        array(
+                            'text'      => $totalData['amount'],
+                            'feed'      => 565,
+                            'align'     => 'right',
+                            'font_size' => $totalData['font_size'],
+                            'font'      => 'bold'
+                        ),
+                    );
+                }
+            }
         }
 
-        if ((float)$source->getTaxAmount()){
-            $order_tax = Mage::helper('sales')->__('Tax :');
-            $page->drawText($order_tax, 475-$this->widthForStringUsingFontSize($order_tax, $font, 7), $this->y, 'UTF-8');
-
-            $order_tax = $order->formatPriceTxt($source->getTaxAmount());
-            $page->drawText($order_tax, 565-$this->widthForStringUsingFontSize($order_tax, $font, 7), $this->y, 'UTF-8');
-            $this->y -=15;
-        }
-
-        if ((float)$source->getShippingAmount()){
-            $order_shipping = Mage::helper('sales')->__('Shipping & Handling:');
-            $page->drawText($order_shipping, 475-$this->widthForStringUsingFontSize($order_shipping, $font, 7), $this->y, 'UTF-8');
-
-            $order_shipping = $order->formatPriceTxt($source->getShippingAmount());
-            $page->drawText($order_shipping, 565-$this->widthForStringUsingFontSize($order_shipping, $font, 7), $this->y, 'UTF-8');
-            $this->y -=15;
-        }
-
-        if ($source->getAdjustmentPositive()){
-            $adjustment_refund = Mage::helper('sales')->__('Adjustment Refund:');
-            $page ->drawText($adjustment_refund, 475-$this->widthForStringUsingFontSize($adjustment_refund, $font, 7), $this->y, 'UTF-8');
-
-            $adjustment_refund = $order->formatPriceTxt($source->getAdjustmentPositive());
-            $page ->drawText($adjustment_refund, 565-$this->widthForStringUsingFontSize($adjustment_refund, $font, 7), $this->y, 'UTF-8');
-            $this->y -=15;
-        }
-
-        if ((float) $source->getAdjustmentNegative()){
-            $adjustment_fee = Mage::helper('sales')->__('Adjustment Fee:');
-            $page ->drawText($adjustment_fee, 475-$this->widthForStringUsingFontSize($adjustment_fee, $font, 7), $this->y, 'UTF-8');
-
-            $adjustment_fee=$order->formatPriceTxt($source->getAdjustmentNegative());
-            $page ->drawText($adjustment_fee, 565-$this->widthForStringUsingFontSize($adjustment_fee, $font, 7), $this->y, 'UTF-8');
-            $this->y -=15;
-        }
-
-        $page->setFont($font, 8);
-
-        $order_grandtotal = Mage::helper('sales')->__('Grand Total:');
-        $page ->drawText($order_grandtotal, 475-$this->widthForStringUsingFontSize($order_grandtotal, $font, 8), $this->y, 'UTF-8');
-
-        $order_grandtotal = $order->formatPriceTxt($source->getGrandTotal());
-        $page ->drawText($order_grandtotal, 565-$this->widthForStringUsingFontSize($order_grandtotal, $font, 8), $this->y, 'UTF-8');
-        $this->y -=15;
+        $page = $this->drawLineBlocks($page, array($lineBlock));
+        return $page;
     }
 
     protected function _parseItemDescription($item)
     {
+        $matches = array();
         $description = $item->getDescription();
         if (preg_match_all('/<li.*?>(.*?)<\/li>/i', $description, $matches)) {
             return $matches[1];
@@ -426,12 +450,20 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         return array($description);
     }
 
+    /**
+     * Before getPdf processing
+     *
+     */
     protected function _beforeGetPdf() {
         $translate = Mage::getSingleton('core/translate');
         /* @var $translate Mage_Core_Model_Translate */
         $translate->setTranslateInline(false);
     }
 
+    /**
+     * After getPdf processing
+     *
+     */
     protected function _afterGetPdf() {
         $translate = Mage::getSingleton('core/translate');
         /* @var $translate Mage_Core_Model_Translate */
@@ -504,6 +536,14 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         return $this->_getRenderer($type);
     }
 
+    /**
+     * Draw Item process
+     *
+     * @param Varien_Object $item
+     * @param Zend_Pdf_Page $page
+     * @param Mage_Sales_Model_Order $order
+     * @return Zend_Pdf_Page
+     */
     protected function _drawItem(Varien_Object $item, Zend_Pdf_Page $page, Mage_Sales_Model_Order $order)
     {
         $type = $item->getOrderItem()->getProductType();
@@ -515,6 +555,8 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         $renderer->setRenderedModel($this);
 
         $renderer->draw();
+
+        return $renderer->getPage();
     }
 
     protected function _setFontRegular($object, $size = 7)
@@ -536,5 +578,168 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         $font = Zend_Pdf_Font::fontWithPath(Mage::getBaseDir() . '/lib/LinLibertineFont/LinLibertine_It-2.8.2.ttf');
         $object->setFont($font, $size);
         return $font;
+    }
+
+    /**
+     * Set PDF object
+     *
+     * @param Zend_Pdf $pdf
+     * @return Mage_Sales_Model_Order_Pdf_Abstract
+     */
+    protected function _setPdf(Zend_Pdf $pdf)
+    {
+        $this->_pdf = $pdf;
+        return $this;
+    }
+
+    /**
+     * Retrieve PDF object
+     *
+     * @throws Mage_Core_Exception
+     * @return Zend_Pdf
+     */
+    protected function _getPdf()
+    {
+        if (!$this->_pdf instanceof Zend_Pdf) {
+            Mage::throwException(Mage::helper('sales')->__('Please define PDF object before using'));
+        }
+
+        return $this->_pdf;
+    }
+
+    /**
+     * Create new page and assign to PDF object
+     *
+     * @param array $settings
+     * @return Zend_Pdf_Page
+     */
+    public function newPage(array $settings = array())
+    {
+        $pageSize = !empty($settings['page_size']) ? $settings['page_size'] : Zend_Pdf_Page::SIZE_A4;
+        $page = $this->_getPdf()->newPage($pageSize);
+        $this->_getPdf()->pages[] = $page;
+        $this->y = 800;
+
+        return $page;
+    }
+
+    /**
+     * Draw lines
+     *
+     * draw items array format:
+     * lines        array;array of line blocks (required)
+     * shift        int; full line height (optional)
+     * height       int;line spacing (default 10)
+     *
+     * line block has line columns array
+     *
+     * column array format
+     * text         string|array; draw text (required)
+     * feed         int; x position (required)
+     * font         string; font style, optional: bold, italic, regular
+     * font_file    string; path to font file (optional for use your custom font)
+     * font_size    int; font size (default 7)
+     * align        string; text align (also see feed parametr), optional left, right
+     * height       int;line spacing (default 10)
+     *
+     * @param Zend_Pdf_Page $page
+     * @param array $draw
+     * @param array $pageSettings
+     * @throws Mage_Core_Exception
+     * @return Zend_Pdf_Page
+     */
+    public function drawLineBlocks(Zend_Pdf_Page $page, array $draw, array $pageSettings = array())
+    {
+        foreach ($draw as $itemsProp) {
+            if (!isset($itemsProp['lines']) || !is_array($itemsProp['lines'])) {
+                Mage::throwException(Mage::helper('sales')->__('Invalid draw line data. Please define "lines" array'));
+            }
+            $lines  = $itemsProp['lines'];
+            $height = isset($itemsProp['height']) ? $itemsProp['height'] : 10;
+
+            if (empty($itemsProp['shift'])) {
+                $shift = 0;
+                foreach ($lines as $line) {
+                    $maxHeight = 0;
+                    foreach ($line as $column) {
+                        $lineSpacing = !empty($column['height']) ? $column['height'] : $height;
+                        if (!is_array($column['text'])) {
+                            $column['text'] = array($column['text']);
+                        }
+                        $top = 0;
+                        foreach ($column['text'] as $part) {
+                            $top += $lineSpacing;
+                        }
+
+                        $maxHeight = $top > $maxHeight ? $top : $maxHeight;
+                    }
+                    $shift += $maxHeight;
+                }
+                $itemsProp['shift'] = $shift;
+            }
+
+            if ($this->y - $itemsProp['shift'] < 15) {
+                $page = $this->newPage($pageSettings);
+            }
+
+            foreach ($lines as $line) {
+                $maxHeight = 0;
+                foreach ($line as $column) {
+                    $fontSize  = empty($column['font_size']) ? 7 : $column['font_size'];
+                    if (!empty($column['font_file'])) {
+                        $font = Zend_Pdf_Font::fontWithPath($column['font_file']);
+                        $page->setFont($font);
+                    }
+                    else {
+                        $fontStyle = empty($column['font']) ? 'regular' : $column['font'];
+                        switch ($fontStyle) {
+                            case 'bold':
+                                $font = $this->_setFontBold($page, $fontSize);
+                                break;
+                            case 'italic':
+                                $font = $this->_setFontItalic($page, $fontSize);
+                                break;
+                            default:
+                                $font = $this->_setFontRegular($page, $fontSize);
+                                break;
+                        }
+                    }
+
+                    if (!is_array($column['text'])) {
+                        $column['text'] = array($column['text']);
+                    }
+
+                    $lineSpacing = !empty($column['height']) ? $column['height'] : $height;
+                    $top = 0;
+                    foreach ($column['text'] as $part) {
+                        $feed = $column['feed'];
+                        $textAlign = empty($column['align']) ? 'left' : $column['align'];
+                        $width = empty($column['width']) ? 0 : $column['width'];
+                        switch ($textAlign) {
+                            case 'right':
+                                if ($width) {
+                                    $feed = $this->getAlignRight($part, $feed, $width, $font, $fontSize);
+                                }
+                                else {
+                                    $feed = $feed - $this->widthForStringUsingFontSize($part, $font, $fontSize);
+                                }
+                                break;
+                            case 'center':
+                                if ($width) {
+                                    $feed = $this->getAlignCenter($part, $feed, $width, $font, $fontSize);
+                                }
+                                break;
+                        }
+                        $page->drawText($part, $feed, $this->y-$top, 'UTF-8');
+                        $top += $lineSpacing;
+                    }
+
+                    $maxHeight = $top > $maxHeight ? $top : $maxHeight;
+                }
+                $this->y -= $maxHeight;
+            }
+        }
+
+        return $page;
     }
 }

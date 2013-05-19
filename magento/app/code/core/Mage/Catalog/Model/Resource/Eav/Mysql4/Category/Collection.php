@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -168,14 +168,18 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection extends Mage_Ca
     }
 
     /**
-     * Enter description here...
+     * Load collection
      *
-     * @param boolean $printQuery
-     * @param boolean $logQuery
+     * @param bool $printQuery
+     * @param bool $logQuery
      * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection
      */
     public function load($printQuery = false, $logQuery = false)
     {
+        if ($this->isLoaded()) {
+            return $this;
+        }
+
         if ($this->_loadWithProductCount) {
             $this->addAttributeToSelect('all_children');
             $this->addAttributeToSelect('is_anchor');
@@ -192,8 +196,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection extends Mage_Ca
 
     /**
      * Load categories product count
-     *
-     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection
      */
     protected function _loadProductCount()
     {
@@ -296,6 +298,8 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection extends Mage_Ca
     public function addIsActiveFilter()
     {
         $this->addAttributeToFilter('is_active', 1);
+        Mage::dispatchEvent($this->_eventPrefix . '_add_is_active_filter',
+                            array($this->_eventObject => $this));
         return $this;
     }
 

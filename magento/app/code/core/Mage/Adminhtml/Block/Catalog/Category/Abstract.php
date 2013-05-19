@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -39,6 +39,11 @@ class Mage_Adminhtml_Block_Catalog_Category_Abstract extends Mage_Adminhtml_Bloc
         parent::__construct();
     }
 
+    /**
+     * Retrieve current category instance
+     *
+     * @return Mage_Catalog_Model_Category
+     */
     public function getCategory()
     {
         return Mage::registry('category');
@@ -98,7 +103,7 @@ class Mage_Adminhtml_Block_Catalog_Category_Abstract extends Mage_Adminhtml_Bloc
             }
 
             $tree = Mage::getResourceSingleton('catalog/category_tree')
-                ->load($rootId, $recursionLevel);
+                ->load(null, $recursionLevel);
 
             if ($this->getCategory()) {
                 $tree->loadEnsuredNodes($this->getCategory(), $tree->getNodeById($rootId));
@@ -140,10 +145,11 @@ class Mage_Adminhtml_Block_Catalog_Category_Abstract extends Mage_Adminhtml_Bloc
             $root   = $tree->getNodeById($rootId);
             if ($root && $rootId != Mage_Catalog_Model_Category::TREE_ROOT_ID) {
                 $root->setIsVisible(true);
-            }
-            elseif($root && $root->getId() == Mage_Catalog_Model_Category::TREE_ROOT_ID) {
+            } else if($root && $root->getId() == Mage_Catalog_Model_Category::TREE_ROOT_ID) {
                 $root->setName(Mage::helper('catalog')->__('Root'));
             }
+
+            $tree->addCollectionData($this->getCategoryCollection());
             Mage::register('root', $root);
         }
         return $root;
@@ -180,5 +186,23 @@ class Mage_Adminhtml_Block_Catalog_Category_Abstract extends Mage_Adminhtml_Bloc
     public function getEditUrl()
     {
         return $this->getUrl("*/catalog_category/edit", array('_current'=>true, 'store'=>null, '_query'=>false, 'id'=>null, 'parent'=>null));
+    }
+
+    /**
+     * Return ids of root categories as array
+     *
+     * @return array
+     */
+    public function getRootIds()
+    {
+        $ids = $this->getData('root_ids');
+        if (is_null($ids)) {
+            $ids = array();
+            foreach (Mage::app()->getGroups() as $store) {
+                $ids[] = $store->getRootCategoryId();
+            }
+            $this->setData('root_ids', $ids);
+        }
+        return $ids;
     }
 }

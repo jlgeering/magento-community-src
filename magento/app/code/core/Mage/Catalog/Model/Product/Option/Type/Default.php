@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -196,12 +196,44 @@ class Mage_Catalog_Model_Product_Option_Type_Default extends Varien_Object
     }
 
     /**
+     * Flag to indicate that custom option has own customized output (blocks, native html etc.)
+     *
+     * @return boolean
+     */
+    public function isCustomizedView()
+    {
+        return false;
+    }
+
+    /**
      * Return formatted option value for quote option
      *
      * @param string $optionValue Prepared for cart option value
      * @return string
      */
     public function getFormattedOptionValue($optionValue)
+    {
+        return $optionValue;
+    }
+
+    /**
+     * Return option html
+     *
+     * @param array $optionInfo
+     * @return string
+     */
+    public function getCustomizedView($optionInfo)
+    {
+        return isset($optionInfo['value']) ? $optionInfo['value'] : $optionInfo;
+    }
+
+    /**
+     * Return printable option value
+     *
+     * @param string $optionValue Prepared for cart option value
+     * @return string
+     */
+    public function getPrintableOptionValue($optionValue)
     {
         return $optionValue;
     }

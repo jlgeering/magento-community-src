@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -88,12 +88,18 @@ class Mage_GoogleBase_Block_Adminhtml_Types_Edit_Attributes extends Mage_Adminht
         return $select->getHtml();
     }
 
-    public function getAttributesSelectHtml()
+    /**
+     * Build HTML select element of attribute set attributes
+     *
+     * @param boolean $escapeJsQuotes
+     * @return string
+     */
+    public function getAttributesSelectHtml($escapeJsQuotes = false)
     {
         $select = $this->getLayout()->createBlock('adminhtml/html_select')
             ->setId($this->getFieldId().'_{{index}}_attribute')
             ->setName($this->getFieldName().'[{{index}}][attribute_id]')
-            ->setOptions($this->_getAttributes($this->getAttributeSetId()));
+            ->setOptions($this->_getAttributes($this->getAttributeSetId(), $escapeJsQuotes));
         return $select->getHtml();
     }
 
@@ -107,20 +113,28 @@ class Mage_GoogleBase_Block_Adminhtml_Types_Edit_Attributes extends Mage_Adminht
         return $this->getChildHtml('delete_button');
     }
 
-    public function _getAttributes($setId)
+    /**
+     * Get attributes of an attribute set
+     * Skip attributes not needed for Google Base
+     *
+     * @param int $setId
+     * @param boolean $escapeJsQuotes
+     * @return array
+     */
+    public function _getAttributes($setId, $escapeJsQuotes = false)
     {
         $attributes = Mage::getModel('googlebase/attribute')->getAllowedAttributes($setId);
         $result = array();
 
         foreach ($attributes as $attribute) {
             /* @var $attribute Mage_Catalog_Model_Resource_Eav_Attribute */
-            $result[$attribute->getAttributeId()] = $attribute->getFrontendLabel();
+            $result[$attribute->getAttributeId()] = $escapeJsQuotes ? $this->jsQuoteEscape($attribute->getFrontendLabel()) : $attribute->getFrontendLabel();
         }
         return $result;
     }
 
     protected function _toJson($data)
     {
-        return Zend_Json::encode($data);
+        return Mage::helper('core')->jsonEncode($data);
     }
 }

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   design_default
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @category    design
+ * @package     default_default
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 ?>
 <?php
@@ -61,7 +61,7 @@
         <td><h5 class="title"><?php echo $this->htmlEscape($_item->getName()) ?></h5>
             <div>
                 <strong><?php echo $this->helper('sales')->__('SKU') ?>:</strong>
-                <?php echo implode('<br />', Mage::helper('catalog')->splitSku($_item->getSku())); ?>
+                <?php echo implode('<br />', Mage::helper('catalog')->splitSku($this->htmlEscape($_item->getSku()))); ?>
             </div>
         </td>
         <?php else: ?>
@@ -90,13 +90,27 @@
                 <dl class="item-options">
                 <?php foreach ($this->getOrderOptions($_item->getOrderItem()) as $option): ?>
                     <dt><?php echo $option['label'] ?></dt>
-                    <dd><?php echo $this->htmlEscape($option['value']); ?></dd>
+                    <dd>
+                    <?php if (isset($option['custom_view']) && $option['custom_view']): ?>
+                        <?php echo $option['value'];?>
+                    <?php else: ?>
+                        <?php echo Mage::helper('core/string')->truncate($option['value'], 55, '', $_remainder);?>
+                        <?php if ($_remainder):?>
+                            ... <span id="<?php echo $_id = 'id' . uniqid()?>"><?php echo $_remainder ?></span>
+                            <script type="text/javascript">
+                            $('<?php echo $_id ?>').hide();
+                            $('<?php echo $_id ?>').up().observe('mouseover', function(){$('<?php echo $_id ?>').show();});
+                            $('<?php echo $_id ?>').up().observe('mouseout',  function(){$('<?php echo $_id ?>').hide();});
+                            </script>
+                        <?php endif;?>
+                    <?php endif;?>
+                    </dd>
                 <?php endforeach; ?>
                 </dl>
                         <?php else: ?>
                 &nbsp;
                         <?php endif; ?>
-            <?php echo $_item->getDescription() ?>
+            <?php echo $this->htmlEscape($_item->getDescription()) ?>
         </td>
         <td>&nbsp;</td>
         <td class="last">&nbsp;</td>

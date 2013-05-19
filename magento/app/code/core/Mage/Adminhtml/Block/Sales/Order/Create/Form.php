@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -38,26 +38,6 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form extends Mage_Adminhtml_Block_
     {
         parent::__construct();
         $this->setId('sales_order_create_form');
-        $this->setTemplate('sales/order/create/form.phtml');
-    }
-
-    protected function _prepareLayout()
-    {
-        $this->setChild('data', $this->getLayout()->createBlock('adminhtml/sales_order_create_data'));
-        $childNames = array(
-            'customer',
-            'store',
-            'data',
-            'messages',
-        );
-
-        foreach ($childNames as  $name) {
-            $this->setChild($name, $this->getLayout()->createBlock('adminhtml/sales_order_create_' . $name));
-        }
-        $this->getLayout()->getBlock('head')
-            ->addJs('mage/adminhtml/sales.js')
-            ->addJs('mage/adminhtml/giftmessage.js');
-        return parent::_prepareLayout();
     }
 
     /**
@@ -122,6 +102,6 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form extends Mage_Adminhtml_Block_
             $data['shipping_method_reseted'] = !(bool)$this->getQuote()->getShippingAddress()->getShippingMethod();
             $data['payment_method'] = $this->getQuote()->getPayment()->getMethod();
         }
-        return Zend_Json::encode($data);
+        return Mage::helper('core')->jsonEncode($data);
     }
 }

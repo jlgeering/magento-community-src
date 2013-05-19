@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -34,6 +34,13 @@
 class Mage_GoogleBase_Model_Service extends Varien_Object
 {
     /**
+     * Client instance identifier in registry
+     *
+     * @var string
+     */
+    protected $_clientRegistryId = 'GBASE_HTTP_CLIENT';
+
+    /**
      * Retutn Google Base Client Instance
      *
      * @return Zend_Http_Client
@@ -42,11 +49,19 @@ class Mage_GoogleBase_Model_Service extends Varien_Object
     {
         $user = $this->getConfig()->getAccountLogin($storeId);
         $pass = $this->getConfig()->getAccountPassword($storeId);
+        $type = $this->getConfig()->getAccountType($storeId);
 
         // Create an authenticated HTTP client
         $errorMsg = Mage::helper('googlebase')->__('Unable to connect to Google Base. Please, check Account settings in configuration.');
         try {
-            $client = Zend_Gdata_ClientLogin::getHttpClient($user, $pass, Zend_Gdata_Gbase::AUTH_SERVICE_NAME, null, '', $loginToken, $loginCaptcha);
+            if (! Mage::registry($this->_clientRegistryId)) {
+                $client = Zend_Gdata_ClientLogin::getHttpClient($user, $pass, Zend_Gdata_Gbase::AUTH_SERVICE_NAME, null, '',
+                    $loginToken, $loginCaptcha,
+                    Zend_Gdata_ClientLogin::CLIENTLOGIN_URI,
+                    $type
+                );
+                Mage::register($this->_clientRegistryId, $client);
+            }
         } catch (Zend_Gdata_App_CaptchaRequiredException $e) {
             throw $e;
         } catch (Zend_Gdata_App_HttpException $e) {
@@ -55,7 +70,7 @@ class Mage_GoogleBase_Model_Service extends Varien_Object
             Mage::throwException($errorMsg . Mage::helper('googlebase')->__('Error: %s', $e->getMessage()));
         }
 
-        return $client;
+        return Mage::registry($this->_clientRegistryId);
     }
 
     /**

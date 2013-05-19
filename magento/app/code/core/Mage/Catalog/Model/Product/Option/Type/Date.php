@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Catalog
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -126,12 +126,21 @@ class Mage_Catalog_Model_Product_Option_Type_Date extends Mage_Catalog_Model_Pro
             }
 
             if ($this->_timeExists()) {
-                $hour = $this->is24hTimeFormat() ? $value['hour'] : $value['hour'] + 12;
-                $timestamp += 60 * 60 * $hour + 60 * $value['minute'];
+                // 24hr hour conversion
+                if (! $this->is24hTimeFormat()) {
+                    $pmDayPart = ('pm' == strtolower($value['day_part']));
+                    if (12 == $value['hour']) {
+                        $value['hour'] = $pmDayPart ? 12 : 0;
+                    } elseif ($pmDayPart) {
+                        $value['hour'] += 12;
+                    }
+                }
+
+                $timestamp += 60 * 60 * $value['hour'] + 60 * $value['minute'];
             }
 
             $date = new Zend_Date($timestamp);
-            $result = $date->toString(Varien_date::DATETIME_INTERNAL_FORMAT);
+            $result = $date->toString(Varien_Date::DATETIME_INTERNAL_FORMAT);
 
             // Save date in internal format to avoid locale date bugs
             $this->_setInternalInRequest($result);
@@ -150,21 +159,35 @@ class Mage_Catalog_Model_Product_Option_Type_Date extends Mage_Catalog_Model_Pro
      */
     public function getFormattedOptionValue($optionValue)
     {
-        $option = $this->getOption();
+        if ($this->_formattedOptionValue === null) {
 
-        if ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_DATE) {
-            $format = Mage::app()->getLocale()->getDateFormat(Mage_Core_Model_Locale::FORMAT_TYPE_MEDIUM);
-            $result = Mage::app()->getLocale()->date($optionValue, Zend_Date::ISO_8601, null, false)->toString($format);
-        } elseif ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_DATE_TIME) {
-            $format = Mage::app()->getLocale()->getDateTimeFormat(Mage_Core_Model_Locale::FORMAT_TYPE_SHORT);
-            $result = Mage::app()->getLocale()->date($optionValue, Varien_Date::DATETIME_INTERNAL_FORMAT, null, false)->toString($format);
-        } elseif ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_TIME) {
-            $date = new Zend_Date($optionValue);
-            $result = date($this->is24hTimeFormat() ? 'H:i' : 'h:i a', $date->getTimestamp());
-        } else {
-            $result = $optionValue;
+            $option = $this->getOption();
+            if ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_DATE) {
+                $format = Mage::app()->getLocale()->getDateFormat(Mage_Core_Model_Locale::FORMAT_TYPE_MEDIUM);
+                $result = Mage::app()->getLocale()->date($optionValue, Zend_Date::ISO_8601, null, false)->toString($format);
+            } elseif ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_DATE_TIME) {
+                $format = Mage::app()->getLocale()->getDateTimeFormat(Mage_Core_Model_Locale::FORMAT_TYPE_SHORT);
+                $result = Mage::app()->getLocale()->date($optionValue, Varien_Date::DATETIME_INTERNAL_FORMAT, null, false)->toString($format);
+            } elseif ($this->getOption()->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_TIME) {
+                $date = new Zend_Date($optionValue);
+                $result = date($this->is24hTimeFormat() ? 'H:i' : 'h:i a', $date->getTimestamp());
+            } else {
+                $result = $optionValue;
+            }
+            $this->_formattedOptionValue = $result;
         }
-        return $result;
+        return $this->_formattedOptionValue;
+    }
+
+    /**
+     * Return printable option value
+     *
+     * @param string $optionValue Prepared for cart option value
+     * @return string
+     */
+    public function getPrintableOptionValue($optionValue)
+    {
+        return $this->getFormattedOptionValue($optionValue);
     }
 
     /**

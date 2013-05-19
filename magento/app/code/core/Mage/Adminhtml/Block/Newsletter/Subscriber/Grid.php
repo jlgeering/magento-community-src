@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -164,7 +164,7 @@ class Mage_Adminhtml_Block_Newsletter_Subscriber_Grid extends Mage_Adminhtml_Blo
      */
     protected function _getWebsiteOptions()
     {
-        return Mage::getModel('adminhtml/system_store')->getWebsiteValuesForGridFilter();
+        return Mage::getModel('adminhtml/system_store')->getWebsiteOptionHash();
     }
 
     /**
@@ -174,7 +174,7 @@ class Mage_Adminhtml_Block_Newsletter_Subscriber_Grid extends Mage_Adminhtml_Blo
      */
     protected function _getStoreGroupOptions()
     {
-        return Mage::getModel('adminhtml/system_store')->getStoreGroupValuesForGridFilter();
+        return Mage::getModel('adminhtml/system_store')->getStoreGroupOptionHash();
     }
 
     /**
@@ -184,7 +184,7 @@ class Mage_Adminhtml_Block_Newsletter_Subscriber_Grid extends Mage_Adminhtml_Blo
      */
     protected function _getStoreOptions()
     {
-        return Mage::getModel('adminhtml/system_store')->getStoreValuesForGridFilter();
+        return Mage::getModel('adminhtml/system_store')->getStoreOptionHash();
     }
 
     protected function _prepareMassaction()
@@ -195,6 +195,11 @@ class Mage_Adminhtml_Block_Newsletter_Subscriber_Grid extends Mage_Adminhtml_Blo
         $this->getMassactionBlock()->addItem('unsubscribe', array(
              'label'        => Mage::helper('newsletter')->__('Unsubscribe'),
              'url'          => $this->getUrl('*/*/massUnsubscribe')
+        ));
+
+        $this->getMassactionBlock()->addItem('delete', array(
+             'label'        => Mage::helper('newsletter')->__('Delete'),
+             'url'          => $this->getUrl('*/*/massDelete')
         ));
 
         return $this;

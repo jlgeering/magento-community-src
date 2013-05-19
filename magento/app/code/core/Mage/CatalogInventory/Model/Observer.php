@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_CatalogInventory
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_CatalogInventory
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -219,6 +219,7 @@ class Mage_CatalogInventory_Model_Observer
                 }
 
                 if ($result->getHasQtyOptionUpdate()) {
+                    $option->setHasQtyOptionUpdate(true);
                     $quoteItem->updateQtyOption($option, $result->getOrigQty());
                     $option->setValue($result->getOrigQty());
                     /**
@@ -463,6 +464,41 @@ class Mage_CatalogInventory_Model_Observer
                     ->updateStatus($productId, null, $websiteId);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Add stock status to prepare index select
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_CatalogInventory_Model_Observer
+     */
+    public function addStockStatusToPrepareIndexSelect(Varien_Event_Observer $observer)
+    {
+        $website    = $observer->getEvent()->getWebsite();
+        $select     = $observer->getEvent()->getSelect();
+
+        Mage::getSingleton('cataloginventory/stock_status')
+            ->addStockStatusToSelect($select, $website);
+
+        return $this;
+    }
+
+    /**
+     * Add stock status limitation to catalog product price index select object
+     *
+     * @param Varien_Event_Observer $observer
+     * @return Mage_CatalogInventory_Model_Observer
+     */
+    public function prepareCatalogProductIndexSelect(Varien_Event_Observer $observer)
+    {
+        $select     = $observer->getEvent()->getSelect();
+        $entity     = $observer->getEvent()->getEntityField();
+        $website    = $observer->getEvent()->getWebsiteField();
+
+        Mage::getSingleton('cataloginventory/stock_status')
+            ->prepareCatalogProductIndexSelect($select, $entity, $website);
 
         return $this;
     }

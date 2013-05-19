@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   design_default
- * @package    Mage_Bundle
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @category    design
+ * @package     default_default
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 ?>
 <script type="text/javascript">
@@ -35,17 +35,16 @@ if(typeof Bundle=='undefined') {
         <h4 class="icon-head head-edit-form fieldset-legend"><?php echo Mage::helper('bundle')->__('Shipment') ?></h4>
     </div>
     <fieldset>
-        <legend><?php echo Mage::helper('bundle')->__('Shipment') ?></legend>
-            <table cellspacing="0" class="form-list">
-            <tr>
-                <td class="label"><label for="shipment_type"><?php echo Mage::helper('bundle')->__('Ship Bundle Items') ?></label></td>
-                <td class="value"><select id="shipment_type" name="<?php echo $this->getFieldSuffix() ?>[shipment_type]" class="select">
-                    <option value="1"><?php echo Mage::helper('bundle')->__('Separately') ?></option>
-                    <option value="0"<?php if ($this->getProduct()->getShipmentType() == 0): ?> selected="selected"<?php endif; ?>><?php echo Mage::helper('bundle')->__('Together') ?></option>
-                </select>
-                </td>
-            </tr>
-            </table>
+        <table cellspacing="0" class="form-list">
+        <tr>
+            <td class="label"><label for="shipment_type"><?php echo Mage::helper('bundle')->__('Ship Bundle Items') ?></label></td>
+            <td class="value"><select <?php if ($this->isReadonly()): ?>disabled="disabled" <?php endif;?>id="shipment_type" name="<?php echo $this->getFieldSuffix() ?>[shipment_type]" class="select">
+                <option value="1"><?php echo Mage::helper('bundle')->__('Separately') ?></option>
+                <option value="0"<?php if ($this->getProduct()->getShipmentType() == 0): ?> selected="selected"<?php endif; ?>><?php echo Mage::helper('bundle')->__('Together') ?></option>
+            </select>
+            </td>
+        </tr>
+        </table>
     </fieldset>
 </div>
 
@@ -64,6 +63,14 @@ if(typeof Bundle=='undefined') {
 <script type="text/javascript">
 // re-bind form elements onchange
 varienWindowOnload(true);
+<?php if ($this->isReadonly()):?>
+$('product_bundle_container').select('input', 'select', 'textarea', 'button').each(function(input){
+    input.disabled = true;
+    if (input.tagName.toLowerCase() == 'button') {
+        input.addClassName('disabled');
+    }
+});
+<?php endif; ?>
 </script>
 
 <div><input type="hidden" name="affect_bundle_product_selections" value="1" /></div>

@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_GoogleBase
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_GoogleBase
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
@@ -129,8 +129,8 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
             ->setPublished($published);
 
         if ($expires = $this->_getAttributeValue('expiration_date')) {
-        	$expires = $this->gBaseDate2DateTime($expires);
-        	$this->getItem()->setExpires($expires);
+            $expires = $this->gBaseDate2DateTime($expires);
+            $this->getItem()->setExpires($expires);
         }
     }
 
@@ -225,10 +225,17 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
         $attributes = $this->getAttributeValues();
         if (is_array($attributes) && count($attributes)) {
             foreach ($attributes as $name => $data) {
+
                 $name = $this->_normalizeString($name);
                 $value = isset($data['value']) ? $data['value'] : '';
                 $type  = isset($data['type']) && $data['type'] ? $data['type'] : self::DEFAULT_ATTRIBUTE_TYPE;
-                $this->_setAttribute($name, $value, $type);
+
+                $customSetter = '_setAttribute' . ucfirst($name);
+                if (method_exists($this, $customSetter)) {
+                    $this->$customSetter($name, $value, $type);
+                } else {
+                    $this->_setAttribute($name, $value, $type);
+                }
             }
         }
         return $this;
@@ -273,23 +280,28 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
             $entry->setContent($content);
         }
 
-        $targetCountry = $this->getConfig()->getTargetCountry($this->getStoreId());
+        $attributeValues = $this->getAttributeValues();
+        
+        if (isset($attributeValues['price']['value']) && floatval($attributeValues['price']['value']) > 0) {
+            $price = $attributeValues['price']['value'];
+        } else {
+            $price = $object->getPrice();
+        }
 
-        if ($this->_getItemType() == $this->getConfig()->getDefaultItemType($this->getStoreId())) {
-            $this->_setAttribute(
-                $this->getConfig()->getCountryInfo($targetCountry, 'price_attribute_name', $this->getStoreId()),
-                sprintf('%.2f', $object->getPrice()),
-                'floatUnit'
-            );
+        $this->_setAttributePrice(false, $price);
 
+        if ($object->getQuantity()) {
             $quantity = $object->getQuantity() ? max(1, (int)$object->getQuantity()) : 1;
             $this->_setAttribute('quantity', $quantity, 'int');
         }
 
-        if ($object->getImageUrl()) {
-            $this->_setAttribute('image_link', $object->getImageUrl(), 'url');
+        $targetCountry = $this->getConfig()->getTargetCountry($this->getStoreId());
+
+        if ($object->getData('image_url')) {
+            $this->_setAttribute('image_link', $object->getData('image_url'), 'url');
         }
 
+        $this->_setAttribute('condition', 'new', 'text');
         $this->_setAttribute('target_country', $targetCountry, 'text');
         $this->_setAttribute('item_language', $this->getConfig()->getCountryInfo($targetCountry, 'language'), 'text');
 
@@ -315,6 +327,28 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
             $entry->addGbaseAttribute($attribute, $value, $type);
         }
         return $this;
+    }
+
+    /**
+     * Custom setter for 'price' attribute
+     *
+     * @param string $attribute Google Base attribute name
+     * @param mixed $value Fload price value
+     * @param string $type Google Base attribute type
+     *
+     * @return Mage_GoogleBase_Model_Service_Item
+     */
+    protected function _setAttributePrice($attribute, $value, $type = 'text')
+    {
+        if (!$this->getData('price_assigned')) {
+            $targetCountry = $this->getConfig()->getTargetCountry($this->getStoreId());
+            $this->_setAttribute(
+                $this->getConfig()->getCountryInfo($targetCountry, 'price_attribute_name', $this->getStoreId()),
+                sprintf('%.2f', $value),
+                'floatUnit'
+            );
+            $this->setData('price_assigned', true);
+        }
     }
 
     /**
@@ -379,8 +413,6 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
      */
     public function gBaseDate2DateTime($gBaseDate)
     {
-        return Mage::getSingleton('core/date')->timestamp($gBaseDate);
-        //ex return Y-m-d H:i:s format in current timezone use next code
-        // return Mage::getSingleton('core/date')->date(null, Mage::getSingleton('core/date')->timestamp($gBaseDate));
+        return Mage::getSingleton('core/date')->date(null, $gBaseDate);
     }
 }

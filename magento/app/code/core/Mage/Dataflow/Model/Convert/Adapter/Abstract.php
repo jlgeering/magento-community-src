@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Dataflow
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Dataflow
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -72,7 +72,8 @@ abstract class Mage_Dataflow_Model_Convert_Adapter_Abstract
             $separator = '.';
         }
 
-        $allow  = array_merge(range(0, 9), array('-', $separator));
+        $allow  = array('0',1,2,3,4,5,6,7,8,9,'-',$separator);
+
         $number = '';
         for ($i = 0; $i < strlen($value); $i ++) {
             if (in_array($value[$i], $allow)) {

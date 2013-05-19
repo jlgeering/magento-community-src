@@ -18,10 +18,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 
@@ -142,6 +142,25 @@ class Mage_Adminhtml_Block_Catalog_Product_Helper_Form_Gallery extends Varien_Da
             $name = $this->getForm()->addSuffixToName($name, $suffix);
         }
         return $name;
+    }
+
+    /**
+     * Check readonly attribute
+     *
+     * @param Mage_Eav_Model_Entity_Attribute|string $attribute
+     * @return boolean
+     */
+    public function getAttributeReadonly($attribute)
+    {
+        if (is_object($attribute)) {
+            $attribute = $attribute->getAttributeCode();
+        }
+
+        if ($this->getDataObject()->isLockedAttribute($attribute)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function toHtml()

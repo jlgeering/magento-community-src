@@ -18,21 +18,39 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @category   Mage
- * @package    Mage_Customer
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @category    Mage
+ * @package     Mage_Customer
+ * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
 /**
- * Customer data helper
+ * Customer Data Helper
  *
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @category   Mage
+ * @package    Mage_Customer
+ * @author     Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
 {
+    /**
+     * Query param name for last url visited
+     */
+    const REFERER_QUERY_PARAM_NAME = 'referer';
+
+    /**
+     * Customer groups collection
+     *
+     * @var Mage_Customer_Model_Entity_Group_Collection
+     */
     protected $_groups;
 
+    /**
+     * Check customer is logged in
+     *
+     * @return bool
+     */
     public function isLoggedIn()
     {
         return Mage::getSingleton('customer/session')->isLoggedIn();
@@ -51,6 +69,11 @@ class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
         return $this->_customer;
     }
 
+    /**
+     * Retrieve customer groups collection
+     *
+     * @return Mage_Customer_Model_Entity_Group_Collection
+     */
     public function getGroups()
     {
         if (empty($this->_groups)) {
@@ -61,20 +84,34 @@ class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
         return $this->_groups;
     }
 
-
+    /**
+     * Retrieve current (loggined) customer object
+     *
+     * @return Mage_Customer_Model_Customer
+     */
     public function getCurrentCustomer()
     {
         return $this->getCustomer();
     }
 
+    /**
+     * Retrieve current customer name
+     *
+     * @return string
+     */
     public function getCustomerName()
     {
         return $this->getCustomer()->getName();
     }
 
+    /**
+     * Check customer has address
+     *
+     * @return bool
+     */
     public function customerHasAddresses()
     {
-        return count($this->getCustomer()->getAddresses());
+        return count($this->getCustomer()->getAddresses()) > 0;
     }
 
     /**************************************************************************
@@ -88,12 +125,35 @@ class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
      */
     public function getLoginUrl()
     {
-        return $this->_getUrl('customer/account/login');
+        $params = array();
+
+        $referer = $this->_getRequest()->getParam(self::REFERER_QUERY_PARAM_NAME);
+
+        if (!$referer && !Mage::getStoreConfigFlag('customer/startup/redirect_dashboard')) {
+            if (!Mage::getSingleton('customer/session')->getNoReferer()) {
+                $referer = Mage::getUrl('*/*/*', array('_current' => true));
+                $referer = Mage::helper('core')->urlEncode($referer);
+            }
+        }
+        if ($referer) {
+            $params = array(self::REFERER_QUERY_PARAM_NAME => $referer);
+        }
+
+        return $this->_getUrl('customer/account/login', $params);
     }
 
+    /**
+     * Retrieve customer login POST URL
+     *
+     * @return string
+     */
     public function getLoginPostUrl()
     {
-        return $this->_getUrl('customer/account/loginPost');
+        $params = array();
+        if ($this->_getRequest()->getParam(self::REFERER_QUERY_PARAM_NAME)) {
+            $params = array(self::REFERER_QUERY_PARAM_NAME => $this->_getRequest()->getParam(self::REFERER_QUERY_PARAM_NAME));
+        }
+        return $this->_getUrl('customer/account/loginPost', $params);
     }
 
     /**
@@ -156,6 +216,11 @@ class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
         return $this->_getUrl('customer/account/edit');
     }
 
+    /**
+     * Retrieve customer edit POST URL
+     *
+     * @return string
+     */
     public function getEditPostUrl()
     {
         return $this->_getUrl('customer/account/editpost');
@@ -171,13 +236,36 @@ class Mage_Customer_Helper_Data extends Mage_Core_Helper_Abstract
         return $this->_getUrl('customer/account/forgotpassword');
     }
 
+    /**
+     * Check is confirmation required
+     *
+     * @return bool
+     */
     public function isConfirmationRequired()
     {
         return $this->getCustomer()->isConfirmationRequired();
     }
 
+    /**
+     * Retrieve confirmation URL for Email
+     *
+     * @param string $email
+     * @return string
+     */
     public function getEmailConfirmationUrl($email = null)
     {
         return $this->_getUrl('customer/account/confirmation', array('email' => $email));
+    }
+
+    /**
+     * Check whether customers registration is allowed
+     *
+     * @return bool
+     */
+    public function isRegistrationAllowed()
+    {
+        $result = new Varien_Object(array('is_allowed' => true));
+        Mage::dispatchEvent('customer_registration_is_allowed', array('result' => $result));
+        return $result->getIsAllowed();
     }
 }
