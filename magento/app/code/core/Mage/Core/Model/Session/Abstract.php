@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Core
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -24,6 +30,15 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
     const XML_PATH_COOKIE_DOMAIN    = 'web/cookie/cookie_domain';
     const XML_PATH_COOKIE_PATH      = 'web/cookie/cookie_path';
     const XML_PATH_COOKIE_LIFETIME  = 'web/cookie/cookie_lifetime';
+    const XML_NODE_SESSION_SAVE     = 'global/session_save';
+    const XML_NODE_SESSION_SAVE_PATH    = 'global/session_save_path';
+
+    const XML_PATH_USE_REMOTE_ADDR  = 'web/session/use_remote_addr';
+    const XML_PATH_USE_HTTP_VIA     = 'web/session/use_http_via';
+    const XML_PATH_USE_X_FORWARDED  = 'web/session/use_http_x_forwarded_for';
+    const XML_PATH_USE_USER_AGENT   = 'web/session/use_http_user_agent';
+
+    const XML_NODE_USET_AGENT_SKIP  = 'global/session/validation/http_user_agent_skip';
 
     const SESSION_ID_QUERY_PARAM = 'SID';
 
@@ -31,46 +46,101 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
 
     protected static $_encryptedSessionId;
 
-	public function init($namespace, $sessionName=null)
-	{
-		parent::init($namespace, $sessionName);
-		if (isset($_SERVER['HTTP_HOST'])) {
-			$hostArr = explode(':', $_SERVER['HTTP_HOST']);
-			$this->addHost($hostArr[0]);
-		}
-		return $this;
-	}
+    protected $_skipSessionIdFlag = false;
+
+    public function init($namespace, $sessionName=null)
+    {
+        parent::init($namespace, $sessionName);
+        $this->addHost(true);
+        return $this;
+    }
 
     public function getCookieDomain()
     {
         return Mage::getSingleton('core/cookie')->getCookieDomain();
-    	$domain = Mage::getStoreConfig(self::XML_PATH_COOKIE_DOMAIN);
-    	if (empty($domain) && isset($_SERVER['HTTP_HOST'])) {
-    		$domainArr = explode(':', $_SERVER['HTTP_HOST']);
-    		$domain = $domainArr[0];
-    	}
-    	return $domain;
     }
 
     public function getCookiePath()
     {
         return Mage::getSingleton('core/cookie')->getCookiePath();
-    	$path = Mage::getStoreConfig(self::XML_PATH_COOKIE_PATH);
-    	if (empty($path)) {
-    		$path = '/';
-    	}
-    	return $path;
     }
 
     public function getCookieLifetime()
     {
-    	$lifetime = Mage::getStoreConfig(self::XML_PATH_COOKIE_LIFETIME);
-    	if (empty($lifetime)) {
-    		$lifetime = 60*60*3;
-    	}
-    	return $lifetime;
+        $lifetime = Mage::getStoreConfig(self::XML_PATH_COOKIE_LIFETIME);
+        return $lifetime;
     }
 
+/**
+     * Use REMOTE_ADDR in validator key
+     *
+     * @return bool
+     */
+    public function useValidateRemoteAddr()
+    {
+        $use = Mage::getStoreConfig(self::XML_PATH_USE_REMOTE_ADDR);
+        if (is_null($use)) {
+            return parent::useValidateRemoteAddr();
+        }
+        return (bool)$use;
+    }
+
+    /**
+     * Use HTTP_VIA in validator key
+     *
+     * @return bool
+     */
+    public function useValidateHttpVia()
+    {
+        $use = Mage::getStoreConfig(self::XML_PATH_USE_HTTP_VIA);
+        if (is_null($use)) {
+            return parent::useValidateHttpVia();
+        }
+        return (bool)$use;
+    }
+
+    /**
+     * Use HTTP_X_FORWARDED_FOR in validator key
+     *
+     * @return bool
+     */
+    public function useValidateHttpXForwardedFor()
+    {
+        $use = Mage::getStoreConfig(self::XML_PATH_USE_X_FORWARDED);
+        if (is_null($use)) {
+            return parent::useValidateHttpXForwardedFor();
+        }
+        return (bool)$use;
+    }
+
+    /**
+     * Use HTTP_USER_AGENT in validator key
+     *
+     * @return bool
+     */
+    public function useValidateHttpUserAgent()
+    {
+        $use = Mage::getStoreConfig(self::XML_PATH_USE_USER_AGENT);
+        if (is_null($use)) {
+            return parent::useValidateHttpUserAgent();
+        }
+        return (bool)$use;
+    }
+
+    /**
+     * Retrieve skip User Agent validation strings (Flash etc)
+     *
+     * @return array
+     */
+    public function getValidateHttpUserAgentSkip()
+    {
+        $userAgents = array();
+        $skip = Mage::getConfig()->getNode(self::XML_NODE_USET_AGENT_SKIP);
+        foreach ($skip->children() as $userAgent) {
+            $userAgents[] = (string)$userAgent;
+        }
+        return $userAgents;
+    }
 
     /**
      * Retrieve messages from session
@@ -101,7 +171,6 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
      */
     public function addException(Exception $exception, $alternativeText)
     {
-        Mage::loadExtension($exception);
         $this->addMessage(Mage::getSingleton('core/message')->error($alternativeText));
         return $this;
     }
@@ -182,29 +251,46 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
         return $this;
     }
 
+    /**
+     * Specify session identifier
+     *
+     * @param   string|null $id
+     * @return  Mage_Core_Model_Session_Abstract
+     */
     public function setSessionId($id=null)
     {
         if (is_null($id)) {
             if (isset($_GET[self::SESSION_ID_QUERY_PARAM])) {
-                if ($tryId = Mage::helper('core')->decrypt($_GET[self::SESSION_ID_QUERY_PARAM])) {
-                    $id = $tryId;
-                }
+                $id = $_GET[self::SESSION_ID_QUERY_PARAM];
+                /**
+                 * No reason use crypt key for session
+                 */
+//                if ($tryId = Mage::helper('core')->decrypt($_GET[self::SESSION_ID_QUERY_PARAM])) {
+//                    $id = $tryId;
+//                }
             }
         }
-		if (isset($_SERVER['HTTP_HOST'])) {
-	        $this->addHost($_SERVER['HTTP_HOST']);
-		}
-        parent::setSessionId($id);
+
+        $this->addHost(true);
+        return parent::setSessionId($id);
     }
 
+    /**
+     * Get ecrypted session identifuer
+     * No reason use crypt key for session id encryption
+     * we can use session identifier as is
+     *
+     * @return string
+     */
     public function getEncryptedSessionId()
     {
         if (!self::$_encryptedSessionId) {
-            $helper = Mage::helper('core');
-            if (!$helper) {
-                return $this;
-            }
-            self::$_encryptedSessionId = $helper->encrypt($this->getSessionId());
+//            $helper = Mage::helper('core');
+//            if (!$helper) {
+//                return $this;
+//            }
+//            self::$_encryptedSessionId = $helper->encrypt($this->getSessionId());
+            self::$_encryptedSessionId = $this->getSessionId();
         }
         return self::$_encryptedSessionId;
     }
@@ -215,6 +301,28 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
     }
 
     /**
+     * Set skip flag if need skip generating of _GET session_id_key param
+     *
+     * @param bool $flag
+     * @return Mage_Core_Model_Session_Abstract
+     */
+    public function setSkipSessionIdFlag($flag)
+    {
+        $this->_skipSessionIdFlag = $flag;
+        return $this;
+    }
+
+    /**
+     * Retrieve session id skip flag
+     *
+     * @return bool
+     */
+    public function getSkipSessionIdFlag()
+    {
+        return $this->_skipSessionIdFlag;
+    }
+
+    /**
      * If the host was switched but session cookie won't recognize it - add session id to query
      *
      * @param string $urlHost can be host or url
@@ -222,7 +330,11 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
      */
     public function getSessionIdForHost($urlHost)
     {
-        if (empty($_SERVER['HTTP_HOST'])) {
+        if ($this->getSkipSessionIdFlag() === true) {
+            return '';
+        }
+
+        if (!$httpHost = Mage::app()->getFrontController()->getRequest()->getHttpHost()) {
             return '';
         }
 
@@ -235,8 +347,7 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
             $urlHostArr = explode(':', $urlHost);
             $urlHost = $urlHostArr[0];
 
-            $curHostArr = explode(':', $_SERVER['HTTP_HOST']);
-            if ($curHostArr[0]!==$urlHost && !$this->isValidForHost($urlHost)) {
+            if ($httpHost !== $urlHost && !$this->isValidForHost($urlHost)) {
                 $sessionId = $this->getEncryptedSessionId();
             } else {
                 $sessionId = '';
@@ -248,18 +359,58 @@ class Mage_Core_Model_Session_Abstract extends Mage_Core_Model_Session_Abstract_
 
     public function isValidForHost($host)
     {
-    	$hostArr = explode(':', $host);
-    	$hosts = $this->getSessionHosts();
-    	return (!empty($hosts[$hostArr[0]]));
+        $hostArr = explode(':', $host);
+        $hosts = $this->getSessionHosts();
+        return (!empty($hosts[$hostArr[0]]));
     }
 
     public function addHost($host)
     {
-    	$hostArr = explode(':', $host);
-    	$hosts = $this->getSessionHosts();
-    	$hosts[$hostArr[0]] = true;
-    	$this->setSessionHosts($hosts);
-    	return $this;
+        if ($host === true) {
+            if (!$host = Mage::app()->getFrontController()->getRequest()->getHttpHost()) {
+                return $this;
+            }
+        }
+
+        if (!$host) {
+            return $this;
+        }
+
+        $hosts = $this->getSessionHosts();
+        $hosts[$host] = true;
+        $this->setSessionHosts($hosts);
+        return $this;
+    }
+
+    public function getSessionHosts()
+    {
+        return $this->getData('session_hosts');
+    }
+
+    /**
+     * Retrieve session save method
+     *
+     * @return string
+     */
+    public function getSessionSaveMethod()
+    {
+        if (Mage::isInstalled() && $sessionSave = Mage::getConfig()->getNode(self::XML_NODE_SESSION_SAVE)) {
+            return $sessionSave;
+        }
+        return parent::getSessionSaveMethod();
+    }
+
+    /**
+     * Get sesssion save path
+     *
+     * @return string
+     */
+    public function getSessionSavePath()
+    {
+        if (Mage::isInstalled() && $sessionSavePath = Mage::getConfig()->getNode(self::XML_NODE_SESSION_SAVE_PATH)) {
+            return $sessionSavePath;
+        }
+        return parent::getSessionSavePath();
     }
 
 }

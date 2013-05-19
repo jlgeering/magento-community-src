@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
 {
@@ -67,6 +74,13 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
     protected $_defaultSort     = false;
     protected $_defaultDir      = 'desc';
     protected $_defaultFilter   = array();
+
+    /**
+     * Export flag
+     *
+     * @var bool
+     */
+    protected $_isExport = false;
 
     /**
      * Empty grid text
@@ -359,8 +373,10 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
                 $this->getCollection()->setOrder($column , $dir);
             }
 
-            $this->getCollection()->load();
-            $this->_afterLoadCollection();
+            if ( !$this->_isExport )    {
+                $this->getCollection()->load();
+                $this->_afterLoadCollection();
+            }
         }
 
         return $this;
@@ -418,10 +434,15 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
                     'name'      => $this->getMassactionBlock()->getFormFieldName(),
                     'align'     => 'center',
                     'is_system' => true
-                ))
-                ->setSelected($this->getMassactionBlock()->getSelected())
-                ->setGrid($this)
-                ->setId($columnId);
+                ));
+
+        if ($this->getNoFilterMassactionColumn()) {
+            $massactionColumn->setData('filter', false);
+        }
+
+        $massactionColumn->setSelected($this->getMassactionBlock()->getSelected())
+            ->setGrid($this)
+            ->setId($columnId);
 
         $oldColumns = $this->_columns;
         $this->_columns = array();
@@ -683,12 +704,17 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
     public function getCsv()
     {
         $csv = '';
+        $this->_isExport = true;
         $this->_prepareGrid();
+        $this->getCollection()->getSelect()->limit();
+        $this->getCollection()->setPageSize(0);
+        $this->getCollection()->load();
+        $this->_afterLoadCollection();
 
         $data = array();
         foreach ($this->_columns as $column) {
             if (!$column->getIsSystem()) {
-                $data[] = '"'.$column->getHeader().'"';
+                $data[] = '"'.$column->getExportHeader().'"';
             }
         }
         $csv.= implode(',', $data)."\n";
@@ -697,7 +723,7 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
             $data = array();
             foreach ($this->_columns as $column) {
                 if (!$column->getIsSystem()) {
-                    $data[] = '"'.str_replace(array('"', '\\'), array('""', '\\\\'), $column->getRowField($item)).'"';
+                    $data[] = '"'.str_replace(array('"', '\\'), array('""', '\\\\'), $column->getRowFieldExport($item)).'"';
                 }
             }
             $csv.= implode(',', $data)."\n";
@@ -708,7 +734,7 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
             $data = array();
             foreach ($this->_columns as $column) {
                 if (!$column->getIsSystem()) {
-                    $data[] = '"'.str_replace(array('"', '\\'), array('""', '\\\\'), $column->getRowField($this->getTotals())).'"';
+                    $data[] = '"'.str_replace(array('"', '\\'), array('""', '\\\\'), $column->getRowFieldExport($this->getTotals())).'"';
                 }
             }
             $csv.= implode(',', $data)."\n";
@@ -719,7 +745,12 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
 
     public function getXml()
     {
+        $this->_isExport = true;
         $this->_prepareGrid();
+        $this->getCollection()->getSelect()->limit();
+        $this->getCollection()->setPageSize(0);
+        $this->getCollection()->load();
+        $this->_afterLoadCollection();
         $indexes = array();
         foreach ($this->_columns as $column) {
             if (!$column->getIsSystem()) {
@@ -741,7 +772,12 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
 
     public function getExcel($filename = '')
     {
+        $this->_isExport = true;
         $this->_prepareGrid();
+        $this->getCollection()->getSelect()->limit();
+        $this->getCollection()->setPageSize(0);
+        $this->getCollection()->load();
+        $this->_afterLoadCollection();
         $headers = array();
         $data = array();
         foreach ($this->_columns as $column) {
@@ -815,6 +851,7 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
         {
             return $param;
         }
+
         return $default;
     }
 
@@ -830,9 +867,7 @@ class Mage_Adminhtml_Block_Widget_Grid extends Mage_Adminhtml_Block_Widget
     }
 
     /**
-     * Retrieve row identifier
-     *
-     * By default we retrieve row edit url
+     * Deprecated since 1.1.7
      *
      * @return string
      */

@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Block_Customer_Edit_Tab_Orders extends Mage_Adminhtml_Block_Widget_Grid
 {
@@ -37,14 +44,20 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_Orders extends Mage_Adminhtml_Block
 
     protected function _prepareCollection()
     {
+        //TODO: add full name logic
         $collection = Mage::getResourceModel('sales/order_collection')
             ->addAttributeToSelect('increment_id')
             ->addAttributeToSelect('created_at')
             ->addAttributeToSelect('grand_total')
             ->addAttributeToSelect('order_currency_code')
             ->addAttributeToSelect('store_id')
-            ->joinAttribute('shipping_firstname', 'order_address/firstname', 'shipping_address_id')
-            ->joinAttribute('shipping_lastname', 'order_address/lastname', 'shipping_address_id')
+            ->joinAttribute('billing_firstname', 'order_address/firstname', 'billing_address_id', null, 'left')
+            ->joinAttribute('billing_lastname', 'order_address/lastname', 'billing_address_id', null, 'left')
+            ->joinAttribute('shipping_firstname', 'order_address/firstname', 'shipping_address_id', null, 'left')
+            ->joinAttribute('shipping_lastname', 'order_address/lastname', 'shipping_address_id', null, 'left')
+            ->addExpressionAttributeToSelect('billing_name',
+                'CONCAT({{billing_firstname}}, " ", {{billing_lastname}})',
+                array('billing_firstname', 'billing_lastname'))
             ->addExpressionAttributeToSelect('shipping_name',
                 'CONCAT({{shipping_firstname}}, " ", {{shipping_lastname}})',
                 array('shipping_firstname', 'shipping_lastname'))
@@ -78,6 +91,11 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_Orders extends Mage_Adminhtml_Block
             'header'    => Mage::helper('customer')->__('Shipped to Last Name'),
             'index'     => 'shipping_lastname',
         ));*/
+        $this->addColumn('billing_name', array(
+            'header'    => Mage::helper('customer')->__('Bill to Name'),
+            'index'     => 'billing_name',
+        ));
+
         $this->addColumn('shipping_name', array(
             'header'    => Mage::helper('customer')->__('Shipped to Name'),
             'index'     => 'shipping_name',
@@ -94,7 +112,8 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_Orders extends Mage_Adminhtml_Block
             $this->addColumn('store_id', array(
                 'header'    => Mage::helper('customer')->__('Bought From'),
                 'index'     => 'store_id',
-                'type'      => 'store'
+                'type'      => 'store',
+                'store_view' => true
             ));
         }
 

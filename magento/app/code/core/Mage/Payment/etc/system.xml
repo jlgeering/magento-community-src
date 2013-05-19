@@ -5,18 +5,24 @@
  *
  * NOTICE OF LICENSE
  *
- * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
+ * This source file is subject to the Academic Free License (AFL 3.0)
+ * that is bundled with this package in the file LICENSE_AFL.txt.
  * It is also available through the world-wide-web at this URL:
- * http://opensource.org/licenses/osl-3.0.php
+ * http://opensource.org/licenses/afl-3.0.php
  * If you did not receive a copy of the license and are unable to
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Payment
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 -->
 <config>
@@ -28,7 +34,7 @@
             <sort_order>400</sort_order>
             <show_in_default>1</show_in_default>
             <show_in_website>1</show_in_website>
-            <show_in_store>0</show_in_store>
+            <show_in_store>1</show_in_store>
             <groups>
                 <ccsave translate="label">
                     <label>Saved CC</label>
@@ -36,7 +42,7 @@
                     <sort_order>1</sort_order>
                     <show_in_default>1</show_in_default>
                     <show_in_website>1</show_in_website>
-                    <show_in_store>0</show_in_store>
+                    <show_in_store>1</show_in_store>
                     <fields>
                         <active translate="label">
                             <label>Enabled</label>
@@ -79,7 +85,7 @@
                             <sort_order>1</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>0</show_in_store>
+                            <show_in_store>1</show_in_store>
                         </title>
                         <useccv translate="label">
                             <label>Credit Card Verification</label>
@@ -97,7 +103,7 @@
                             <source_model>adminhtml/system_config_source_payment_allspecificcountries</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </allowspecific>
                         <specificcountry translate="label">
                             <label>Payment from Specific countries</label>
@@ -106,9 +112,9 @@
                             <source_model>adminhtml/system_config_source_country</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </specificcountry>
-                        <min_order_total>
+                        <min_order_total translate="label">
                             <label>Minimum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>98</sort_order>
@@ -116,7 +122,7 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
                         </min_order_total>
-                        <max_order_total>
+                        <max_order_total translate="label">
                             <label>Maximum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>99</sort_order>
@@ -134,7 +140,7 @@
                     <sort_order>5</sort_order>
                     <show_in_default>1</show_in_default>
                     <show_in_website>1</show_in_website>
-                    <show_in_store>0</show_in_store>
+                    <show_in_store>1</show_in_store>
                     <fields>
                         <active translate="label">
                             <label>Enabled</label>
@@ -168,7 +174,7 @@
                             <sort_order>10</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>0</show_in_store>
+                            <show_in_store>1</show_in_store>
                         </title>
                          <allowspecific translate="label">
                             <label>Payment from applicable countries</label>
@@ -177,7 +183,7 @@
                             <source_model>adminhtml/system_config_source_payment_allspecificcountries</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </allowspecific>
                         <specificcountry translate="label">
                             <label>Payment from Specific countries</label>
@@ -186,14 +192,14 @@
                             <source_model>adminhtml/system_config_source_country</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </specificcountry>
                         <payable_to translate="label">
                             <label>Make Check payable to</label>
                             <sort_order>61</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </payable_to>
                         <mailing_address translate="label">
                             <label>Send Check to</label>
@@ -201,9 +207,9 @@
                             <sort_order>62</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </mailing_address>
-                        <min_order_total>
+                        <min_order_total translate="label">
                             <label>Minimum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>98</sort_order>
@@ -211,7 +217,7 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
                         </min_order_total>
-                        <max_order_total>
+                        <max_order_total translate="label">
                             <label>Maximum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>99</sort_order>
@@ -229,7 +235,7 @@
                     <sort_order>5</sort_order>
                     <show_in_default>1</show_in_default>
                     <show_in_website>1</show_in_website>
-                    <show_in_store>0</show_in_store>
+                    <show_in_store>1</show_in_store>
                     <fields>
                         <active translate="label">
                             <label>Enabled</label>
@@ -263,7 +269,7 @@
                             <sort_order>1</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>0</show_in_store>
+                            <show_in_store>1</show_in_store>
                         </title>
                         <allowspecific translate="label">
                             <label>Payment from applicable countries</label>
@@ -284,7 +290,7 @@
                             <show_in_store>0</show_in_store>
                         </specificcountry>
 <!--
-                        <min_order_total>
+                        <min_order_total translate="label">
                             <label>Minimum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>98</sort_order>
@@ -292,7 +298,7 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
                         </min_order_total>
-                        <max_order_total>
+                        <max_order_total translate="label">
                             <label>Maximum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>99</sort_order>
@@ -311,7 +317,7 @@
                     <sort_order>7</sort_order>
                     <show_in_default>1</show_in_default>
                     <show_in_website>1</show_in_website>
-                    <show_in_store>0</show_in_store>
+                    <show_in_store>1</show_in_store>
                     <fields>
                         <active translate="label">
                             <label>Enabled</label>
@@ -345,7 +351,7 @@
                             <sort_order>1</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>0</show_in_store>
+                            <show_in_store>1</show_in_store>
                         </title>
                         <allowspecific translate="label">
                             <label>Payment from applicable countries</label>
@@ -354,7 +360,7 @@
                             <source_model>adminhtml/system_config_source_payment_allspecificcountries</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </allowspecific>
                         <specificcountry translate="label">
                             <label>Payment from Specific countries</label>
@@ -363,9 +369,9 @@
                             <source_model>adminhtml/system_config_source_country</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
+                            <show_in_store>0</show_in_store>
                         </specificcountry>
-                        <min_order_total>
+                        <min_order_total translate="label">
                             <label>Minimum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>98</sort_order>
@@ -373,7 +379,7 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
                         </min_order_total>
-                        <max_order_total>
+                        <max_order_total translate="label">
                             <label>Maximum Order Total</label>
                             <frontend_type>text</frontend_type>
                             <sort_order>99</sort_order>

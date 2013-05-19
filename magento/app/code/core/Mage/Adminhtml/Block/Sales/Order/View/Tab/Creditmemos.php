@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,8 +29,11 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Adminhtml_Block_Sales_Order_View_Tab_Creditmemos extends Mage_Adminhtml_Block_Widget_Grid
+class Mage_Adminhtml_Block_Sales_Order_View_Tab_Creditmemos
+    extends Mage_Adminhtml_Block_Widget_Grid
+    implements Mage_Adminhtml_Block_Widget_Tab_Interface
 {
     public function __construct()
     {
@@ -35,11 +44,13 @@ class Mage_Adminhtml_Block_Sales_Order_View_Tab_Creditmemos extends Mage_Adminht
 
     protected function _prepareCollection()
     {
+        //TODO: add full name logic
         $collection = Mage::getResourceModel('sales/order_Creditmemo_collection')
             ->addAttributeToSelect('increment_id')
             ->addAttributeToSelect('created_at')
             ->addAttributeToSelect('order_currency_code')
             ->addAttributeToSelect('store_currency_code')
+            ->addAttributeToSelect('base_currency_code')
             ->addAttributeToSelect('state')
             ->addAttributeToSelect('grand_total')
             ->addAttributeToSelect('base_grand_total')
@@ -93,7 +104,7 @@ class Mage_Adminhtml_Block_Sales_Order_View_Tab_Creditmemos extends Mage_Adminht
             'header'    => Mage::helper('customer')->__('Refunded'),
             'index'     => 'base_grand_total',
             'type'      => 'currency',
-            'currency'  => 'store_currency_code',
+            'currency'  => 'base_currency_code',
         ));
 
         return parent::_prepareColumns();
@@ -122,5 +133,28 @@ class Mage_Adminhtml_Block_Sales_Order_View_Tab_Creditmemos extends Mage_Adminht
     public function getGridUrl()
     {
         return $this->getUrl('*/*/creditmemos', array('_current' => true));
+    }
+
+    /**
+     * ######################## TAB settings #################################
+     */
+    public function getTabLabel()
+    {
+        return Mage::helper('sales')->__('Credit Memos');
+    }
+
+    public function getTabTitle()
+    {
+        return Mage::helper('sales')->__('Order Credit Memos');
+    }
+
+    public function canShowTab()
+    {
+        return true;
+    }
+
+    public function isHidden()
+    {
+        return false;
     }
 }

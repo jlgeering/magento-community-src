@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Block_Review_Product_Grid extends Mage_Adminhtml_Block_Catalog_Product_Grid
 {
@@ -36,7 +43,7 @@ class Mage_Adminhtml_Block_Review_Product_Grid extends Mage_Adminhtml_Block_Cata
 
     protected function _prepareColumns()
     {
-        $this->addColumn('id', array(
+        $this->addColumn('entity_id', array(
                 'header'    => Mage::helper('review')->__('ID'),
                 'width'     => '50px',
                 'index'     => 'entity_id',
@@ -85,12 +92,14 @@ class Mage_Adminhtml_Block_Review_Product_Grid extends Mage_Adminhtml_Block_Cata
          * Check is single store mode
          */
         if (!Mage::app()->isSingleStoreMode()) {
-            $this->addColumn('stores', array(
-                'header'    => Mage::helper('review')->__('Store Views'),
-                'width'     => '100px',
-                'type'      => 'store',
-                'sortable'  => false,
-                'index'     => 'stores',
+            $this->addColumn('websites',
+                array(
+                    'header'=> Mage::helper('review')->__('Websites'),
+                    'width' => '100px',
+                    'sortable'  => false,
+                    'index'     => 'websites',
+                    'type'      => 'options',
+                    'options'   => Mage::getModel('core/website')->getCollection()->toOptionHash(),
             ));
         }
     }

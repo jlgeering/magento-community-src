@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Catalog
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -30,7 +36,7 @@ CREATE TABLE {$this->getTable('catalog_product_website')} (
   CONSTRAINT `FK_CATALOG_PRODUCT_WEBSITE_WEBSITE` FOREIGN KEY `FK_CATALOG_PRODUCT_WEBSITE_WEBSITE` (`website_id`)
     REFERENCES `{$this->getTable('core_website')}` (`website_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `FK_CATALOG_WEBSITE_PRODUCT_PRODUCT` FOREIGN KEY `FK_CATALOG_WEBSITE_PRODUCT_PRODUCT` (`product_id`)
-    REFERENCES `{$this->getTable('catalog_product_entity')}` (`entity_id`) ON DELETE CASCADE
+    REFERENCES `{$this->getTable('catalog/product')}` (`entity_id`) ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS {$this->getTable('catalog_product_status')};
@@ -52,11 +58,11 @@ DROP TABLE IF EXISTS {$this->getTable('catalog_product_store')};
 ");
 
 
-$categoryTable = $this->getTable('catalog_category_entity');
+$categoryTable = $this->getTable('catalog/category');
 $installer->getConnection()->dropForeignKey($categoryTable, 'FK_CATALOG_CATEGORY_ENTITY_TREE_NODE');
 
 try {
-	$this->run("ALTER TABLE `{$this->getTable('catalog/category_entity')}` ADD `path` VARCHAR( 255 ) NOT NULL, ADD `position` INT NOT NULL;");
+    $this->run("ALTER TABLE `{$this->getTable('catalog/category')}` ADD `path` VARCHAR( 255 ) NOT NULL, ADD `position` INT NOT NULL;");
 } catch (Exception $e) {
 }
 

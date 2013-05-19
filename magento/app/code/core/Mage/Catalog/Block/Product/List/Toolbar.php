@@ -12,57 +12,136 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Catalog
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
  * Product list toolbar
  *
- * @category   Mage
- * @package    Mage_Catalog
+ * @category    Mage
+ * @package     Mage_Catalog
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
 {
+    /**
+     * GET parameter order variable
+     *
+     * @var string
+     */
     protected $_orderVarName        = 'order';
+
+    /**
+     * GET parameter direction variable
+     *
+     * @var string
+     */
     protected $_directionVarName    = 'dir';
+
+    /**
+     * GET parameter mode variable
+     *
+     * @var string
+     */
     protected $_modeVarName         = 'mode';
+
+    /**
+     * List of available order fields
+     *
+     * @var array
+     */
     protected $_availableOrder      = array();
+
+    /**
+     * List of available view types
+     *
+     * @var string
+     */
     protected $_availableMode       = array();
+
+    /**
+     * Is enable View switcher
+     *
+     * @var bool
+     */
     protected $_enableViewSwitcher  = true;
+
+    /**
+     * Is Expanded
+     *
+     * @var bool
+     */
     protected $_isExpanded          = true;
 
-    public function __construct()
+    /**
+     * Default Order field
+     *
+     * @var string
+     */
+    protected $_orderField          = null;
+
+    /**
+     * Default direction
+     *
+     * @var string
+     */
+    protected $_direction           = 'asc';
+
+    /**
+     * Default View mode
+     *
+     * @var string
+     */
+    protected $_viewMode            = null;
+
+    /**
+     * Init Toolbar
+     *
+     */
+    protected function _construct()
     {
-        parent::__construct();
+        parent::_construct();
         $this->_availableOrder = array(
-            'position'  => Mage::helper('catalog')->__('Best Value'),
-            'name'      => Mage::helper('catalog')->__('Name'),
-            'price'     => Mage::helper('catalog')->__('Price')
+            'position'  => $this->__('Best Value'),
+            'name'      => $this->__('Name'),
+            'price'     => $this->__('Price')
         );
 
         switch (Mage::getStoreConfig('catalog/frontend/list_mode')) {
-        	case 'grid':
-		        $this->_availableMode = array('grid' => Mage::helper('catalog')->__('Grid'));
-        		break;
+            case 'grid':
+                $this->_availableMode = array('grid' => $this->__('Grid'));
+                break;
 
-        	case 'list':
-		        $this->_availableMode = array('list' => Mage::helper('catalog')->__('List'));
-        		break;
+            case 'list':
+                $this->_availableMode = array('list' => $this->__('List'));
+                break;
 
-        	case 'grid-list':
-		        $this->_availableMode = array('grid' => Mage::helper('catalog')->__('Grid'), 'list' =>  Mage::helper('catalog')->__('List'));
-        		break;
+            case 'grid-list':
+                $this->_availableMode = array('grid' => $this->__('Grid'), 'list' =>  $this->__('List'));
+                break;
 
-        	case 'list-grid':
-		        $this->_availableMode = array('list' => Mage::helper('catalog')->__('List'), 'grid' => Mage::helper('catalog')->__('Grid'));
-        		break;
+            case 'list-grid':
+                $this->_availableMode = array('list' => $this->__('List'), 'grid' => $this->__('Grid'));
+                break;
         }
         $this->setTemplate('catalog/product/list/toolbar.phtml');
     }
 
+    /**
+     * Set collection to pager
+     *
+     * @param Varien_Data_Collection $collection
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function setCollection($collection)
     {
         parent::setCollection($collection);
@@ -72,21 +151,41 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
         return $this;
     }
 
+    /**
+     * Retrieve order field GET var name
+     *
+     * @return string
+     */
     public function getOrderVarName()
     {
         return $this->_orderVarName;
     }
 
+    /**
+     * Retrieve sort direction GET var name
+     *
+     * @return string
+     */
     public function getDirectionVarName()
     {
         return $this->_directionVarName;
     }
 
+    /**
+     * Retrieve view mode GET var name
+     *
+     * @return string
+     */
     public function getModeVarName()
     {
         return $this->_modeVarName;
     }
 
+    /**
+     * Retrieve current order field
+     *
+     * @return string
+     */
     public function getCurrentOrder()
     {
         $order = $this->getRequest()->getParam($this->getOrderVarName());
@@ -94,10 +193,18 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
         if ($order && isset($orders[$order])) {
             return $order;
         }
+        if ($this->_orderField && isset($orders[$this->_orderField])) {
+            return $this->_orderField;
+        }
         $keys = array_keys($orders);
         return $keys[0];
     }
 
+    /**
+     * Retrieve current direction
+     *
+     * @return string
+     */
     public function getCurrentDirection()
     {
         if ($dir = (string) $this->getRequest()->getParam($this->getDirectionVarName())) {
@@ -106,26 +213,77 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
                 return $dir;
             }
         }
-        return 'asc';
+        return $this->_direction;
     }
 
+    /**
+     * Set default Order field
+     *
+     * @param string $field
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
+    public function setDefaultOrder($field)
+    {
+        if (isset($this->_availableOrder[$field])) {
+            $this->_orderField = $field;
+        }
+        return $this;
+    }
+
+    /**
+     * Set default sort direction
+     *
+     * @param string $dir
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
+    public function setDefaultDirection($dir)
+    {
+        if (in_array(strtolower($dir), array('asc', 'desc'))) {
+            $this->_direction = strtolower($dir);
+        }
+        return $this;
+    }
+
+    /**
+     * Retrieve available Order fields list
+     *
+     * @return array
+     */
     public function getAvailableOrders()
     {
         return $this->_availableOrder;
     }
 
+    /**
+     * Set Available order fields list
+     *
+     * @param array $orders
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function setAvailableOrders($orders)
     {
         $this->_availableOrder = $orders;
         return $this;
     }
 
-
+    /**
+     * Compare defined order field vith current order field
+     *
+     * @param string $order
+     * @return bool
+     */
     public function isOrderCurrent($order)
     {
         return $order == $this->getRequest()->getParam('order');
     }
 
+    /**
+     * Retrieve Pager URL
+     *
+     * @param string $order
+     * @param string $direction
+     * @return string
+     */
     public function getOrderUrl($order, $direction)
     {
         if (is_null($order)) {
@@ -137,6 +295,11 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
         ));
     }
 
+    /**
+     * Retrieve current View mode
+     *
+     * @return string
+     */
     public function getCurrentMode()
     {
         $mode = $this->getRequest()->getParam($this->getModeVarName());
@@ -153,16 +316,33 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
         return current(array_keys($this->_availableMode));
     }
 
+    /**
+     * Compare defined view mode with current active mode
+     *
+     * @param string $mode
+     * @return bool
+     */
     public function isModeActive($mode)
     {
         return $this->getCurrentMode() == $mode;
     }
 
+    /**
+     * Retrieve availables view modes
+     *
+     * @return array
+     */
     public function getModes()
     {
         return $this->_availableMode;
     }
 
+    /**
+     * Set available view modes list
+     *
+     * @param array $modes
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function setModes($modes)
     {
         if(!isset($this->_availableMode)){
@@ -171,80 +351,165 @@ class Mage_Catalog_Block_Product_List_Toolbar extends Mage_Page_Block_Html_Pager
         return $this;
     }
 
+    /**
+     * Retrive URL for view mode
+     *
+     * @param string $mode
+     * @return string
+     */
     public function getModeUrl($mode)
     {
         return $this->getPagerUrl(array($this->getModeVarName()=>$mode));
     }
 
+    /**
+     * Disable view switcher
+     *
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function disableViewSwitcher()
     {
         $this->_enableViewSwitcher = false;
         return $this;
     }
 
+    /**
+     * Enable view switcher
+     *
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function enableViewSwitcher()
     {
         $this->_enableViewSwitcher = true;
         return $this;
     }
 
+    /**
+     * Is a enabled view switcher
+     *
+     * @return bool
+     */
     public function isEnabledViewSwitcher()
     {
         return $this->_enableViewSwitcher;
     }
 
+    /**
+     * Disable Expanded
+     *
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function disableExpanded()
     {
         $this->_isExpanded = false;
         return $this;
     }
 
+    /**
+     * Enable Expanded
+     *
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
     public function enableExpanded()
     {
         $this->_isExpanded = true;
         return $this;
     }
 
+    /**
+     * Check is Expanded
+     *
+     * @return bool
+     */
     public function isExpanded()
     {
         return $this->_isExpanded;
     }
 
+    /**
+     * Retrieve default per page values
+     *
+     * @return string (comma separated)
+     */
     public function getDefaultPerPageValue()
     {
         if ($this->getCurrentMode() == 'list') {
+            if ($default = $this->getDefaultListPerPage()) {
+                return $default;
+            }
             return Mage::getStoreConfig('catalog/frontend/list_per_page');
         }
         elseif ($this->getCurrentMode() == 'grid') {
+            if ($default = $this->getDefaultGridPerPage()) {
+                return $default;
+            }
             return Mage::getStoreConfig('catalog/frontend/grid_per_page');
         }
         return 0;
     }
 
+    /**
+     * Add new limit to pager for mode
+     *
+     * @param string $mode
+     * @param string $value
+     * @param string $label
+     * @return Mage_Catalog_Block_Product_List_Toolbar
+     */
+    public function addPagerLimit($mode, $value, $label='')
+    {
+        if (!isset($this->_availableLimit[$mode])) {
+            $this->_availableLimit[$mode] = array();
+        }
+        $this->_availableLimit[$mode][$value] = empty($label) ? $value : $label;
+        return $this;
+    }
+
+    /**
+     * Retrieve available limits for current view mode
+     *
+     * @return array
+     */
     public function getAvailableLimit()
     {
         if ($this->getCurrentMode() == 'list') {
-            $perPageValues = (string) Mage::getConfig()->getNode('frontend/catalog/per_page_values/list');
+            if (isset($this->_availableLimit['list'])) {
+                return $this->_availableLimit['list'];
+            }
+            $perPageValues = (string)Mage::getStoreConfig('catalog/frontend/list_per_page_values');
             $perPageValues = explode(',', $perPageValues);
             $perPageValues = array_combine($perPageValues, $perPageValues);
-            return ($perPageValues + array('all'=>Mage::helper('catalog')->__('All')));
+            return ($perPageValues + array('all'=>$this->__('All')));
         }
         elseif ($this->getCurrentMode() == 'grid') {
-            $perPageValues = (string) Mage::getConfig()->getNode('frontend/catalog/per_page_values/grid');
+            if (isset($this->_availableLimit['grid'])) {
+                return $this->_availableLimit['grid'];
+            }
+            $perPageValues = (string)Mage::getStoreConfig('catalog/frontend/grid_per_page_values');
             $perPageValues = explode(',', $perPageValues);
             $perPageValues = array_combine($perPageValues, $perPageValues);
-            return ($perPageValues + array('all'=>Mage::helper('catalog')->__('All')));
+            return ($perPageValues + array('all'=>$this->__('All')));
         }
         return parent::getAvailableLimit();
     }
 
+    /**
+     * Retrieve current limit per page
+     *
+     * @return string
+     */
     public function getLimit()
     {
         $limits = $this->getAvailableLimit();
-        if ($limit = $this->getRequest()->getParam($this->getLimitVarName())) {
-            if (isset($limits[$limit])) {
-                return $limit;
-            }
+        $limit = $this->getRequest()->getParam($this->getLimitVarName());
+
+        if ($limit && isset($limits[$limit])) {
+            Mage::getSingleton('catalog/session')->setLimitPage($limit);
+        } else {
+            $limit = Mage::getSingleton('catalog/session')->getLimitPage();
+        }
+        if (isset($limits[$limit])) {
+            return $limit;
         }
         if ($limit = $this->getDefaultPerPageValue()) {
             if (isset($limits[$limit])) {

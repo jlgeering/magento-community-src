@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Reports
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Reports
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 
 class Mage_Reports_Model_Mysql4_Customer_Collection extends Mage_Customer_Model_Entity_Customer_Collection
@@ -56,10 +63,7 @@ class Mage_Reports_Model_Mysql4_Customer_Collection extends Mage_Customer_Model_
 
     public function addCustomerName()
     {
-        $this->addAttributeToSelect('firstname')
-            ->addAttributeToSelect('lastname')
-            ->addExpressionAttributeToSelect('name', 'CONCAT({{firstname}}," ",{{lastname}})', array('firstname', 'lastname'));
-
+        $this->addNameToSelect();
         return $this;
     }
 
@@ -115,21 +119,21 @@ class Mage_Reports_Model_Mysql4_Customer_Collection extends Mage_Customer_Model_
             /**
              * Join store_to_base_rate attribute
              */
-            $attr = $order->getAttribute('store_to_base_rate');
+            $attr = $order->getAttribute('base_to_global_rate');
             /* @var $attr Mage_Eav_Model_Entity_Attribute_Abstract */
             $attrId = $attr->getAttributeId();
-            $storeToBaseRateTableName = $attr->getBackend()->getTable();
-            $storeToBaseRateFieldName = $attr->getBackend()->isStatic() ? 'store_to_base_rate' : 'value';
+            $baseToGlobalRateTableName = $attr->getBackend()->getTable();
+            $baseToGlobalRateFieldName = $attr->getBackend()->isStatic() ? 'base_to_global_rate' : 'value';
 
             $this->getSelect()
-                ->joinLeft(array('_s2br_'.$storeToBaseRateTableName => $storeToBaseRateTableName),
-                    "_s2br_{$storeToBaseRateTableName}.entity_id={$this->_customerIdTableName}.entity_id AND ".
-                    "_s2br_{$storeToBaseRateTableName}.attribute_id={$attrId}", array());
+                ->joinLeft(array('_b2gr_'.$baseToGlobalRateTableName => $baseToGlobalRateTableName),
+                    "_b2gr_{$baseToGlobalRateTableName}.entity_id={$this->_customerIdTableName}.entity_id AND ".
+                    "_b2gr_{$baseToGlobalRateTableName}.attribute_id={$attrId}", array());
 
             /**
              * calculate average and total amount
              */
-            $expr = "({$this->_customerIdTableName}.base_subtotal-IFNULL({$this->_customerIdTableName}.base_subtotal_canceled,0)-IFNULL({$this->_customerIdTableName}.base_subtotal_refunded,0))/_s2br_{$storeToBaseRateTableName}.{$storeToBaseRateFieldName}";
+            $expr = "({$this->_customerIdTableName}.base_subtotal-IFNULL({$this->_customerIdTableName}.base_subtotal_canceled,0)-IFNULL({$this->_customerIdTableName}.base_subtotal_refunded,0))*_b2gr_{$baseToGlobalRateTableName}.{$baseToGlobalRateFieldName}";
 
         } else {
 

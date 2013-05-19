@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Core
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Core
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 
 class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
@@ -407,7 +414,8 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
             return false;
         }
         if (is_null($this->_isCanDelete)) {
-            $this->_isCanDelete = (Mage::getModel('core/website')->getCollection()->getSize() > 2);
+            $this->_isCanDelete = (Mage::getModel('core/website')->getCollection()->getSize() > 2)
+                && !$this->getIsDefault();
         }
         return $this->_isCanDelete;
     }
@@ -420,5 +428,62 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
     public function getWebsiteGroupStore()
     {
         return join('-', array($this->getWebsiteId(), $this->getGroupId(), $this->getStoreId()));
+    }
+
+    public function getDefaultGroupId()
+    {
+        return $this->_getData('default_group_id');
+    }
+
+    public function getCode()
+    {
+        return $this->_getData('code');
+    }
+
+    protected function _beforeDelete()
+    {
+        $this->_protectFromNonAdmin();
+        return parent::_beforeDelete();
+    }
+
+    /**
+     * rewrite in order to clear configuration cache
+     *
+     * @return Mage_Core_Model_Website
+     */
+    protected function _afterDelete()
+    {
+        parent::_afterDelete();
+        Mage::getConfig()->removeCache();
+        return $this;
+    }
+
+    /**
+     * Retrieve website base currency code
+     *
+     * @return string
+     */
+    public function getBaseCurrencyCode()
+    {
+        if ($this->getConfig(Mage_Core_Model_Store::XML_PATH_PRICE_SCOPE) == Mage_Core_Model_Store::PRICE_SCOPE_GLOBAL) {
+            return Mage::app()->getBaseCurrencyCode();
+        } else {
+            return $this->getConfig(Mage_Directory_Model_Currency::XML_PATH_CURRENCY_BASE);
+        }
+    }
+
+    /**
+     * Retrieve website base currency
+     *
+     * @return Mage_Directory_Model_Currency
+     */
+    public function getBaseCurrency()
+    {
+        $currency = $this->getData('base_currency');
+        if (is_null($currency)) {
+            $currency = Mage::getModel('directory/currency')->load($this->getBaseCurrencyCode());
+            $this->setData('base_currency', $currency);
+        }
+        return $currency;
     }
 }

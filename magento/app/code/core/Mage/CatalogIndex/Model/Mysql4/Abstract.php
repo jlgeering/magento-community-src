@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_CatalogIndex
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -22,10 +28,12 @@
 /**
  * Index resource model abstraction
  *
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_CatalogIndex_Model_Mysql4_Abstract extends Mage_Core_Model_Mysql4_Abstract
 {
     protected $_storeId = 0;
+    protected $_websiteId = null;
 
     protected function _construct() {
         return parent::_construct();
@@ -39,5 +47,14 @@ class Mage_CatalogIndex_Model_Mysql4_Abstract extends Mage_Core_Model_Mysql4_Abs
     public function getStoreId()
     {
         return $this->_storeId;
+    }
+
+    public function getWebsiteId()
+    {
+        if (is_null($this->_websiteId)) {
+            $result = Mage::app()->getStore($this->getStoreId())->getWebsiteId();
+            $this->_websiteId = $result;
+        }
+        return $this->_websiteId;
     }
 }

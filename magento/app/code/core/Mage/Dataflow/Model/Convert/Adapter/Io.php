@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Dataflow
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -24,6 +30,7 @@
  *
  * @category   Mage
  * @package    Mage_Dataflow
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert_Adapter_Abstract
 {
@@ -42,18 +49,20 @@ class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert
             $ioConfig = $this->getVars();
             switch ($this->getVar('type', 'file')) {
                 case 'file':
-                    $path = $this->_resource->getCleanPath(Mage::getBaseDir('base') . '/' . trim($this->getVar('path'), '/'));
-                    $basePath = $this->_resource->getCleanPath(Mage::getBaseDir('base'));
+                    if (preg_match('#^'.preg_quote(DS, '#').'#', $this->getVar('path')) ||
+                        preg_match('#^[a-z]:'.preg_quote(DS, '#') .'#i', $this->getVar('path'))) {
 
-                    if (strpos($path, $basePath) === false) {
-                        $message = Mage::helper('dataflow')->__('Access denied to destination folder "%s"', $path);
-                        Mage::throwException($message);
-                    } else {
-                        $this->_resource->setAllowCreateFolders(true);
-                        $this->_resource->createDestinationDir($path);
+                        $path = $this->_resource->getCleanPath($this->getVar('path'));
+                    }
+                    else {
+                        $baseDir = Mage::getBaseDir();
+                        $path = $this->_resource->getCleanPath($baseDir . DS . trim($this->getVar('path'), DS));
                     }
 
+                    $this->_resource->checkAndCreateFolder($path);
+
                     $realPath = realpath($path);
+
                     if (!$isError && $realPath === false) {
                         $message = Mage::helper('dataflow')->__('Destination folder "%s" does not exist or not access to create', $ioConfig['path']);
                         Mage::throwException($message);
@@ -68,9 +77,39 @@ class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert
                             Mage::throwException($message);
                         }
                         else {
-                            $ioConfig['path'] = rtrim($realPath, '/');
+                            $ioConfig['path'] = rtrim($realPath, DS);
                         }
                     }
+
+//                    $baseDir = Mage::getBaseDir();
+//                    $path = $this->_resource->getCleanPath($baseDir . '/' . trim($this->getVar('path'), '/'));
+//                    $basePath = $this->_resource->getCleanPath($baseDir);
+//
+//                    if (strpos($path, $basePath) !== 0) {
+//                        $message = Mage::helper('dataflow')->__('Access denied to destination folder "%s"', $path);
+//                        Mage::throwException($message);
+//                    } else {
+//                        $this->_resource->checkAndCreateFolder($path);
+//                    }
+//
+//                    $realPath = realpath($path);
+//                    if (!$isError && $realPath === false) {
+//                        $message = Mage::helper('dataflow')->__('Destination folder "%s" does not exist or not access to create', $ioConfig['path']);
+//                        Mage::throwException($message);
+//                    }
+//                    elseif (!$isError && !is_dir($realPath)) {
+//                        $message = Mage::helper('dataflow')->__('Destination folder "%s" is not a directory', $realPath);
+//                        Mage::throwException($message);
+//                    }
+//                    elseif (!$isError) {
+//                        if ($forWrite && !is_writeable($realPath)) {
+//                            $message = Mage::helper('dataflow')->__('Destination folder "%s" is not a writeable', $realPath);
+//                            Mage::throwException($message);
+//                        }
+//                        else {
+//                            $ioConfig['path'] = rtrim($realPath, '/');
+//                        }
+//                    }
                     break;
                 default:
                     $ioConfig['path'] = rtrim($this->getVar('path'), '/');

@@ -12,15 +12,22 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Core
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
  * Abstract helper
  *
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 abstract class Mage_Core_Helper_Abstract
 {
@@ -135,19 +142,50 @@ abstract class Mage_Core_Helper_Abstract
     }
 
     /**
-     * Escape data
+     * Escape html entities
      *
      * @param   mixed $data
+     * @param   array $allowedTags
      * @return  mixed
      */
-    public function htmlEscape($data)
+    public function htmlEscape($data, $allowedTags = null)
     {
         if (is_array($data)) {
+            $result = array();
             foreach ($data as $item) {
-            	return $this->htmlEscape($item);
+            	$result[] = $this->htmlEscape($item);
+            }
+        } else {
+            // process single item
+            if (is_array($allowedTags) and !empty($allowedTags)) {
+                $allowed = implode('|', $allowedTags);
+                $result = preg_replace('/<([\/\s\r\n]*)(' . $allowed . ')([\/\s\r\n]*)>/si', '##$1$2$3##', $data);
+                $result = htmlspecialchars($result);
+                $result = preg_replace('/##([\/\s\r\n]*)(' . $allowed . ')([\/\s\r\n]*)##/si', '<$1$2$3>', $result);
+            } else {
+                $result = htmlspecialchars($data);
             }
         }
-        return htmlspecialchars($data);
+        return $result;
+    }
+
+    /**
+     * Escape quotes in java script
+     *
+     * @param moxed $data
+     * @param string $quote
+     * @return mixed
+     */
+    public function jsQuoteEscape($data, $quote='\'')
+    {
+        if (is_array($data)) {
+            $result = array();
+            foreach ($data as $item) {
+                $result[] = str_replace($quote, '\\'.$quote, $item);
+            }
+            return $result;
+        }
+        return str_replace($quote, '\\'.$quote, $data);
     }
 
     /**
@@ -184,13 +222,44 @@ abstract class Mage_Core_Helper_Abstract
         return $this->_layout;
     }
 
+    /**
+     *  base64_encode() for URLs encoding
+     *
+     *  @param    string $url
+     *  @return	  string
+     */
     public function urlEncode($url)
     {
-        return str_replace('/', '_', base64_encode($url));
+        return strtr(base64_encode($url), '+/=', '-_,');
     }
 
+    /**
+     *  base64_dencode() for URLs dencoding
+     *
+     *  @param    string $url
+     *  @return	  string
+     */
     public function urlDecode($url)
     {
-        return base64_decode(str_replace('_', '/', $url));
+        return base64_decode(strtr($url, '-_,', '+/='));
+    }
+
+    /**
+     *   Translate array
+     *
+     *  @param    array $arr
+     *  @return	  array
+     */
+    public function translateArray($arr = array())
+    {
+        foreach ($arr as $k => $v) {
+            if (is_array($v)) {
+                $v = self::translateArray($v);
+            } elseif ($k === 'label') {
+                $v = self::__($v);
+            }
+            $arr[$k] = $v;
+        }
+        return $arr;
     }
 }

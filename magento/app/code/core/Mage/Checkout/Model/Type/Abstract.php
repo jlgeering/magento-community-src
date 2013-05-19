@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Checkout
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Checkout
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
 {
@@ -40,7 +47,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
         }
         return $checkout;
     }
-    
+
     /**
      * Retrieve quote model
      *
@@ -50,7 +57,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
     {
         return $this->getCheckoutSession()->getQuote();
     }
-    
+
     /**
      * Retrieve quote items
      *
@@ -60,7 +67,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
     {
         return $this->getQuote()->getAllItems();
     }
-    
+
     /**
      * Retrieve customer session vodel
      *
@@ -75,7 +82,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
         }
         return $customer;
     }
-    
+
     /**
      * Retrieve customer object
      *
@@ -85,7 +92,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
     {
         return $this->getCustomerSession()->getCustomer();
     }
-    
+
     /**
      * Retrieve customer default shipping address
      *
@@ -107,7 +114,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
         }
         return $address;
     }
-    
+
     /**
      * Retrieve customer default billing address
      *
@@ -122,11 +129,12 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
         }
         return $address;
     }
-    
+
     protected function _createOrderFromAddress($address)
     {
         $order = Mage::getModel('sales/order')->createFromQuoteAddress($address)
             ->setCustomerId($this->getCustomer()->getId())
+            ->setGlobalCurrencyCode('USD')
             ->setBaseCurrencyCode('USD')
             ->setStoreCurrencyCode('USD')
             ->setOrderCurrencyCode('USD')
@@ -134,7 +142,7 @@ abstract class Mage_Checkout_Model_Type_Abstract extends Varien_Object
             ->setStoreToOrderRate(1);
         return $order;
     }
-    
+
     protected function _emailOrderConfirmation($email, $name, $order)
     {
         $mailer = Mage::getModel('core/email')

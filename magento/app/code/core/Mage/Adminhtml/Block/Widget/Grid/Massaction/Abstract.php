@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 abstract class Mage_Adminhtml_Block_Widget_Grid_Massaction_Abstract extends Mage_Adminhtml_Block_Widget
 {
@@ -37,6 +44,7 @@ abstract class Mage_Adminhtml_Block_Widget_Grid_Massaction_Abstract extends Mage
     {
         parent::__construct();
         $this->setTemplate('widget/grid/massaction.phtml');
+        $this->setErrorText(Mage::helper('catalog')->jsQuoteEscape(Mage::helper('catalog')->__('Please select  items')));
     }
 
     /**
@@ -178,9 +186,11 @@ abstract class Mage_Adminhtml_Block_Widget_Grid_Massaction_Abstract extends Mage
     {
         if($selected = $this->getRequest()->getParam($this->getFormFieldNameInternal())) {
             $selected = explode(',', $selected);
-            return Zend_Json::encode($selected);
+            return join(',', $selected);
+//            return Zend_Json::encode($selected);
         } else {
-            return '[]';
+            return '';
+//            return '[]';
         }
     }
 
@@ -212,10 +222,11 @@ abstract class Mage_Adminhtml_Block_Widget_Grid_Massaction_Abstract extends Mage
     public function getJavaScript()
     {
         return "
-                var {$this->getJsObjectName()} = new varienGridMassaction('{$this->getHtmlId()}', {$this->getGridJsObjectName()}, {$this->getSelectedJson()}, '{$this->getFormFieldNameInternal()}', '{$this->getFormFieldName()}');
+                var {$this->getJsObjectName()} = new varienGridMassaction('{$this->getHtmlId()}', {$this->getGridJsObjectName()}, '{$this->getSelectedJson()}', '{$this->getFormFieldNameInternal()}', '{$this->getFormFieldName()}');
                 {$this->getJsObjectName()}.setItems({$this->getItemsJson()});
-                {$this->getJsObjectName()}.setGridIds({$this->getGridIdsJson()});
-                ". ($this->getUseAjax() ? "{$this->getJsObjectName()}.setUseAjax(true);" : '');
+                {$this->getJsObjectName()}.setGridIds('{$this->getGridIdsJson()}');
+                ". ($this->getUseAjax() ? "{$this->getJsObjectName()}.setUseAjax(true);" : '') .
+                "{$this->getJsObjectName()}.errorText = '{$this->getErrorText()}';";
     }
 
     public function getGridIdsJson()
@@ -223,9 +234,11 @@ abstract class Mage_Adminhtml_Block_Widget_Grid_Massaction_Abstract extends Mage
         $gridIds = $this->getParentBlock()->getCollection()->getAllIds();
 
         if(!empty($gridIds)) {
-            return Zend_Json::encode($gridIds);
+            return join(",", $gridIds);
+            //return Zend_Json::encode($gridIds);
         }
-        return '[]';
+        return '';
+        //return '[]';
     }
 
     public function getHtmlId()

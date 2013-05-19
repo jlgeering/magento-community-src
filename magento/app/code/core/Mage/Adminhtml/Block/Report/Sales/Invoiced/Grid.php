@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -23,6 +29,7 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Adminhtml_Block_Report_Sales_Invoiced_Grid extends Mage_Adminhtml_Block_Report_Grid
 {
@@ -48,10 +55,17 @@ class Mage_Adminhtml_Block_Report_Sales_Invoiced_Grid extends Mage_Adminhtml_Blo
             'type'      =>'number'
         ));
 
-        $currency_code = (string) Mage::app()->getStore((int)$this->getParam('store'))->getBaseCurrencyCode();
+        $this->addColumn('orders_invoiced', array(
+            'header'    =>Mage::helper('reports')->__('Number of Ivoiced Orders'),
+            'index'     =>'orders_invoiced',
+            'total'     =>'sum',
+            'type'      =>'number'
+        ));
+
+        $currency_code = $this->getCurrentCurrencyCode();
 
         $this->addColumn('invoiced', array(
-            'header'    =>Mage::helper('reports')->__('Total invoiced'),
+            'header'    =>Mage::helper('reports')->__('Total Invoiced'),
             'type'      =>'currency',
             'currency_code'=>$currency_code,
             'index'     =>'invoiced',
@@ -60,7 +74,7 @@ class Mage_Adminhtml_Block_Report_Sales_Invoiced_Grid extends Mage_Adminhtml_Blo
         ));
 
         $this->addColumn('invoiced_captured', array(
-            'header'    =>Mage::helper('reports')->__('Total invoiced captured'),
+            'header'    =>Mage::helper('reports')->__('Total Invoiced Captured'),
             'type'      =>'currency',
             'currency_code'=>$currency_code,
             'index'     =>'invoiced_captured',
@@ -69,7 +83,7 @@ class Mage_Adminhtml_Block_Report_Sales_Invoiced_Grid extends Mage_Adminhtml_Blo
         ));
 
         $this->addColumn('invoiced_not_captured', array(
-            'header'    =>Mage::helper('reports')->__('Total invoiced not captured'),
+            'header'    =>Mage::helper('reports')->__('Total Invoiced not Captured'),
             'type'      =>'currency',
             'currency_code'=>$currency_code,
             'index'     =>'invoiced_not_captured',

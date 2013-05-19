@@ -12,17 +12,24 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
- * @category   Mage
- * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @copyright   Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
  * Adminhtml form container block
  *
- * @category   Mage
- * @package    Mage_Adminhtml
+ * @category    Mage
+ * @package     Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 
 class Mage_Adminhtml_Block_Widget_Form_Container extends Mage_Adminhtml_Block_Widget_Container
@@ -43,13 +50,11 @@ class Mage_Adminhtml_Block_Widget_Form_Container extends Mage_Adminhtml_Block_Wi
             'label'     => Mage::helper('adminhtml')->__('Back'),
             'onclick'   => 'setLocation(\'' . $this->getBackUrl() . '\')',
             'class'     => 'back',
-            'level'     => -1
-        ));
+        ), -1);
         $this->_addButton('reset', array(
             'label'     => Mage::helper('adminhtml')->__('Reset'),
             'onclick'   => 'setLocation(window.location.href)',
-            'level'     => -1
-        ));
+        ), -1);
 
         $objId = $this->getRequest()->getParam($this->_objectId);
 
@@ -66,15 +71,20 @@ class Mage_Adminhtml_Block_Widget_Form_Container extends Mage_Adminhtml_Block_Wi
             'label'     => Mage::helper('adminhtml')->__('Save'),
             'onclick'   => 'editForm.submit();',
             'class'     => 'save',
-        ), -100);
+        ), 1);
     }
 
     protected function _prepareLayout()
     {
-        $this->setChild('form', $this->getLayout()->createBlock($this->_blockGroup.'/' . $this->_controller . '_' . $this->_mode . '_form'));
+        $this->setChild('form', $this->getLayout()->createBlock($this->_blockGroup . '/' . $this->_controller . '_' . $this->_mode . '_form'));
         return parent::_prepareLayout();
     }
 
+    /**
+     * Get URL for back (reset) button
+     *
+     * @return string
+     */
     public function getBackUrl()
     {
         return $this->getUrl('*/*/');
@@ -85,9 +95,29 @@ class Mage_Adminhtml_Block_Widget_Form_Container extends Mage_Adminhtml_Block_Wi
         return $this->getUrl('*/*/delete', array($this->_objectId => $this->getRequest()->getParam($this->_objectId)));
     }
 
+    /**
+     * Get form save URL
+     *
+     * @deprecated
+     * @see getFormActionUrl()
+     * @return string
+     */
     public function getSaveUrl()
     {
-        return $this->getUrl('*/'.$this->_controller.'/save');
+        return $this->getFormActionUrl();
+    }
+
+    /**
+     * Get form action URL
+     *
+     * @return string
+     */
+    public function getFormActionUrl()
+    {
+        if ($this->hasFormActionUrl()) {
+            return $this->getData('form_action_url');
+        }
+        return $this->getUrl('*/' . $this->_controller . '/save');
     }
 
     public function getFormHtml()
@@ -125,6 +155,18 @@ class Mage_Adminhtml_Block_Widget_Form_Container extends Mage_Adminhtml_Block_Wi
     public function getHeaderHtml()
     {
         return '<h3 class="' . $this->getHeaderCssClass() . '">' . $this->getHeaderText() . '</h3>';
+    }
+
+    /**
+     * Set data object and pass it to form
+     *
+     * @param Varien_Object $object
+     * @return Mage_Adminhtml_Block_Widget_Form_Container
+     */
+    public function setDataObject($object)
+    {
+        $this->getChild('form')->setDataObject($object);
+        return $this->setData('data_object', $object);
     }
 
 }

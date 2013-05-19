@@ -12,9 +12,15 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Adminhtml
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -24,18 +30,23 @@
  *
  * @category   Mage
  * @package    Mage_Adminhtml
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Adminhtml_Block_Catalog_Product_Edit_Action_Attribute_Tab_Attributes extends Mage_Adminhtml_Block_Catalog_Form
+class Mage_Adminhtml_Block_Catalog_Product_Edit_Action_Attribute_Tab_Attributes
+    extends Mage_Adminhtml_Block_Catalog_Form
+    implements Mage_Adminhtml_Block_Widget_Tab_Interface
 {
-
-    public function __construct()
+    protected function _construct()
     {
-        parent::__construct();
+        parent::_construct();
         $this->setShowGlobalIcon(true);
     }
 
     protected function _prepareForm()
     {
+        $this->setFormExcludedFieldList(array('tier_price','gallery', 'media_gallery'));
+        Mage::dispatchEvent('adminhtml_catalog_product_form_prepare_excluded_field_list', array('object'=>$this));
+
         $form = new Varien_Data_Form();
         $fieldset = $form->addFieldset('fields', array('legend'=>Mage::helper('catalog')->__('Attributes')));
         $attributes = $this->getAttributes();
@@ -44,7 +55,7 @@ class Mage_Adminhtml_Block_Catalog_Product_Edit_Action_Attribute_Tab_Attributes 
          * for using it in elements generation
          */
         $form->setDataObject(Mage::getModel('catalog/product'));
-        $this->_setFieldset($attributes, $fieldset, array('tier_price','gallery', 'media_gallery'));
+        $this->_setFieldset($attributes, $fieldset, $this->getFormExcludedFieldList());
         $form->setFieldNameSuffix('attributes');
         $this->setForm($form);
     }
@@ -88,4 +99,26 @@ class Mage_Adminhtml_Block_Catalog_Product_Edit_Action_Attribute_Tab_Attributes 
                 <script type="text/javascript">initDisableFields(\''.$element->getId().'\')</script>';
     }
 
+    /**
+     * ######################## TAB settings #################################
+     */
+    public function getTabLabel()
+    {
+        return Mage::helper('catalog')->__('Attributes');
+    }
+
+    public function getTabTitle()
+    {
+        return Mage::helper('catalog')->__('Attributes');
+    }
+
+    public function canShowTab()
+    {
+        return true;
+    }
+
+    public function isHidden()
+    {
+        return false;
+    }
 }

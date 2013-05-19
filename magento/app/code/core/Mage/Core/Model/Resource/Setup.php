@@ -12,14 +12,22 @@
  * obtain it through the world-wide-web, please send an email
  * to license@magentocommerce.com so we can send you a copy immediately.
  *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
  * @category   Mage
  * @package    Mage_Core
- * @copyright  Copyright (c) 2004-2007 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
  * Resource setup model
+ *
+ * @author      Magento Core Team <core@magentocommerce.com>
  */
 class Mage_Core_Model_Resource_Setup
 {
@@ -35,7 +43,7 @@ class Mage_Core_Model_Resource_Setup
     /**
      * Setup Connection
      *
-     * @var Zend_Db_Adapter_Abstract
+     * @var Varien_Db_Adapter_Pdo_Mysql
      */
     protected $_conn;
     protected $_tables = array();
@@ -70,14 +78,15 @@ class Mage_Core_Model_Resource_Setup
         return $this;
     }
 
+    /**
+     * Get table name
+     *
+     * @param string $tableName
+     * @return string
+     */
     public function getTable($tableName) {
         if (!isset($this->_tables[$tableName])) {
-            $tablePrefix = (string)Mage::getConfig()->getNode('global/resources/db/table_prefix');
-            if (Mage::registry('resource')) {
-                $this->_tables[$tableName] = $tablePrefix . Mage::getSingleton('core/resource')->getTableName($tableName);
-            } else {
-                $this->_tables[$tableName] = $tablePrefix . str_replace('/', '_', $tableName);
-            }
+            $this->_tables[$tableName] = Mage::getSingleton('core/resource')->getTableName($tableName);
         }
         return $this->_tables[$tableName];
     }
@@ -89,6 +98,7 @@ class Mage_Core_Model_Resource_Setup
      */
     static public function applyAllUpdates()
     {
+        Mage::app()->setUpdateMode(true);
         $res = Mage::getSingleton('core/resource');
         /*
         if ($res->getAutoUpdate() == Mage_Core_Model_Resource::AUTO_UPDATE_NEVER) {
@@ -117,6 +127,7 @@ class Mage_Core_Model_Resource_Setup
             }
         }
 */
+        Mage::app()->setUpdateMode(false);
         return true;
     }
 
@@ -149,9 +160,8 @@ class Mage_Core_Model_Resource_Setup
      * Install resource
      *
      * @param     string $version
-     * @return    boll
+     * @return    boolean
      */
-
     protected function _installResourceDb($newVersion)
     {
         $oldVersion = $this->_modifyResourceDb('install', '', $newVersion);
@@ -412,7 +422,8 @@ class Mage_Core_Model_Resource_Setup
 
     public function tableExists($table)
     {
-        $result = $this->_conn->fetchOne("show tables like '$table'");
+        $select = $this->getConnection()->quoteInto('SHOW TABLES LIKE ?', $table);
+        $result = $this->getConnection()->fetchOne($select);
         return !empty($result);
     }
 
@@ -479,7 +490,7 @@ class Mage_Core_Model_Resource_Setup
 
     public function run($sql)
     {
-        set_time_limit(120);
+        @set_time_limit(120);
         $this->_conn->multi_query($sql);
         return $this;
     }
@@ -501,11 +512,5 @@ SET SQL_MODE=IFNULL(@OLD_SQL_MODE,'');
 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS,0);
 ");
         return $this;
-    }
-
-    public function getAllAttributeSetIds()
-    {
-        $sql = "SELECT `attribute_set_id` FROM `{$this->getTable('eav/attribute_set')}`";
-        return $this->_conn->fetchCol($sql);
     }
 }
