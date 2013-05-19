@@ -79,7 +79,7 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
     /**
      * Retrieve search list toolbar block
      *
-     * @return Mage_Catalog_Block_Product_List_Toolbar
+     * @return Mage_Catalog_Block_Product_List
      */
     public function getListBlock()
     {
@@ -92,13 +92,20 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
      * @return Mage_CatalogSearch_Block_Result
      */
     public function setListOrders() {
+        $category = Mage::getSingleton('catalog/layer')
+            ->getCurrentCategory();
+        /* @var $category Mage_Catalog_Model_Category */
+        $availableOrders = $category->getAvailableSortByOptions();
+        unset($availableOrders['position']);
+        $availableOrders = array_merge(array(
+            'relevance' => $this->__('Relevance')
+        ), $availableOrders);
+
         $this->getListBlock()
-            ->setAvailableOrders(array(
-                'relevance' => $this->__('Relevance'),
-                'name'      => $this->__('Name'),
-                'price'     => $this->__('Price'),
-            ))
-            ->setDefaultDirection('desc');
+            ->setAvailableOrders($availableOrders)
+            ->setDefaultDirection('desc')
+            ->setSortBy('relevance');
+
         return $this;
     }
 
@@ -146,15 +153,6 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
     {
         if (is_null($this->_productCollection)) {
             $this->_productCollection = Mage::getSingleton('catalogsearch/layer')->getProductCollection();
-/*
-            $this->_productCollection = Mage::getResourceModel('catalogsearch/fulltext_collection')
-                ->addSearchFilter($this->helper('catalogSearch')->getEscapedQueryText())
-                ->setStore(Mage::app()->getStore())
-                ->addAttributeToSelect(Mage::getSingleton('catalog/config')->getProductAttributes())
-                ->addUrlRewrite();
-
-            Mage::getSingleton('catalog/product_status')->addVisibleFilterToCollection($this->_productCollection);
-            Mage::getSingleton('catalog/product_visibility')->addVisibleInSearchFilterToCollection($this->_productCollection);*/
         }
 
         return $this->_productCollection;

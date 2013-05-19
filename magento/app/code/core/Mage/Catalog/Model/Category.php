@@ -68,7 +68,11 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
 
     protected function _construct()
     {
-        $this->_init('catalog/category');
+        if (Mage::helper('catalog/category_flat')->isEnabled()) {
+            $this->_init('catalog/category_flat');
+        } else {
+            $this->_init('catalog/category');
+        }
     }
 
     /**
@@ -85,8 +89,10 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
     }
 
     /**
-    * @return Mage_Core_Model_Url_Rewrite
-    */
+     * Get url rewrite model
+     *
+     * @return Mage_Core_Model_Url_Rewrite
+     */
     public function getUrlRewrite()
     {
         if (!self::$_urlRewrite) {
@@ -228,9 +234,35 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
         return $layout;
     }
 
+    /**
+     * Return store id.
+     *
+     * If store id is underfined for category return current active store id
+     *
+     * @return integer
+     */
     public function getStoreId()
     {
-        return $this->_getData('store_id');
+        if ($this->hasData('store_id')) {
+            return $this->_getData('store_id');
+        }
+        return Mage::app()->getStore()->getId();
+    }
+
+    /**
+     * Set store id
+     *
+     * @param integer $storeId
+     * @return Mage_Catalog_Model_Category
+     */
+    public function setStoreId($storeId)
+    {
+        if (!is_numeric($storeId)) {
+            $storeId = Mage::app($storeId)->getStore()->getId();
+        }
+        $this->setData('store_id', $storeId);
+        $this->getResource()->setStoreId($storeId);
+        return $this;
     }
 
     /**
@@ -320,16 +352,35 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
         return $path;
     }
 
+    /**
+     * Get parent category object
+     *
+     * @return Mage_Catalog_Model_Category
+     */
     public function getParentCategory()
     {
         return Mage::getModel('catalog/category')->load($this->getParentId());
     }
 
+    /**
+     * Get parent category identifier
+     *
+     * @return int
+     */
     public function getParentId()
     {
-        $parentPath = explode('/', $this->getPath());
-        array_pop($parentPath);
-        return intval(array_pop($parentPath));
+        $parentIds = $this->getParentIds();
+        return intval(array_pop($parentIds));
+    }
+
+    /**
+     * Get all parent categories ids
+     *
+     * @return array
+     */
+    public function getParentIds()
+    {
+        return array_diff($this->getPathIds(), array($this->getId()));
     }
 
     public function getCustomDesignDate()
@@ -364,6 +415,15 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
      */
     public function getAllChildren($asArray = false)
     {
+        $children = $this->getResource()->getAllChildren($this);
+        if ($asArray) {
+            return $children;
+        } else {
+            return implode(',', $children);
+        }
+
+
+
         $this->getTreeModelInstance()->load();
         $children = $this->getTreeModelInstance()->getChildren($this->getId());
 
@@ -382,8 +442,7 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
 
     public function getChildren()
     {
-        $this->getTreeModelInstance()->load();
-        return implode(',', $this->getTreeModelInstance()->getChildren($this->getId(), false));
+        return implode(',', $this->getResource()->getChildren($this, false));
     }
 
     public function getPathInStore()
@@ -410,6 +469,12 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
         return $this->_getResource()->checkId($id);
     }
 
+    /**
+     * Get array categories ids which are part of category path
+     * Result array contain id of current category because it is part of the path
+     *
+     * @return array
+     */
     public function getPathIds()
     {
         $ids = $this->getData('path_ids');
@@ -482,4 +547,103 @@ class Mage_Catalog_Model_Category extends Mage_Catalog_Model_Abstract
         }
         return $this->getData('product_count');
     }
+
+    /**
+     * Enter description here...
+     *
+     * @param unknown_type $sorted
+     * @param unknown_type $asCollection
+     * @param unknown_type $toLoad
+     * @return unknown_type
+     */
+    public function getCategories($parent, $recursionLevel = 0, $sorted=false, $asCollection=false, $toLoad=true)
+    {
+        $categories = $this->getResource()
+            ->getCategories($parent, $recursionLevel, $sorted, $asCollection, $toLoad);
+        return $categories;
+    }
+
+    /**
+     * Return parent categories of current category
+     *
+     * @return array
+     */
+    public function getParentCategories()
+    {
+        return $this->getResource()->getParentCategories($this);
+    }
+
+    /**
+     * Retuen children categories of current category
+     *
+     * @return array
+     */
+    public function getChildrenCategories()
+    {
+        return $this->getResource()->getChildrenCategories($this);
+    }
+
+    public function isInRootCategoryList()
+    {
+        return $this->getResource()->isInRootCategoryList($this);
+    }
+
+    /**
+     * Retrieve Available int Product Listing sort by
+     *
+     * @return null|array
+     */
+    public function getAvailableSortBy()
+    {
+        $available = $this->getData('available_sort_by');
+        if ($available && !is_array($available)) {
+            $available = split(',', $available);
+        }
+        return $available;
+    }
+
+    /**
+     * Retrieve Available Product Listing  Sort By
+     * code as key, value - name
+     *
+     * @return array
+     */
+    public function getAvailableSortByOptions() {
+        $availableSortBy = array();
+        $defaultSortBy   = Mage::getSingleton('catalog/config')
+            ->getAttributeUsedForSortByArray();
+        if ($this->getAvailableSortBy()) {
+            foreach ($this->getAvailableSortBy() as $sortBy) {
+                if (isset($defaultSortBy[$sortBy])) {
+                    $availableSortBy[$sortBy] = $defaultSortBy[$sortBy];
+                }
+            }
+        }
+
+        if (!$availableSortBy) {
+            $availableSortBy = $defaultSortBy;
+        }
+
+        return $availableSortBy;
+    }
+
+    /**
+     * Retrieve Product Listing Default Sort By
+     *
+     * @return string
+     */
+    public function getDefaultSortBy() {
+        if (!$sortBy = $this->getData('default_sort_by')) {
+            $sortBy = Mage::getSingleton('catalog/config')
+                ->getProductListDefaultSortBy($this->getStoreId());
+        }
+        $available = $this->getAvailableSortByOptions();
+        if (!isset($available[$sortBy])) {
+            $sortBy = array_keys($available);
+            $sortBy = $sortBy[0];
+        }
+
+        return $sortBy;
+    }
+
 }

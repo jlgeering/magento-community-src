@@ -245,6 +245,8 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
         $object = $this->getObject();
         $entry = $this->getEntry();
 
+        $this->_setAttribute('id', $object->getId() . '_' . $this->getStoreId(), 'text');
+
         if ($object->getName()) {
             $title = $service->newTitle()->setText( $object->getName() );
             $entry->setTitle($title);
@@ -271,18 +273,25 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
             $entry->setContent($content);
         }
 
-        if ($this->_getItemType() == 'products') {
-        	$quantity = $object->getQuantity() ? max(1, (int)$object->getQuantity()) : 1;
-        	$this->_setAttribute('quantity', $quantity, 'int');
+        $targetCountry = $this->getConfig()->getTargetCountry($this->getStoreId());
+
+        if ($this->_getItemType() == $this->getConfig()->getDefaultItemType($this->getStoreId())) {
+            $this->_setAttribute(
+                $this->getConfig()->getCountryInfo($targetCountry, 'price_attribute_name', $this->getStoreId()),
+                sprintf('%.2f', $object->getPrice()),
+                'floatUnit'
+            );
+
+            $quantity = $object->getQuantity() ? max(1, (int)$object->getQuantity()) : 1;
+            $this->_setAttribute('quantity', $quantity, 'int');
         }
 
         if ($object->getImageUrl()) {
             $this->_setAttribute('image_link', $object->getImageUrl(), 'url');
         }
 
-        if ($country = Mage::getStoreConfig('google/googlebase/target_country', $this->getStoreId())) {
-            $this->_setAttribute('target_country', $country, 'text');
-        }
+        $this->_setAttribute('target_country', $targetCountry, 'text');
+        $this->_setAttribute('item_language', $this->getConfig()->getCountryInfo($targetCountry, 'language'), 'text');
 
         return $this;
     }
@@ -331,7 +340,7 @@ class Mage_GoogleBase_Model_Service_Item extends Mage_GoogleBase_Model_Service
      */
     protected function _getItemType()
     {
-        return $this->getItemType() ? $this->getItemType() : self::DEFAULT_ITEM_TYPE;
+        return $this->getItemType() ? $this->getItemType() : $this->getConfig()->getDefaultItemType($this->getStoreId());
     }
 
     /**

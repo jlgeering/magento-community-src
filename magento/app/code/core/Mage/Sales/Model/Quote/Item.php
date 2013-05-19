@@ -188,6 +188,11 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             ->setCost($product->getCost())
             ->setIsQtyDecimal($product->getIsQtyDecimal());
 
+        Mage::dispatchEvent('sales_quote_item_set_product', array(
+            'product' => $product,
+            'quote_item'=>$this
+        ));
+
 //        if ($options = $product->getCustomOptions()) {
 //            foreach ($options as $option) {
 //                $this->addOption($option);
@@ -210,6 +215,11 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
                 ->load($this->getProductId());
             $this->setProduct($product);
         }
+
+        /**
+         * Reset product final price because it related to custom options
+         */
+        $product->setFinalPrice(null);
         $product->setCustomOptions($this->_optionsByCode);
         return $product;
     }
@@ -302,6 +312,16 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
         return $this->_getData('product_type');
     }
 
+    /**
+     * Return real product type of item
+     *
+     * @return unknown
+     */
+    public function getRealProductType()
+    {
+        return $this->_getData('product_type');
+    }
+
     public function toArray(array $arrAttributes=array())
     {
         $data = parent::toArray($arrAttributes);
@@ -390,8 +410,8 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             $options[$optionProduct->getId()]->setValue($value);
         }
 
-        $this->getProduct()->getTypeInstance()
-            ->updateQtyOption($this->getOptions(), $option, $value);
+        $this->getProduct()->getTypeInstance(true)
+            ->updateQtyOption($this->getOptions(), $option, $value, $this->getProduct());
 
         return $this;
     }

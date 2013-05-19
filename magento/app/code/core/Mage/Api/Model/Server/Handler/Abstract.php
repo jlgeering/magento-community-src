@@ -33,6 +33,8 @@
  */
 abstract class Mage_Api_Model_Server_Handler_Abstract
 {
+    protected $_resourceSuffix = null;
+
     public function __construct()
     {
         set_error_handler(array(get_class($this), 'handlePhpError'), E_ALL);
@@ -40,7 +42,7 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
 
     static public function handlePhpError($errorCode, $errorMessage, $errorFile)
     {
-        Mage::log($errorMessage, null, $errorFile);
+        Mage::log($errorMessage . $errorFile);
         if (in_array($errorCode, array(E_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR))) {
             $this->_fault('internal');
         }
@@ -107,7 +109,6 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
     /**
      *  Check session expiration
      *
-     *  @param    none
      *  @return	  boolean
      */
     protected function _isSessionExpired ()
@@ -188,6 +189,20 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
     }
 
     /**
+     * Enter description here...
+     *
+     * @param string $resource
+     * @return string
+     */
+    protected function _prepareResourceModelName($resource)
+    {
+        if (null !== $this->_resourceSuffix) {
+            return $resource . $this->_resourceSuffix;
+        }
+        return $resource;
+    }
+
+    /**
      * Login user and Retrieve session id
      *
      * @param string $username
@@ -229,7 +244,6 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
 
         $resourcesAlias = $this->_getConfig()->getResourcesAlias();
         $resources      = $this->_getConfig()->getResources();
-
         if (isset($resourcesAlias->$resourceName)) {
             $resourceName = (string) $resourcesAlias->$resourceName;
         }
@@ -258,7 +272,7 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
         try {
             $method = (isset($methodInfo->method) ? (string) $methodInfo->method : $methodName);
 
-            $modelName = (string) $resources->$resourceName->model;
+            $modelName = $this->_prepareResourceModelName((string) $resources->$resourceName->model);
             try {
                 $model = Mage::getModel($modelName);
                 if ($model instanceof Mage_Api_Model_Resource_Abstract) {
@@ -374,7 +388,7 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
             try {
                 $method = (isset($methodInfo->method) ? (string) $methodInfo->method : $methodName);
 
-                $modelName = (string) $resources->$resourceName->model;
+                $modelName = $this->_prepareResourceModelName((string) $resources->$resourceName->model);
                 try {
                     $model = Mage::getModel($modelName);
                 } catch (Exception $e) {

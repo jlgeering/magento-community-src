@@ -47,15 +47,17 @@ class Mage_Catalog_Model_Product_Type
     const DEFAULT_PRICE_MODEL   = 'catalog/product_type_price';
 
     static protected $_types;
+    static protected $_compositeTypes;
     static protected $_priceModels;
 
     /**
      * Product type instance factory
      *
      * @param   Mage_Catalog_Model_Product $product
+     * @param   bool $singleton
      * @return  Mage_Catalog_Model_Product_Type_Abstract
      */
-    public static function factory($product)
+    public static function factory($product, $singleton = false)
     {
         $types = self::getTypes();
 
@@ -65,8 +67,14 @@ class Mage_Catalog_Model_Product_Type
             $typeModelName = self::DEFAULT_TYPE_MODEL;
         }
 
-        $typeModel = Mage::getModel($typeModelName);
-        $typeModel->setProduct($product);
+        if ($singleton === true) {
+            $typeModel = Mage::getSingleton($typeModelName);
+        }
+        else {
+            $typeModel = Mage::getModel($typeModelName);
+            $typeModel->setProduct($product);
+        }
+        $typeModel->setConfig($types[$product->getTypeId()]);
         return $typeModel;
     }
 
@@ -116,10 +124,10 @@ class Mage_Catalog_Model_Product_Type
         $res = array();
         $res[] = array('value'=>'', 'label'=>'');
         foreach (self::getOptionArray() as $index => $value) {
-        	$res[] = array(
-        	   'value' => $index,
-        	   'label' => $value
-        	);
+            $res[] = array(
+               'value' => $index,
+               'label' => $value
+            );
         }
         return $res;
     }
@@ -128,10 +136,10 @@ class Mage_Catalog_Model_Product_Type
     {
         $res = array();
         foreach (self::getOptionArray() as $index => $value) {
-        	$res[] = array(
-        	   'value' => $index,
-        	   'label' => $value
-        	);
+            $res[] = array(
+               'value' => $index,
+               'label' => $value
+            );
         }
         return $res;
     }
@@ -149,5 +157,24 @@ class Mage_Catalog_Model_Product_Type
         }
 
         return self::$_types;
+    }
+
+    /**
+     * Return composite product type Ids
+     *
+     * @return array
+     */
+    static public function getCompositeTypes()
+    {
+        if (is_null(self::$_compositeTypes)) {
+            self::$_compositeTypes = array();
+            $types = self::getTypes();
+            foreach ($types as $typeId=>$typeInfo) {
+                if (array_key_exists('composite', $typeInfo) && $typeInfo['composite']) {
+                    self::$_compositeTypes[] = $typeId;
+                }
+            }
+        }
+        return self::$_compositeTypes;
     }
 }

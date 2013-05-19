@@ -55,6 +55,8 @@
                     <en_US/><!-- English (United States) -->
                     <es_AR/><!-- Spanish (Argentina) -->
                     <es_CO/><!-- Spanish (Colombia) -->
+                    <es_PA/><!-- Spanish (Panama) -->
+                    <gl_ES/><!-- Galician (Galician) -->
                     <es_CR/><!-- Spanish (Costa Rica) -->
                     <es_ES/><!-- Spanish (Spain) -->
                     <es_MX/><!-- Spanish (Mexico) -->
@@ -103,6 +105,9 @@
                     <zh_CN/><!-- Chinese (China) -->
                     <zh_HK/><!-- Chinese (Hong Kong SAR) -->
                     <zh_TW/><!-- Chinese (Taiwan) -->
+                    <es_CL/><!-- Spanich (Chile) -->
+                    <lo_LA/><!-- Laotian -->
+                    <es_VE/><!-- Spanish (Venezuela) -->
                 </codes>
                 <currencies>
                     <AFN/><!-- Afghani -->
@@ -381,28 +386,4 @@
             </filesystem>
         </system>
     </default>
-
-    <stores>
-        <default>
-            <web>
-                <unsecure>
-                    <base_url>{{base_url}}</base_url>
-                    <base_link_url>{{unsecure_base_url}}</base_link_url>
-                    <base_web_url>{{unsecure_base_url}}</base_web_url>
-                    <base_skin_url>{{unsecure_base_url}}skin/</base_skin_url>
-                    <base_js_url>{{unsecure_base_url}}js/</base_js_url>
-                    <base_media_url>{{unsecure_base_url}}media/</base_media_url>
-                </unsecure>
-
-                <secure>
-                    <base_url>{{base_url}}</base_url>
-                    <base_web_url>{{secure_base_url}}</base_web_url>
-                    <base_link_url>{{secure_base_url}}</base_link_url>
-                    <base_js_url>{{secure_base_url}}js/</base_js_url>
-                    <base_skin_url>{{secure_base_url}}skin/</base_skin_url>
-                    <base_media_url>{{secure_base_url}}media/</base_media_url>
-                </secure>
-            </web>
-        </default>
-    </stores>
 </config>

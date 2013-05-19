@@ -24,6 +24,7 @@
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
+
 /**
  * Catalog product website resource model
  *
@@ -33,17 +34,32 @@
  */
 class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Status extends Mage_Core_Model_Mysql4_Abstract
 {
-    protected function _construct()
-    {
-        $this->_init('catalog/product_enabled_index', 'product_id');
-    }
-
     /**
      * Product atrribute cache
      *
      * @var array
      */
     protected $_productAttributes = array();
+
+    /**
+     * Initialize connection
+     *
+     */
+    protected function _construct()
+    {
+        $this->_init('catalog/product_enabled_index', 'product_id');
+    }
+
+    /**
+     * Retrieve product attribute (public method for status model)
+     *
+     * @param string $attributeCode
+     * @return Mage_Eav_Model_Entity_Attribute_Abstract
+     */
+    public function getProductAttribute($attributeCode)
+    {
+        return $this->_getProductAttribute($attributeCode);
+    }
 
     /**
      * Retrieve product attribute
@@ -156,5 +172,60 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Status extends Mage_Core_Mo
         }
 
         return $this;
+    }
+
+    /**
+     * Retrieve Product(s) status for store
+     * Return array where key is a product_id, value - status
+     *
+     * @param array|int $productIds
+     * @param int $storeId
+     * @return array
+     */
+    public function getProductStatus($productIds, $storeId = null)
+    {
+        $statuses = array();
+
+        $attribute = $this->_getProductAttribute('status');
+        $attributeTable = $attribute->getBackend()->getTable();
+
+        if (!is_array($productIds)) {
+            $productIds = array($productIds);
+        }
+
+        if (is_null($storeId) || $storeId == 0) {
+            $select = $this->_getReadAdapter()->select()
+                ->from($attributeTable, array('entity_id', 'value'))
+                ->where('entity_id IN(?)', $productIds)
+                ->where('attribute_id=?', $attribute->getAttributeId())
+                ->where('store_id=?', 0);
+            $rows = $this->_getWriteAdapter()->fetchPairs($select);
+        }
+        else {
+            $select = $this->_getReadAdapter()->select()
+                ->from(
+                    array('t1' => $attributeTable),
+                    array('entity_id', 'IFNULL(t2.value, t1.value) as value'))
+                ->joinLeft(
+                    array('t2' => $attributeTable),
+                    $this->_getReadAdapter()->quoteInto('t1.entity_id = t2.entity_id AND t1.attribute_id = t2.attribute_id AND t2.store_id=?', $storeId),
+                    array()
+                )
+                ->where('t1.store_id = ?', 0)
+                ->where('t1.attribute_id = ?', $attribute->getAttributeId())
+                ->where('t1.entity_id IN(?)', $productIds);
+            $rows = $this->_getWriteAdapter()->fetchPairs($select);
+        }
+
+        foreach ($productIds as $productId) {
+            if (isset($rows[$productId])) {
+                $statuses[$productId] = $rows[$productId];
+            }
+            else {
+                $statuses[$productId] = -1;
+            }
+        }
+
+        return $statuses;
     }
 }

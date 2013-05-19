@@ -144,6 +144,33 @@ class Mage_Adminhtml_Block_System_Cache_Edit extends Mage_Adminhtml_Block_Widget
                     )
                 ),
             ),
+            'rebuild_inventory_stock_status' => array(
+                'label'     => Mage::helper('adminhtml')->__('Inventory Stock Status'),
+                'buttons'   => array(
+                    array(
+                        'name'      => 'rebuild_inventory_stock_status',
+                        'action'    => Mage::helper('adminhtml')->__('Refresh'),
+                    )
+                ),
+            ),
+            'rebuild_flat_catalog_category' => array(
+                'label'     => Mage::helper('adminhtml')->__('Rebuild Flat Catalog Category'),
+                'buttons'   => array(
+                    array(
+                        'name'      => 'rebuild_flat_catalog_category',
+                        'action'    => Mage::helper('adminhtml')->__('Rebuild'),
+                    )
+                ),
+            ),
+            'rebuild_flat_catalog_product' => array(
+                'label'     => Mage::helper('adminhtml')->__('Rebuild Flat Catalog Product'),
+                'buttons'   => array(
+                    array(
+                        'name'      => 'rebuild_flat_catalog_product',
+                        'action'    => Mage::helper('adminhtml')->__('Rebuild'),
+                    )
+                ),
+            ),
         );
     }
 }

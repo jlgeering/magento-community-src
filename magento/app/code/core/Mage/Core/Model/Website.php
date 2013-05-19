@@ -38,6 +38,16 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
     protected $_cacheTag = true;
 
     /**
+     * @var string
+     */
+    protected $_eventPrefix = 'website';
+
+    /**
+     * @var string
+     */
+    protected $_eventObject = 'website';
+
+    /**
      * Cache configuration array
      *
      * @var array
@@ -182,13 +192,13 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
                 return false;
                 #throw Mage::exception('Mage_Core', Mage::helper('core')->__('Invalid websites configuration path: %s', $path));
             }
-            if (!$config->children()) {
-                $value = (string)$config;
-            } else {
+            if ($config->hasChildren()) {
                 $value = array();
                 foreach ($config->children() as $k=>$v) {
                     $value[$k] = $v;
                 }
+            } else {
+                $value = (string)$config;
             }
             $this->_configCache[$path] = $value;
         }
@@ -485,5 +495,28 @@ class Mage_Core_Model_Website extends Mage_Core_Model_Abstract
             $this->setData('base_currency', $currency);
         }
         return $currency;
+    }
+
+    /**
+     * Retrieve Default Website Store or null
+     *
+     * @return Mage_Core_Model_Store
+     */
+    public function getDefaultStore()
+    {
+        // init stores if not loaded
+        $this->getStores();
+        return $this->_defaultStore;
+    }
+
+    /**
+     * Retrieve default stores select object
+     * Select fields website_id, store_id
+     *
+     * @param $withDefault include/exclude default admin website
+     * @return Varien_Db_Select
+     */
+    public function getDefaultStoresSelect($withDefault = false) {
+        return $this->getResource()->getDefaultStoresSelect($withDefault);
     }
 }

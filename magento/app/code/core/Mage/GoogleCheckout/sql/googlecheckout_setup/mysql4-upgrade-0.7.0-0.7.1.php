@@ -19,13 +19,13 @@
  * needs please refer to http://www.magentocommerce.com for more information.
  *
  * @category   Mage
- * @package    Mage_Catalog
+ * @package    Mage_GoogleCheckout
  * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 $installer = $this;
-/* @var $installer Mage_Eav_Model_Entity_Setup */
+/* @var $installer Mage_GoogleCheckout_Model_Mysql4_Setup */
 
 $installer->startSetup();
 
@@ -54,7 +54,11 @@ $installer->addAttribute('catalog_product', 'disable_googlecheckout', array(
 $attributeId = $installer->getAttributeId('catalog_product', 'disable_googlecheckout');
 
 foreach ($installer->getAllAttributeSetIds('catalog_product') as $attributeSetId) {
-    $attributeGroupId = $installer->getAttributeGroupId('catalog_product', $attributeSetId, 'Prices');
+    try {
+        $attributeGroupId = $installer->getAttributeGroupId('catalog_product', $attributeSetId, 'Prices');
+    } catch (Exception $e) {
+        $attributeGroupId = $installer->getDefaultAttributeGroupId('catalog_product', $attributeSetId);
+    }
     $installer->addAttributeToSet('catalog_product', $attributeSetId, $attributeGroupId, $attributeId);
 }
 $installer->endSetup();

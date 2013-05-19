@@ -33,6 +33,7 @@ class Mage_Core_Model_Translate
 {
     const CSV_SEPARATOR     = ',';
     const SCOPE_SEPARATOR   = '::';
+    const CACHE_TAG         = 'translate';
 
     const CONFIG_KEY_AREA   = 'area';
     const CONFIG_KEY_LOCALE = 'locale';
@@ -115,9 +116,12 @@ class Mage_Core_Model_Translate
         $this->_translateInline = Mage::getSingleton('core/translate_inline')
             ->isAllowed($area=='adminhtml' ? 'admin' : null);
 
-        if (!$forceReload && ($this->_data = $this->_loadCache())) {
+        if (!$forceReload) {
             if ($this->_canUseCache()) {
-                return $this;
+                $this->_data = $this->_loadCache();
+                if ($this->_data !== false) {
+                    return $this;
+                }
             }
             Mage::app()->removeCache($this->getCacheId());
         }
@@ -221,6 +225,9 @@ class Mage_Core_Model_Translate
     protected function _addData($data, $scope, $forceReload=false)
     {
         foreach ($data as $key => $value) {
+            if ($key === $value) {
+                continue;
+            }
             $key    = $this->_prepareDataString($key);
             $value  = $this->_prepareDataString($value);
             if ($scope && isset($this->_dataScope[$key]) && !$forceReload ) {
@@ -526,13 +533,17 @@ class Mage_Core_Model_Translate
         if (!$this->_canUseCache()) {
             return $this;
         }
-        Mage::app()->saveCache(serialize($this->getData()), $this->getCacheId(), array('translate'), null);
+        Mage::app()->saveCache(serialize($this->getData()), $this->getCacheId(), array(self::CACHE_TAG), null);
         return $this;
     }
 
+    /**
+     * Check cache usage availability
+     *
+     * @return bool
+     */
     protected function _canUseCache()
     {
-        //return $this->_useCache;
         return Mage::app()->useCache('translate');
     }
 

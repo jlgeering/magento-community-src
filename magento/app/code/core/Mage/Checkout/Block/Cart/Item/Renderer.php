@@ -34,6 +34,8 @@
 class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
 {
     protected $_item;
+    protected $_productUrl = null;
+    protected $_productThumbnail = null;
 
     /**
      * Set item for render
@@ -67,6 +69,12 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
         return $this->getItem()->getProduct();
     }
 
+    public function overrideProductThumbnail($productThumbnail)
+    {
+        $this->_productThumbnail = $productThumbnail;
+        return $this;
+    }
+
     /**
      * Get product thumbnail image
      *
@@ -74,7 +82,16 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
      */
     public function getProductThumbnail()
     {
+        if (!is_null($this->_productThumbnail)) {
+            return $this->_productThumbnail;
+        }
         return $this->helper('catalog/image')->init($this->getProduct(), 'thumbnail');
+    }
+
+    public function overrideProductUrl($productUrl)
+    {
+        $this->_productUrl = $productUrl;
+        return $this;
     }
 
     /**
@@ -84,6 +101,9 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
      */
     public function getProductUrl()
     {
+        if (!is_null($this->_productUrl)) {
+            return $this->_productUrl;
+        }
         return $this->getProduct()->getProductUrl();
     }
 
@@ -109,23 +129,16 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
             $options = array();
             foreach (explode(',', $optionIds->getValue()) as $optionId) {
                 if ($option = $this->getProduct()->getOptionById($optionId)) {
-                    $formatedValue = '';
-                    $optionGroup = $option->getGroupByType();
-                    $optionValue = $this->getItem()->getOptionByCode('option_' . $option->getId())->getValue();
-                    if ($option->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_CHECKBOX
-                        || $option->getType() == Mage_Catalog_Model_Product_Option::OPTION_TYPE_MULTIPLE) {
-                        foreach(split(',', $optionValue) as $value) {
-                            $formatedValue .= $option->getValueById($value)->getTitle() . ', ';
-                        }
-                        $formatedValue = Mage::helper('core/string')->substr($formatedValue, 0, -2);
-                    } elseif ($optionGroup == Mage_Catalog_Model_Product_Option::OPTION_GROUP_SELECT) {
-                        $formatedValue = $option->getValueById($optionValue)->getTitle();
-                    } else {
-                        $formatedValue = $optionValue;
-                    }
+
+                    $quoteItemOption = $this->getItem()->getOptionByCode('option_' . $option->getId());
+
+                    $group = $option->groupFactory($option->getType())
+                        ->setOption($option)
+                        ->setQuoteItemOption($quoteItemOption);
+
                     $options[] = array(
                         'label' => $option->getTitle(),
-                        'value' => $this->htmlEscape($formatedValue),
+                        'value' => $group->getFormattedOptionValue($quoteItemOption->getValue())
                     );
                 }
             }
@@ -212,6 +225,10 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
 
     public function getFormatedOptionValue($optionValue)
     {
+        if (Mage::helper('catalog/product_options')->isHtmlFormattedOptionValue($optionValue)) {
+            return array('value' => $optionValue);
+        }
+
         $formateOptionValue = array();
         if (is_array($optionValue)) {
             $_truncatedValue = implode("\n", $optionValue);
@@ -230,7 +247,6 @@ class Mage_Checkout_Block_Cart_Item_Renderer extends Mage_Core_Block_Template
             $formateOptionValue['value'] = $formateOptionValue['value'] . ' <a href="#" class="dots" onclick="return false">...</a>';
             $optionValue = nl2br($optionValue);
             $formateOptionValue = array_merge($formateOptionValue, array('full_view' => $optionValue));
-
         }
 
         return $formateOptionValue;

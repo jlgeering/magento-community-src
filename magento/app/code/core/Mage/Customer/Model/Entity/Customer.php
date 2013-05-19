@@ -33,6 +33,10 @@
  */
 class Mage_Customer_Model_Entity_Customer extends Mage_Eav_Model_Entity_Abstract
 {
+    /**
+     * Initiate resources
+     *
+     */
     public function __construct()
     {
         $resource = Mage::getSingleton('core/resource');
@@ -61,6 +65,13 @@ class Mage_Customer_Model_Entity_Customer extends Mage_Eav_Model_Entity_Abstract
         );
     }
 
+    /**
+     * Check customer scope, email and confirmation key before saving
+     *
+     * @param Varien_Object $customer
+     * @return Mage_Customer_Model_Entity_Customer
+     * @throws Mage_Core_Exception
+     */
     protected function _beforeSave(Varien_Object $customer)
     {
         parent::_beforeSave($customer);
@@ -105,7 +116,12 @@ class Mage_Customer_Model_Entity_Customer extends Mage_Eav_Model_Entity_Abstract
         return parent::_afterSave($customer);
     }
 
-
+    /**
+     * Save/delete customer address
+     *
+     * @param Mage_Customer_Model_Customer $customer
+     * @return Mage_Customer_Model_Entity_Customer
+     */
     protected function _saveAddresses(Mage_Customer_Model_Customer $customer)
     {
         foreach ($customer->getAddresses() as $address) {
@@ -137,7 +153,16 @@ class Mage_Customer_Model_Entity_Customer extends Mage_Eav_Model_Entity_Abstract
         return $select;
     }
 
-    public function loadByEmail(Mage_Customer_Model_Customer $customer, $email, $testOnly=false)
+    /**
+     * Load customer by email
+     *
+     * @param Mage_Customer_Model_Customer $customer
+     * @param string $email
+     * @param bool $testOnly
+     * @return Mage_Customer_Model_Entity_Customer
+     * @throws Mage_Core_Exception
+     */
+    public function loadByEmail(Mage_Customer_Model_Customer $customer, $email, $testOnly = false)
     {
         $select = $this->_getReadAdapter()->select()
             ->from($this->getEntityTable(), array($this->getEntityIdField()))
@@ -161,21 +186,50 @@ class Mage_Customer_Model_Entity_Customer extends Mage_Eav_Model_Entity_Abstract
 
     /**
      * Change customer password
-     * $data = array(
-     *      ['password']
-     *      ['confirmation']
-     *      ['current_password']
-     * )
      *
      * @param   Mage_Customer_Model_Customer
-     * @param   array $data
-     * @param   bool $checkCurrent
+     * @param   string $newPassword
      * @return  this
      */
-    public function changePassword(Mage_Customer_Model_Customer $customer, $newPassword, $checkCurrent=true)
+    public function changePassword(Mage_Customer_Model_Customer $customer, $newPassword)
     {
         $customer->setPassword($newPassword);
         $this->saveAttribute($customer, 'password_hash');
         return $this;
+    }
+
+    /**
+     * Check whether there are email duplicates of customers in global scope
+     *
+     * @return bool
+     */
+    public function findEmailDuplicates()
+    {
+        $lookup = $this->_getReadAdapter()->fetchRow("SELECT email, COUNT(*) AS `qty`
+            FROM `{$this->getTable('customer/entity')}`
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 1
+        ");
+        if (empty($lookup)) {
+            return false;
+        }
+        return $lookup['qty'] > 1;
+    }
+
+    /**
+     * Check customer by id
+     *
+     * @param int $customerId
+     * @return bool
+     */
+    public function checkCustomerId($customerId)
+    {
+        $select = $this->_getReadAdapter()->select()
+            ->from($this->getTable('customer/entity'), 'entity_id')
+            ->where('entity_id=?', $customerId)
+            ->limit(1);
+        if ($this->_getReadAdapter()->fetchOne($select)) {
+            return true;
+        }
+        return false;
     }
 }

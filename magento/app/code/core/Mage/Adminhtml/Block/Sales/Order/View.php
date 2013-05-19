@@ -62,7 +62,8 @@ class Mage_Adminhtml_Block_Sales_Order_View extends Mage_Adminhtml_Block_Widget_
             if ($nonEditableTypes) {
                 $this->_updateButton('order_edit', 'onclick',
                     'if (!confirm(\'' . Mage::helper('sales')->__(
-                        'This order contains items (%s) that cannot be added to order from admin interface and will not be put to new order.',
+                        'This order contains (%s) items and therefore cannot be edited through the admin interface at this time, if you wish to continue editing the (%s) items will be removed, the order will be cancelled and a new order will be placed',
+                        implode(', ', $nonEditableTypes),
                         implode(', ', $nonEditableTypes)
                     ) . '\')) return false;' . $onclickJs
                 );
@@ -144,20 +145,8 @@ class Mage_Adminhtml_Block_Sales_Order_View extends Mage_Adminhtml_Block_Widget_
     {
         $text = Mage::helper('sales')->__('Order # %s | Order Date %s',
             $this->getOrder()->getRealOrderId(),
-            $this->formatDate($this->getOrder()->getCreatedAt(), 'medium', true)
+            $this->formatDate($this->getOrder()->getCreatedAtDate(), 'medium', true)
         );
-        /*if ($this->getOrder()->getRelationParentRealId()) {
-            $text = Mage::helper('sales')->__('Order # %s | Order Date %s',
-                $this->getOrder()->getRealOrderId(),
-                $this->formatDate($this->getOrder()->getCreatedAt(), 'medium', true)
-            );
-        }
-        else {
-            $text = Mage::helper('sales')->__('Order # %s | Order Date %s',
-                $this->getOrder()->getRealOrderId(),
-                $this->formatDate($this->getOrder()->getCreatedAt(), 'medium', true)
-            );
-        }*/
         return $text;
     }
 

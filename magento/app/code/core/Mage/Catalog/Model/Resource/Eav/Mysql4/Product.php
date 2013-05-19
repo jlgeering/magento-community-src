@@ -42,7 +42,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
     public function __construct()
     {
         parent::__construct();
-        Mage::getSingleton('eav/config')->preloadAttributes('catalog_product', $this->_getDefaultAttributes());
         $resource = Mage::getSingleton('core/resource');
         $this->setType('catalog_product')
             ->setConnection(
@@ -237,15 +236,18 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
 
     public function refreshIndex($product)
     {
+        /**
+         * Ids of all categories where product is assigned (not related with store)
+         */
         $categoryIds = $product->getCategoryIds();
 
         /**
-         * Refresh category/product index
+         * Clear previos index data related with product
          */
-//        $this->_getWriteAdapter()->delete(
-//            $this->getTable('catalog/category_product_index'),
-//            'product_id='.$product->getId()
-//        );
+        $this->_getWriteAdapter()->delete(
+            $this->getTable('catalog/category_product_index'),
+            $this->_getWriteAdapter()->quoteInto('product_id=?', $product->getId())
+        );
 
         if (!empty($categoryIds)) {
             $categoriesSelect = $this->_getWriteAdapter()->select()
@@ -253,11 +255,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
                 ->where('entity_id IN (?)', $categoryIds);
             $categoriesInfo = $this->_getWriteAdapter()->fetchAll($categoriesSelect);
 
-            // get categories positions (bug #6940)
-            $select = $this->_getWriteAdapter()->select()
-                ->from($this->getTable('catalog/category_product'), array('category_id', 'position'))
-                ->where('product_id=' . $product->getId());
-            $categoriesPositions = $this->_getWriteAdapter()->fetchPairs($select);
 
             $indexCategoryIds = array();
             foreach ($categoriesInfo as $categoryInfo) {
@@ -269,16 +266,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
             $indexCategoryIds   = array_unique($indexCategoryIds);
             $indexProductIds    = array($product->getId());
             Mage::getResourceSingleton('catalog/category')->refreshProductIndex($indexCategoryIds, $indexProductIds);
-//            foreach ($indexCategoryIds as $categoryId) {
-//                $position = isset($categoriesPositions[(int)$categoryId]) ? $categoriesPositions[(int)$categoryId] : 0;
-//                $data = array(
-//                    'category_id'   => $categoryId,
-//                    'product_id'    => $product->getId(),
-//                    'position'      => $position,
-//                    'is_parent'     => in_array($categoryId, $categoryIds)
-//                );
-//                $this->_getWriteAdapter()->insert($this->getTable('catalog/category_product_index'), $data);
-//            }
         }
 
         /**

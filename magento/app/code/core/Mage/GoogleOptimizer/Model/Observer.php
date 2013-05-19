@@ -43,7 +43,7 @@ class Mage_GoogleOptimizer_Model_Observer
     {
         $product = $observer->getEvent()->getProduct();
 
-        if (!Mage::helper('googleoptimizer')->isOptimizerActive()) {
+        if (!Mage::helper('googleoptimizer')->isOptimizerActive($product->getStoreId())) {
             return $this;
         }
 
@@ -125,6 +125,13 @@ class Mage_GoogleOptimizer_Model_Observer
      */
     public function appendToPageGoogleOptimizerScripts($observer)
     {
+        /**
+         * Check activity for frontend
+         */
+        if (Mage::app()->getStore()->getId() && !Mage::helper('googleoptimizer')->isOptimizerActive()) {
+            return $this;
+        }
+        
         $cmsPage = $observer->getEvent()->getObject();
         $googleOptimizerModel = Mage::getModel('googleoptimizer/code_page')
             ->setEntity($cmsPage)
@@ -206,7 +213,7 @@ class Mage_GoogleOptimizer_Model_Observer
     {
         $category = $observer->getEvent()->getCategory();
 
-        if (!Mage::helper('googleoptimizer')->isOptimizerActive()) {
+        if (!Mage::helper('googleoptimizer')->isOptimizerActive($category->getStoreId())) {
             return $this;
         }
 
@@ -246,7 +253,7 @@ class Mage_GoogleOptimizer_Model_Observer
     {
         $category = $observer->getEvent()->getCategory();
 
-        if (!Mage::helper('googleoptimizer')->isOptimizerActive()) {
+        if (!Mage::helper('googleoptimizer')->isOptimizerActive($category->getStoreId())) {
             return $this;
         }
 
@@ -260,10 +267,10 @@ class Mage_GoogleOptimizer_Model_Observer
     }
 
     /**
-     * Delete Produt scripts after deleting product
+     * Delete category scripts after deleting category
      *
-     * @param Varien_Object $observer
-     * @return Mage_Googleoptimizer_Model_Observer
+     * @param   Varien_Object $observer
+     * @return  Mage_Googleoptimizer_Model_Observer
      */
     public function deleteCategoryGoogleOptimizerScripts($observer)
     {

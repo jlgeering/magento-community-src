@@ -28,7 +28,7 @@
 <config>
     <modules>
         <Mage_Bundle>
-            <version>0.1.4</version>
+            <version>0.1.6</version>
         </Mage_Bundle>
     </modules>
     <global>
@@ -82,10 +82,10 @@
                     <bundle translate="label" module="bundle">
                         <label>Bundle Product</label>
                         <model>bundle/product_type</model>
+                        <composite>1</composite>
                         <allowed_selection_types>
                             <simple />
                             <virtual />
-                            <downloadable />
                         </allowed_selection_types>
                         <price_model>bundle/product_price</price_model>
                         <index_data_retreiver>bundle/catalogIndex_data_bundle</index_data_retreiver>

@@ -49,8 +49,6 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
 
     protected $_needCollect;
 
-    protected  $_productOptions = array();
-
     /**
      * @var Mage_Customer_Model_Customer
      */
@@ -211,12 +209,26 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
             $this->getQuote()->setCustomerIsGuest(true);
         }
 
+        if ($this->getSession()->getUseOldShippingMethod(true)) {
+            /*
+             * if we are making reorder or editing old order
+             * we need to show old shipping as preselected
+             * so for this we need to collect shipping rates
+             */
+            $this->collectShippingRates();
+        } else {
+            /*
+             * if we are creating new order then we don't need to collect
+             * shipping rates before customer hit appropriate button
+             */
+            $this->collectRates();
+        }
+
         // Make collect rates when user click "Get shipping methods and rates" in order creating
         // $this->getQuote()->getShippingAddress()->setCollectShippingRates(true);
         // $this->getQuote()->getShippingAddress()->collectShippingRates();
 
-        $this->getQuote()->collectTotals()
-            ->save();
+        $this->getQuote()->save();
 
         return $this;
     }
@@ -656,78 +668,39 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
      */
     protected function _parseOptions(Mage_Sales_Model_Quote_Item $item, $additionalOptions)
     {
-        if (!isset($this->_productOptions[$item->getProduct()->getId()])) {
-            foreach ($item->getProduct()->getOptions() as $_option) {
-                /* @var $option Mage_Catalog_Model_Product_Option */
-                $this->_productOptions[$item->getProduct()->getId()][$_option->getTitle()] = array('option_id' => $_option->getId());
-                if ($_option->getGroupByType() == Mage_Catalog_Model_Product_Option::OPTION_GROUP_SELECT) {
-                    $optionValues = array();
-                    foreach ($_option->getValues() as $_value) {
-                        /* @var $value Mage_Catalog_Model_Product_Option_Value */
-                        $optionValues[$_value->getTitle()] = $_value->getId();
-                    }
-                    $this->_productOptions[$item->getProduct()->getId()][$_option->getTitle()]['values'] = $optionValues;
-                } else {
-                    $this->_productOptions[$item->getProduct()->getId()][$_option->getTitle()]['values'] = array();
-                }
-            }
-        }
+        $productOptions = Mage::getSingleton('catalog/product_option_type_default')
+            ->setProduct($item->getProduct())
+            ->getProductOptions();
 
         $newOptions = array();
         $newAdditionalOptions = array();
+
         foreach (explode("\n", $additionalOptions) as $_additionalOption) {
             if (strlen(trim($_additionalOption))) {
                 try {
-                    list($label,$value) = explode(':', $_additionalOption);
+                    list($label,$value) = explode(':', $_additionalOption, 2);
                 } catch (Exception $e) {
                     Mage::throwException(Mage::helper('adminhtml')->__('One of options row has error'));
                 }
                 $label = trim($label);
                 $value = trim($value);
                 if (empty($value)) {
+                    die($label);
                     continue;
                 }
 
-                if (isset($this->_productOptions[$item->getProduct()->getId()])) {
-                    if (array_key_exists($label, $this->_productOptions[$item->getProduct()->getId()])) {
-                        $optionId = $this->_productOptions[$item->getProduct()->getId()][$label]['option_id'];
-                        $group = $item->getProduct()
-                                ->getOptionById($optionId)
-                                ->getGroupByType();
-                        $type = $item->getProduct()
-                                ->getOptionById($optionId)
-                                ->getType();
-                        if (($type == Mage_Catalog_Model_Product_Option::OPTION_TYPE_CHECKBOX
-                            || $type == Mage_Catalog_Model_Product_Option::OPTION_TYPE_MULTIPLE)) {
-                            $_values = array();
-                            foreach (explode(',', $value) as $_value) {
-                                $_value = trim($_value);
-                                if (array_key_exists($_value, $this->_productOptions[$item->getProduct()->getId()][$label]['values'])) {
-                                    $_values[] = $this->_productOptions[$item->getProduct()->getId()][$label]['values'][$_value];
-                                } else {
-                                    $_values = array();
-                                    $newAdditionalOptions[] = array(
-                                        'label' => $label,
-                                        'value' => $value
-                                    );
-                                    break;
-                                }
-                            }
-                            if (count($_values)) {
-                                $newOptions[$optionId] = implode(',',$_values);
-                            }
-                        } elseif ($group == Mage_Catalog_Model_Product_Option::OPTION_GROUP_SELECT) {
-                            if (array_key_exists($value, $this->_productOptions[$item->getProduct()->getId()][$label]['values'])) {
-                                $newOptions[$optionId] = $this->_productOptions[$item->getProduct()->getId()][$label]['values'][$value];
-                            } else {
-                                $newAdditionalOptions[] = array(
-                                    'label' => $label,
-                                    'value' => $value
-                                );
-                            }
-                        } else {
-                            $newOptions[$optionId] = $value;
-                        }
+                if (array_key_exists($label, $productOptions)) {
+                    $optionId = $productOptions[$label]['option_id'];
+                    $option = $item->getProduct()->getOptionById($optionId);
+
+                    $group = Mage::getSingleton('catalog/product_option')->groupFactory($option->getType())
+                        ->setOption($option)
+                        ->setProduct($item->getProduct());
+
+                    $parsedValue = $group->parseOptionValue($value, $productOptions[$label]['values']);
+
+                    if ($parsedValue !== null) {
+                        $newOptions[$optionId] = $parsedValue;
                     } else {
                         $newAdditionalOptions[] = array(
                             'label' => $label,
@@ -810,13 +783,14 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
         $newInfoOptions = array();
         if ($optionIds = $item->getOptionByCode('option_ids')) {
             foreach (explode(',', $optionIds->getValue()) as $optionId) {
-                $optionType = $item->getProduct()->getOptionById($optionId)->getType();
+                $option = $item->getProduct()->getOptionById($optionId);
                 $optionValue = $item->getOptionByCode('option_'.$optionId)->getValue();
-                if ($optionType == Mage_Catalog_Model_Product_Option::OPTION_TYPE_CHECKBOX
-                    || $optionType == Mage_Catalog_Model_Product_Option::OPTION_TYPE_MULTIPLE) {
-                    $optionValue = explode(',', $optionValue);
-                }
-                $newInfoOptions[$optionId] = $optionValue;
+
+                $group = Mage::getSingleton('catalog/product_option')->groupFactory($option->getType())
+                    ->setOption($option)
+                    ->setQuoteItem($item);
+
+                $newInfoOptions[$optionId] = $group->prepareOptionValueForRequest($optionValue);
             }
         }
         return $newInfoOptions;
@@ -1052,7 +1026,7 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
                 /* @var $item Mage_Sales_Model_Quote_Item */
                 $orderItem = $quoteConvert->itemToOrderItem($item);
                 $options = array();
-                if ($productOptions = $item->getProduct()->getTypeInstance()->getOrderOptions()) {
+                if ($productOptions = $item->getProduct()->getTypeInstance(true)->getOrderOptions($item->getProduct())) {
                     $productOptions['info_buyRequest']['options'] = $this->_prepareOptionsForRequest($item);
                     $options = $productOptions;
                 }
@@ -1075,7 +1049,7 @@ class Mage_Adminhtml_Model_Sales_Order_Create extends Varien_Object
                 /* @var $item Mage_Sales_Model_Quote_Item */
                 $orderItem = $quoteConvert->itemToOrderItem($item);
                 $options = array();
-                if ($productOptions = $item->getProduct()->getTypeInstance()->getOrderOptions()) {
+                if ($productOptions = $item->getProduct()->getTypeInstance(true)->getOrderOptions($item->getProduct())) {
                     $productOptions['info_buyRequest']['options'] = $this->_prepareOptionsForRequest($item);
                     $options = $productOptions;
                 }

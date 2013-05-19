@@ -39,6 +39,11 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
     const BACKORDERS_BELOW  = 1;
     const BACKORDERS_YES    = 2;
 
+    const STOCK_OUT_OF_STOCK    = 0;
+    const STOCK_IN_STOCK        = 1;
+
+    const DEFAULT_STOCK_ID      = 1;
+
     protected function _construct()
     {
         $this->_init('cataloginventory/stock');
@@ -51,7 +56,7 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
      */
     public function getId()
     {
-        return 1;
+        return self::DEFAULT_STOCK_ID;
     }
 
     /**
@@ -64,6 +69,7 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
     {
         $items = $this->getItemCollection()
             ->addProductsFilter($productCollection)
+            ->joinStockStatus($productCollection->getStoreId())
             ->load();
         foreach ($items as $item) {
             foreach($productCollection as $product){

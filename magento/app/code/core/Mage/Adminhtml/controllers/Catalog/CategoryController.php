@@ -111,7 +111,9 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
             ->getLastEditedCategory(true);
 
 
-        if ($_prevCategoryId && !$this->getRequest()->getQuery('isAjax')) {
+        if ($_prevCategoryId
+            && !$this->getRequest()->getQuery('isAjax')
+            && !$this->getRequest()->getParam('clear')) {
            // $params['id'] = $_prevCategoryId;
              $this->getRequest()->setParam('id',$_prevCategoryId);
             //$redirect = true;
@@ -128,10 +130,20 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
             $this->getRequest()->setParam('id', $_prevCategoryId);
         }
 
-        if (!$category = $this->_initCategory(true)) {
+        if (!($category = $this->_initCategory(true))) {
             return;
         }
+        /**
+         * Check if we have data in session (if duering category save was exceprion)
+         */
+        $data = Mage::getSingleton('adminhtml/session')->getCategoryData(true);
+        if (isset($data['general'])) {
+            $category->addData($data['general']);
+        }
 
+        /**
+         * Build response for ajax request
+         */
         if ($this->getRequest()->getQuery('isAjax')) {
             // prepare breadcrumbs of selected category, if any
             $breadcrumbsPath = $category->getPath();
@@ -155,11 +167,12 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 ->setLastViewedStore($this->getRequest()->getParam('store'));
             Mage::getSingleton('admin/session')
                 ->setLastEditedCategory($category->getId());
-            $this->_initLayoutMessages('adminhtml/session');
+//            $this->_initLayoutMessages('adminhtml/session');
+            $this->loadLayout();
             $this->getResponse()->setBody(
                 $this->getLayout()->getMessagesBlock()->getGroupedHtml()
-                . $this->getLayout()->createBlock('adminhtml/catalog_category_edit_form')->toHtml()
-                . $this->getLayout()->getBlockSingleton('adminhtml/catalog_category_tree')
+                . $this->getLayout()->getBlock('category.edit')->getFormHtml()
+                . $this->getLayout()->getBlock('category.tree')
                     ->getBreadcrumbsJavascript($breadcrumbsPath, 'editingCategoryBreadcrumbs')
             );
             return;
@@ -170,20 +183,8 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
         $this->getLayout()->getBlock('head')->setCanLoadExtJs(true)
             ->setContainerCssClass('catalog-categories');
 
-        $data = Mage::getSingleton('adminhtml/session')->getCategoryData(true);
-        if (isset($data['general'])) {
-            $category->addData($data['general']);
-        }
-
         $this->_addBreadcrumb(Mage::helper('catalog')->__('Manage Catalog Categories'),
              Mage::helper('catalog')->__('Manage Categories')
-        );
-
-        $this->_addLeft(
-            $this->getLayout()->createBlock('adminhtml/catalog_category_tree', 'category.tree')
-        );
-        $this->_addContent(
-            $this->getLayout()->createBlock('adminhtml/catalog_category_edit')
         );
         $this->renderLayout();
     }
@@ -223,7 +224,6 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
         $storeId = $this->getRequest()->getParam('store');
         if ($data = $this->getRequest()->getPost()) {
             $category->addData($data['general']);
-
             if (!$category->getId()) {
                 $parentId = $this->getRequest()->getParam('parent');
                 if (!$parentId) {
@@ -260,21 +260,20 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
             ));
 
             try {
-              //  if( $this->getRequest()->getParam('image') )
-
                 $category->save();
-
                 Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('catalog')->__('Category saved'));
+                $refreshTree = 'true';
             }
             catch (Exception $e){
                 $this->_getSession()->addError($e->getMessage())
                     ->setCategoryData($data);
-                $this->getResponse()->setRedirect($this->getUrl('*/*/edit', array('_current'=> true, 'id'=>$category->getId())));
-                return;
+                $refreshTree = 'false';
             }
         }
         $url = $this->getUrl('*/*/edit', array('_current' => true, 'id' => $category->getId()));
-        $this->getResponse()->setBody('<script type="text/javascript">parent.updateContent("' . $url . '", {}, true);</script>');
+        $this->getResponse()->setBody(
+            '<script type="text/javascript">parent.updateContent("' . $url . '", {}, '.$refreshTree.');</script>'
+        );
     }
 
     /**
