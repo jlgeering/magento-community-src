@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Downloadable
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -287,7 +287,10 @@ class Mage_Downloadable_Model_Product_Type extends Mage_Catalog_Model_Product_Ty
             return $result;
         }
         // if adding product from admin area we add all links to product
+        $originalLinksPurchasedSeparately = null;
         if ($this->getProduct($product)->getSkipCheckRequiredOption()) {
+            $originalLinksPurchasedSeparately = $this->getProduct($product)
+                ->getLinksPurchasedSeparately();
             $this->getProduct($product)->setLinksPurchasedSeparately(false);
         }
         $preparedLinks = array();
@@ -303,6 +306,10 @@ class Mage_Downloadable_Model_Product_Type extends Mage_Catalog_Model_Product_Ty
             foreach ($this->getLinks($product) as $link) {
                 $preparedLinks[] = $link->getId();
             }
+        }
+        if (null !== $originalLinksPurchasedSeparately) {
+            $this->getProduct($product)
+                ->setLinksPurchasedSeparately($originalLinksPurchasedSeparately);
         }
         if ($preparedLinks) {
             $this->getProduct($product)->addCustomOption('downloadable_link_ids', implode(',', $preparedLinks));
@@ -352,8 +359,6 @@ class Mage_Downloadable_Model_Product_Type extends Mage_Catalog_Model_Product_Ty
     public function beforeSave($product = null)
     {
         parent::beforeSave($product);
-
-
         if ($this->getLinkSelectionRequired($product)) {
             $this->getProduct($product)->setTypeHasRequiredOptions(true);
         } else {

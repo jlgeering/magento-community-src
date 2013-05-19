@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -159,17 +159,16 @@ class Mage_Core_Controller_Varien_Front extends Varien_Object
 
         // If pre-configured, check equality of base URL and requested URL
         $this->_checkBaseUrl($request);
-        
+
         $request->setPathInfo()->setDispatched(false);
-
-        Varien_Profiler::start('mage::dispatch::db_url_rewrite');
-        Mage::getModel('core/url_rewrite')->rewrite();
-        Varien_Profiler::stop('mage::dispatch::db_url_rewrite');
-
+        if (!$request->isStraight()) {
+            Varien_Profiler::start('mage::dispatch::db_url_rewrite');
+            Mage::getModel('core/url_rewrite')->rewrite();
+            Varien_Profiler::stop('mage::dispatch::db_url_rewrite');
+        }
         Varien_Profiler::start('mage::dispatch::config_url_rewrite');
         $this->rewrite();
         Varien_Profiler::stop('mage::dispatch::config_url_rewrite');
-
         Varien_Profiler::start('mage::dispatch::routers_match');
         $i = 0;
         while (!$request->isDispatched() && $i++<100) {
@@ -183,7 +182,8 @@ class Mage_Core_Controller_Varien_Front extends Varien_Object
         if ($i>100) {
             Mage::throwException('Front controller reached 100 router match iterations');
         }
-
+        //This event give possibility to launch smth before sending ouptut(Allow cookie setting)
+        Mage::dispatchEvent('controller_front_send_response_before', array('front'=>$this));
         Varien_Profiler::start('mage::app::dispatch::send_response');
         $this->getResponse()->sendResponse();
         Varien_Profiler::stop('mage::app::dispatch::send_response');
@@ -284,7 +284,7 @@ class Mage_Core_Controller_Varien_Front extends Varien_Object
         }
         return $url;
     }
-    
+
     /**
      * Auto-redirect to base url (without SID) if the requested url doesn't match it.
      * By default this feature is enabled in configuration.
@@ -296,7 +296,7 @@ class Mage_Core_Controller_Varien_Front extends Varien_Object
         if (!Mage::isInstalled() || $request->getPost()) {
             return;
         }
-        if (!Mage::getStoreConfigFlag('web/url/redirect_to_base')) {
+        if (!Mage::getStoreConfig('web/url/redirect_to_base')) {
             return;
         }
 
@@ -305,16 +305,21 @@ class Mage_Core_Controller_Varien_Front extends Varien_Object
         if (!$baseUrl) {
             return;
         }
-        
+
+        $redirectCode = 302;
+        if (Mage::getStoreConfig('web/url/redirect_to_base')==301) {
+            $redirectCode = 301;
+        }
+
         $uri = @parse_url($baseUrl);
         $host = isset($uri['host']) ? $uri['host'] : '';
         $path = isset($uri['path']) ? $uri['path'] : '';
-        
+
         $requestUri = $request->getRequestUri() ? $request->getRequestUri() : '/';
-        if ($host && $host != $request->getHttpHost() || $path && strpos($requestUri, $path) === false) 
+        if ($host && $host != $request->getHttpHost() || $path && strpos($requestUri, $path) === false)
         {
             Mage::app()->getFrontController()->getResponse()
-                ->setRedirect($baseUrl)
+                ->setRedirect($baseUrl, $redirectCode)
                 ->sendResponse();
             exit;
         }

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -69,7 +69,11 @@ $stmt = $installer->getConnection()->select()
     ->where('entity_type_id = ?', $installer->getEntityTypeId('catalog_category'))
     ->orWhere('entity_type_id = ?', $installer->getEntityTypeId('catalog_product'));
 $result = $installer->getConnection()->fetchAll($stmt);
-$installer->getConnection()->insertMultiple($installer->getTable('catalog/eav_attribute'), $result);
+$table = $installer->getTable('catalog/eav_attribute');
+foreach ($result as $data) {
+    $installer->getConnection()->insert($table, $data);
+}
+
 
 $describe = $installer->getConnection()->describeTable($installer->getTable('catalog/eav_attribute'));
 foreach ($describe as $columnData) {

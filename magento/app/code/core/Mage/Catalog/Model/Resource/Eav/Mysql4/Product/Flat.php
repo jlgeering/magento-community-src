@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -70,7 +70,11 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Flat
      */
     public function setStoreId($store)
     {
-        $this->_storeId = Mage::app()->getStore($store)->getId();
+        if (is_int($store)) {
+            $this->_storeId = $store;
+        } else {
+            $this->_storeId = Mage::app()->getStore($store)->getId();
+        }
         return $this;
     }
 

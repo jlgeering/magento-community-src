@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -114,12 +114,14 @@ class Mage_Catalog_Model_Product_Attribute_Media_Api extends Mage_Catalog_Model_
      */
     public function create($productId, $data, $store = null, $identifierType = null)
     {
+        $data = $this->_prepareImageData($data);
+        
         $product = $this->_initProduct($productId, $store, $identifierType);
 
         $gallery = $this->_getGalleryAttribute($product);
 
         if (!isset($data['file']) || !isset($data['file']['mime']) || !isset($data['file']['content'])) {
-            $this->_fault('data_invalid', Mage::helper('catalog')->__('Image not specified.'));
+            $this->_fault('data_invalid', Mage::helper('catalog')->__('The image is not specified.'));
         }
 
         if (!isset($this->_mimeTypes[$data['file']['mime']])) {
@@ -128,7 +130,7 @@ class Mage_Catalog_Model_Product_Attribute_Media_Api extends Mage_Catalog_Model_
 
         $fileContent = @base64_decode($data['file']['content'], true);
         if (!$fileContent) {
-            $this->_fault('data_invalid', Mage::helper('catalog')->__('Image content is not valid base64 data.'));
+            $this->_fault('data_invalid', Mage::helper('catalog')->__('The image contents is not valid base64 data.'));
         }
 
         unset($data['file']['content']);
@@ -172,7 +174,7 @@ class Mage_Catalog_Model_Product_Attribute_Media_Api extends Mage_Catalog_Model_
         } catch (Mage_Core_Exception $e) {
             $this->_fault('not_created', $e->getMessage());
         } catch (Exception $e) {
-            $this->_fault('not_created', Mage::helper('catalog')->__('Can\'t create image.'));
+            $this->_fault('not_created', Mage::helper('catalog')->__('Cannot create image.'));
         }
 
         return $gallery->getBackend()->getRenamedImage($file);
@@ -189,12 +191,37 @@ class Mage_Catalog_Model_Product_Attribute_Media_Api extends Mage_Catalog_Model_
      */
     public function update($productId, $file, $data, $store = null, $identifierType = null)
     {
+        $data = $this->_prepareImageData($data);
+        
         $product = $this->_initProduct($productId, $store, $identifierType);
 
         $gallery = $this->_getGalleryAttribute($product);
 
         if (!$gallery->getBackend()->getImage($product, $file)) {
             $this->_fault('not_exists');
+        }
+        
+        if (isset($data['file']['mime']) && isset($data['file']['content'])) {
+            if (!isset($this->_mimeTypes[$data['file']['mime']])) {
+                $this->_fault('data_invalid', Mage::helper('catalog')->__('Invalid image type.'));
+            }
+
+            $fileContent = @base64_decode($data['file']['content'], true);
+            if (!$fileContent) {
+                $this->_fault('data_invalid', Mage::helper('catalog')->__('Image content is not valid base64 data.'));
+            }
+
+            unset($data['file']['content']);
+
+            $ioAdapter = new Varien_Io_File();
+            try {
+                $fileName = Mage::getBaseDir('media'). DS . 'catalog' . DS . 'product' . $file;
+                $ioAdapter->open(array('path'=>dirname($fileName)));
+                $ioAdapter->write(basename($fileName), $fileContent, 0666);
+
+            } catch(Exception $e) {
+                $this->_fault('not_created', Mage::helper('catalog')->__('Can\'t create image.'));
+            }
         }
 
         $gallery->getBackend()->updateImage($product, $file, $data);
@@ -290,6 +317,17 @@ class Mage_Catalog_Model_Product_Attribute_Media_Api extends Mage_Catalog_Model_
         return $result;
     }
 
+    /**
+     * Prepare data to create or update image
+     *
+     * @param array $data
+     * @return array
+     */
+    protected function _prepareImageData($data)
+    {
+        return $data;
+    }
+    
     /**
      * Retrieve gallery attribute from product
      *

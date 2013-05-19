@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_GoogleBase
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -106,32 +106,32 @@ class Mage_GoogleBase_Model_Service_Feed extends Mage_GoogleBase_Model_Service
         $locale = Mage::getSingleton('googlebase/config')->getCountryInfo($targetCountry, 'locale');
         $location = self::ITEM_TYPES_LOCATION . '/' . $locale;
 
-        $feed = $this->getGuestService()->getFeed($location);
-
         $itemTypes = array();
-        foreach ($feed->entries as $entry) {
-            $type = $entry->extensionElements[0]->text;
-            $item = new Varien_Object();
-            $item->setId($type);
-            $item->setName($entry->title->text);
-            $item->setLocation($entry->id->text);
-            $itemTypes[$type] = $item;
+        foreach ($this->getGuestService()->getFeed($location)->entries as $entry) {
+            if (isset($entry->extensionElements[1])) { // has attributes node?
+                $typeAttributes = $entry->extensionElements[1]->extensionElements;
+                if (is_array($typeAttributes) && !empty($typeAttributes)) { // only items with attributes allowed
+                    $type = $entry->extensionElements[0]->text;
+                    $item = new Varien_Object();
+                    $item->setId($type);
+                    $item->setName($entry->title->text);
+                    $item->setLocation($entry->id->text);
+                    $itemTypes[$type] = $item;
 
-            $typeAttributes = $entry->extensionElements[1]->extensionElements;
-            $attributes = array();
-            if (is_array($typeAttributes)) {
-                foreach($typeAttributes as $attr) {
-                    $name = $attr->extensionAttributes['name']['value'];
-                    $type = $attr->extensionAttributes['type']['value'];
-                    $attribute = new Varien_Object();
-                    $attribute->setId($name);
-                    $attribute->setName($name);
-                    $attribute->setType($type);
-                    $attributes[$name] = $attribute;
+                    $attributes = array();
+                    foreach($typeAttributes as $attr) {
+                        $name = $attr->extensionAttributes['name']['value'];
+                        $type = $attr->extensionAttributes['type']['value'];
+                        $attribute = new Varien_Object();
+                        $attribute->setId($name);
+                        $attribute->setName($name);
+                        $attribute->setType($type);
+                        $attributes[$name] = $attribute;
+                    }
+                    ksort($attributes);
+                    $item->setAttributes($attributes);
                 }
             }
-            ksort($attributes);
-            $item->setAttributes($attributes);
         }
         ksort($itemTypes);
         $this->_itemTypes = $itemTypes;

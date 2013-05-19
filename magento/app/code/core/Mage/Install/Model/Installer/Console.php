@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Install
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -94,6 +94,7 @@ class Mage_Install_Model_Installer_Console extends Mage_Install_Model_Installer_
                 'encryption_key'    => array('comment' => ''),
                 'session_save'      => array('comment' => ''),
                 'admin_frontname'   => array('comment' => ''),
+                'enable_charts'     => array('comment' => ''),
             );
         }
         return $this->_options;
@@ -298,6 +299,7 @@ class Mage_Install_Model_Installer_Console extends Mage_Install_Model_Installer_
             'session_save'        => $this->_checkSessionSave($this->_args['session_save']),
             'admin_frontname'     => $this->_checkAdminFrontname($this->_args['admin_frontname']),
             'skip_url_validation' => $this->_checkFlag($this->_args['skip_url_validation']),
+            'enable_charts'       => $this->_checkFlag($this->_args['enable_charts']),
         ));
 
         /**

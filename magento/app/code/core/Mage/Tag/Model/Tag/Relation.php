@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Tag
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -34,7 +34,17 @@
  */
 class Mage_Tag_Model_Tag_Relation extends Mage_Core_Model_Abstract
 {
-    const STATUS_ACTIVE = 1;
+    /**
+     * Relation statuses
+     */
+    const STATUS_ACTIVE     = 1;
+    const STATUS_NOT_ACTIVE = 0;
+
+    /**
+     * Entity code.
+     * Can be used as part of method name for entity processing
+     */
+    const ENTITY = 'tag_relation';
 
     /**
      * Initialize resource model
@@ -53,6 +63,20 @@ class Mage_Tag_Model_Tag_Relation extends Mage_Core_Model_Abstract
     protected function _getResource()
     {
         return parent::_getResource();
+    }
+
+    /**
+     * Init indexing process after tag data commit
+     *
+     * @return Mage_Tag_Model_Tag_Relation
+     */
+    public function afterCommitCallback()
+    {
+        parent::afterCommitCallback();
+        Mage::getSingleton('index/indexer')->processEntityAction(
+            $this, self::ENTITY, Mage_Index_Model_Event::TYPE_SAVE
+        );
+        return $this;
     }
 
     /**
@@ -92,6 +116,19 @@ class Mage_Tag_Model_Tag_Relation extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Retrieve list of related tag ids for products specified in current object
+     *
+     * @return array
+     */
+    public function getRelatedTagIds()
+    {
+        if (is_null($this->getData('related_tag_ids'))) {
+            $this->setRelatedTagIds($this->_getResource()->getRelatedTagIds($this));
+        }
+        return $this->getData('related_tag_ids');
+    }
+
+    /**
      * Deactivate tag relations (using current settings)
      *
      * @return Mage_Tag_Model_Tag_Relation
@@ -114,7 +151,7 @@ class Mage_Tag_Model_Tag_Relation extends Mage_Core_Model_Abstract
         $this->setAddedProductIds($productIds);
         $this->setTagId($model->getTagId());
         $this->setCustomerId(null);
-        $this->setStoreId($model->getStoreId());
+        $this->setStoreId($model->getStore());
         $this->_getResource()->addRelations($this);
         return $this;
     }

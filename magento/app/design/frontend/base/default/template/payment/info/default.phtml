@@ -20,7 +20,7 @@
  *
  * @category    design
  * @package     base_default
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 ?>
@@ -36,7 +36,7 @@
     <tbody>
     <?php foreach ($_specificInfo as $_label => $_value):?>
         <tr>
-            <th><?php echo $this->htmlEscape($_label)?>:</th>
+            <th><?php echo $this->escapeHtml($_label)?>:</th>
             <td><?php echo nl2br(implode($this->getValueAsArray($_value, true), "\n"))?></td>
         </tr>
     <?php endforeach; ?>

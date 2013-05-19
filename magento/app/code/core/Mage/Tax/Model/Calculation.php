@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Tax
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -327,8 +327,12 @@ class Mage_Tax_Model_Calculation extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Compare data from two tax rate requests.
-     * Return true if requests are semilar
+     * Compare data and rates for two tax rate requests for same products (product tax class ids).
+     * Returns true if requests are similar (i.e. equal taxes rates will be applied to them)
+     *
+     * Notice:
+     * a) productClassId MUST be identical for both requests, because we intend to check selling SAME products to DIFFERENT locations
+     * b) due to optimization productClassId can be array of ids, not only single id
      *
      * @param   Varien_Object $first
      * @param   Varien_Object $second
@@ -336,26 +340,49 @@ class Mage_Tax_Model_Calculation extends Mage_Core_Model_Abstract
      */
     public function compareRequests($first, $second)
     {
-//        var_dump($first->getCountryId() , $second->getCountryId()); echo '<br>';
-//        var_dump($first->getRegionId(), $second->getRegionId());echo '<br>';
         $country = $first->getCountryId() == $second->getCountryId();
-        /**
-         * "0" support for admin dropdown with --please select--
-         */
-        $region  = (int)$first->getRegionId() == (int)$second->getRegionId()
-            || $first->getRegionId() == '*'
-            || $second->getRegionId() == '*'
-            || $first->getRegionId() == '0'
-            || $second->getRegionId() == '0';
-            $postcode= $first->getPostcode() == $second->getPostcode()
-            || $first->getPostcode() == '*'
-            || $second->getPostcode() == '*';
+        $region  = (int)$first->getRegionId() == (int)$second->getRegionId(); // "0" support for admin dropdown with --please select--
+        $postcode= $first->getPostcode() == $second->getPostcode();
         $taxClass= $first->getCustomerClassId() == $second->getCustomerClassId();
 
         if ($country && $region && $postcode && $taxClass) {
             return true;
         }
-        return false;
+        /**
+         * Compare available tax rates for both requests
+         */
+        $firstReqRates = $this->_getResource()->getRateIds($first);
+        $secondReqRates = $this->_getResource()->getRateIds($second);
+        if ($firstReqRates === $secondReqRates) {
+            return true;
+        }
+
+        /**
+         * If rates are not equal by ids then compare actual values
+         * All product classes must have same rates to assume requests been similar
+         */
+        $productClassId1 = $first->getProductClassId(); // Save to set it back later
+        $productClassId2 = $second->getProductClassId(); // Save to set it back later
+
+        $ids = is_array($productClassId1) ? $productClassId1 : array($productClassId1); // Ids are equal for both requests, so take any of them to process
+        $identical = true;
+        foreach ($ids as $productClassId) {
+            $first->setProductClassId($productClassId);
+            $rate1 = $this->getRate($first);
+
+            $second->setProductClassId($productClassId);
+            $rate2 = $this->getRate($second);
+
+            if ($rate1 != $rate2) {
+                $identical = false;
+                break;
+            }
+        }
+
+        $first->setProductClassId($productClassId1);
+        $second->setProductClassId($productClassId2);
+
+        return $identical;
     }
 
     protected function _getRates($request, $fieldName, $type)

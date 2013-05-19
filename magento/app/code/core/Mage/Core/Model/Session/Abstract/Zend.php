@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -51,6 +51,7 @@ abstract class Mage_Core_Model_Session_Abstract_Zend extends Varien_Object
         $options = array(
             'save_path'=>Mage::getBaseDir('session'),
             'use_only_cookies'=>'off',
+            'throw_startup_exceptions' => E_ALL ^ E_NOTICE,
         );
         if ($this->getCookieDomain()) {
             $options['cookie_domain'] = $this->getCookieDomain();

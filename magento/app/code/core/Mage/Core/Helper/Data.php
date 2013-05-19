@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -381,6 +381,13 @@ class Mage_Core_Helper_Data extends Mage_Core_Helper_Abstract
             $result = true;
         }
 
+        $eventName = sprintf('core_copy_fieldset_%s_%s', $fieldset, $aspect);
+        Mage::dispatchEvent($eventName, array(
+            'target' => $target,
+            'source' => $source,
+            'root'   => $root
+        ));
+
         return $result;
     }
 
@@ -628,7 +635,7 @@ XML;
                 } else {
                     $targetMtime = filemtime($targetFile);
                     foreach ($srcFiles as $file) {
-                        if (filemtime($file) > $targetMtime) {
+                        if (!file_exists($file) || @filemtime($file) > $targetMtime) {
                             $shouldMerge = true;
                             break;
                         }

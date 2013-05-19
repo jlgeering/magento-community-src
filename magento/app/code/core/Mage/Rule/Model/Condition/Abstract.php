@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Rule
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -79,6 +79,7 @@ abstract class Mage_Rule_Model_Condition_Abstract
                 'numeric'     => array('==', '!=', '>=', '>', '<=', '<', '()', '!()'),
                 'date'        => array('==', '>=', '<='),
                 'select'      => array('==', '!='),
+                'boolean'     => array('==', '!='),
                 'multiselect' => array('==', '!=', '{}', '!{}'),
                 'grid'        => array('()', '!()'),
             );
@@ -209,7 +210,11 @@ abstract class Mage_Rule_Model_Condition_Abstract
 
     public function getOperatorSelectOptions()
     {
-        $type = $this->getInputType();
+        if ($this->getAttribute() === 'category_ids') {
+            $type = 'multiselect';
+        } else {
+            $type = $this->getInputType();
+        }
         $opt = array();
         $operatorByType = $this->getOperatorByInputType();
         foreach ($this->getOperatorOption() as $k=>$v) {

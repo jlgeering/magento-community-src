@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -177,14 +177,16 @@ class Mage_Core_Model_Cache
                 $options = $this->getDbAdapterOptions();
                 break;
             default:
-                try {
-                    if (class_exists($type, true)) {
-                        $implements = class_implements($type, true);
-                        if (in_array('Zend_Cache_Backend_Interface', $implements)) {
-                            $backendType = $type;
+                if ($type != $this->_defaultBackend) {
+                    try {
+                        if (class_exists($type, true)) {
+                            $implements = class_implements($type, true);
+                            if (in_array('Zend_Cache_Backend_Interface', $implements)) {
+                                $backendType = $type;
+                            }
                         }
+                    } catch (Exception $e) {
                     }
-                } catch (Exception $e) {
                 }
         }
 

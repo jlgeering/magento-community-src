@@ -19,7 +19,7 @@
  *
  * @category    Varien
  * @package     js
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 function popWin(url,win,para) {
@@ -398,33 +398,48 @@ Varien.Tabs.prototype = {
   }
 }
 
-Varien.DOB = Class.create();
-Varien.DOB.prototype = {
-    initialize: function(selector, required, format) {
-        var el        = $$(selector)[0];
-        this.day      = Element.select($(el), '.dob-day input')[0];
-        this.month    = Element.select($(el), '.dob-month input')[0];
-        this.year     = Element.select($(el), '.dob-year input')[0];
-        this.dob      = Element.select($(el), '.dob-full input')[0];
-        this.advice   = Element.select($(el), '.validation-advice')[0];
+Varien.DateElement = Class.create();
+Varien.DateElement.prototype = {
+    initialize: function(type, content, required, format) {
+        if (type == 'id') {
+            // id prefix
+            this.day    = $(content + 'day');
+            this.month  = $(content + 'month');
+            this.year   = $(content + 'year');
+            this.full   = $(content + 'full');
+            this.advice = $(content + 'advice');
+        } else if (type == 'container') {
+            // content must be container with data
+            this.day    = content.day;
+            this.month  = content.month;
+            this.year   = content.year;
+            this.full   = content.full;
+            this.advice = content.advice;
+        } else {
+            return;
+        }
+
         this.required = required;
         this.format   = format;
-
+        
+        this.day.addClassName('validate-custom');
         this.day.validate = this.validate.bind(this);
+        this.month.addClassName('validate-custom');
         this.month.validate = this.validate.bind(this);
+        this.year.addClassName('validate-custom');
         this.year.validate = this.validate.bind(this);
+
+        this.year.setAttribute('autocomplete','off');
 
         this.advice.hide();
     },
-
     validate: function() {
         var error = false;
-
         if (this.day.value=='' && this.month.value=='' && this.year.value=='') {
             if (this.required) {
                 error = 'This date is a required value.';
             } else {
-                this.dob.value = '';
+                this.full.value = '';
             }
         } else if (this.day.value=='' || this.month.value=='' || this.year.value=='') {
             error = 'Please enter a valid full date.';
@@ -437,9 +452,9 @@ Varien.DOB.prototype = {
             } else if (this.year.value<1900 || this.year.value>date.getFullYear()) {
                 error = 'Please enter a valid year (1900-'+date.getFullYear()+').';
             } else {
-                this.dob.value = this.format.replace(/(%m|%b)/i, this.month.value).replace(/(%d|%e)/i, this.day.value).replace(/%y/i, this.year.value);
-                var testDOB = this.month.value + '/' + this.day.value + '/'+ this.year.value;
-                var test = new Date(testDOB);
+                this.full.value = this.format.replace(/(%m|%b)/i, this.month.value).replace(/(%d|%e)/i, this.day.value).replace(/%y/i, this.year.value);
+                var testFull = this.month.value + '/' + this.day.value + '/'+ this.year.value;
+                var test = new Date(testFull);
                 if (isNaN(test)) {
                     error = 'Please enter a valid date.';
                 }
@@ -456,11 +471,44 @@ Varien.DOB.prototype = {
             this.advice.show();
             return false;
         }
-
+        
+        // fixing elements class
+        this.day.removeClassName('validation-failed');
+        this.month.removeClassName('validation-failed');
+        this.year.removeClassName('validation-failed');
+        
         this.advice.hide();
         return true;
     }
-}
+};
+
+Varien.DOB = Class.create();
+Varien.DOB.prototype = {
+    initialize: function(selector, required, format) {
+        var el = $$(selector)[0];
+        var container       = {};
+        container.day       = Element.select(el, '.dob-day input')[0];
+        container.month     = Element.select(el, '.dob-month input')[0];
+        container.year      = Element.select(el, '.dob-year input')[0];
+        container.full      = Element.select(el, '.dob-full input')[0];
+        container.advice    = Element.select(el, '.validation-advice')[0];
+        
+        new Varien.DateElement('container', container, required, format);
+    }
+};
+
+Varien.FileElement = Class.create();
+Varien.FileElement.prototype = {
+    initialize: function (id) {
+        this.fileElement = $(id);
+        this.hiddenElement = $(id + '_value');
+        
+        this.fileElement.observe('change', this.selectFile.bind(this));
+    },
+    selectFile: function(event) {
+        this.hiddenElement.value = this.fileElement.getValue();
+    }
+};
 
 Validation.addAllThese([
     ['validate-custom', ' ', function(v,elm) {
@@ -494,7 +542,7 @@ Element.addMethods({
         if(element.innerText && !Prototype.Browser.Opera) {
             return element.innerText
         }
-        return element.innerHTML.stripScripts().unescapeHTML().replace(/[\n\r\s]+/g, ' ');
+        return element.innerHTML.stripScripts().unescapeHTML().replace(/[\n\r\s]+/g, ' ').strip();
     }
 });
 
@@ -506,4 +554,26 @@ if (!("console" in window) || !("firebug" in console))
     window.console = {};
     for (var i = 0; i < names.length; ++i)
         window.console[names[i]] = function() {}
+}
+
+/**
+ * Executes event handler on the element. Works with event handlers attached by Prototype,
+ * in a browser-agnostic fashion.
+ * @param element The element object
+ * @param event Event name, like 'change'
+ *
+ * @example fireEvent($('my-input', 'click'));
+ */
+function fireEvent(element, event){
+    if (document.createEventObject){
+        // dispatch for IE
+        var evt = document.createEventObject();
+        return element.fireEvent('on'+event,evt)
+    }
+    else{
+        // dispatch for firefox + others
+        var evt = document.createEvent("HTMLEvents");
+        evt.initEvent(event, true, true ); // event type,bubbling,cancelable
+        return !element.dispatchEvent(evt);
+    }
 }

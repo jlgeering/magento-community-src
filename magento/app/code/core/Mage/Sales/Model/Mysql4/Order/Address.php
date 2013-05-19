@@ -20,26 +20,51 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 /**
- * Order address entity resource model
+ * Flat sales order address resource
  *
- * @category    Mage
- * @package     Mage_Sales
- * @author      Magento Core Team <core@magentocommerce.com>
  */
-
-class Mage_Sales_Model_Mysql4_Order_Address extends Mage_Eav_Model_Entity_Abstract
+class Mage_Sales_Model_Mysql4_Order_Address extends Mage_Sales_Model_Mysql4_Order_Abstract
 {
-    public function __construct()
+    /**
+     * Event prefix
+     *
+     * @var string
+     */
+    protected $_eventPrefix = 'sales_order_address_resource';
+
+    /**
+     * Resource initialization
+     */
+    protected function _construct()
     {
-        $resource = Mage::getSingleton('core/resource');
-        $this->setType('order_address')->setConnection(
-            $resource->getConnection('sales_read'),
-            $resource->getConnection('sales_write')
+        $this->_init('sales/order_address', 'entity_id');
+    }
+
+    /**
+     * Return configuration for all attributes
+     *
+     * @return array
+     */
+    public function getAllAttributes()
+    {
+        $attributes = array(
+            'city' => Mage::helper('sales')->__('City'),
+            'company' => Mage::helper('sales')->__('Company'),
+            'country_id' => Mage::helper('sales')->__('Country'),
+            'email' => Mage::helper('sales')->__('Email'),
+            'firstname' => Mage::helper('sales')->__('First Name'),
+            'lastname' => Mage::helper('sales')->__('Last Name'),
+            'region_id' => Mage::helper('sales')->__('State/Province'),
+            'street' => Mage::helper('sales')->__('Street Address'),
+            'telephone' => Mage::helper('sales')->__('Telephone'),
+            'postcode' => Mage::helper('sales')->__('Zip/Postal Code')
         );
+        asort($attributes);
+        return $attributes;
     }
 }

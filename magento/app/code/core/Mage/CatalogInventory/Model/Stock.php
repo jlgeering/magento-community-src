@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogInventory
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -95,6 +95,69 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Prepare array($productId=>$qty) based on array($productId => array('qty'=>$qty, 'item'=>$stockItem))
+     *
+     * @param array $items
+     */
+    protected function _prepareProductQtys($items)
+    {
+        $qtys = array();
+        foreach ($items as $productId => $item) {
+            if (empty($item['item'])) {
+                $stockItem = Mage::getModel('cataloginventory/stock_item')->loadByProduct($productId);
+            } else {
+                $stockItem = $item['item'];
+            }
+            $canSubtractQty = $stockItem->getId() && $stockItem->canSubtractQty();
+            if ($canSubtractQty && Mage::helper('catalogInventory')->isQty($stockItem->getTypeId())) {
+                $qtys[$productId] = $item['qty'];
+            }
+        }
+        return $qtys;
+    }
+
+    /**
+     * Subtract product qtys from stock.
+     * Return array of items that require full save
+     *
+     * @param array $items
+     * @return array
+     */
+    public function registerProductsSale($items)
+    {
+        $qtys = $this->_prepareProductQtys($items);
+        $item = Mage::getModel('cataloginventory/stock_item');
+        $this->_getResource()->beginTransaction();
+        $stockInfo = $this->_getResource()->getProductsStock($this, array_keys($qtys), true);
+        $fullSaveItems = array();
+        foreach ($stockInfo as $itemInfo) {
+            $item->setData($itemInfo);
+            if (!$item->checkQty($qtys[$item->getProductId()])) {
+                $this->_getResource()->commit();
+                Mage::throwException(Mage::helper('cataloginventory')->__('Not all products are available in the requested quantity'));
+            }
+            $item->subtractQty($qtys[$item->getProductId()]);
+            if (!$item->verifyStock() || $item->verifyNotification()) {
+                $fullSaveItems[] = clone $item;
+            }
+        }
+        $this->_getResource()->correctItemsQty($this, $qtys, '-');
+        $this->_getResource()->commit();
+        return $fullSaveItems;
+    }
+
+    /**
+     *
+     * @param unknown_type $items
+     */
+    public function revertProductsSale($items)
+    {
+        $qtys = $this->_prepareProductQtys($items);
+        $this->_getResource()->correctItemsQty($this, $qtys, '+');
+        return $this;
+    }
+
+    /**
      * Subtract ordered qty for product
      *
      * @param   Varien_Object $item
@@ -102,7 +165,8 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
      */
     public function registerItemSale(Varien_Object $item)
     {
-        if ($productId = $item->getProductId()) {
+        $productId = $item->getProductId();
+        if ($productId) {
             $stockItem = Mage::getModel('cataloginventory/stock_item')->loadByProduct($productId);
             if (Mage::helper('catalogInventory')->isQty($stockItem->getTypeId())) {
                 if ($item->getStoreId()) {
@@ -115,7 +179,7 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
             }
         }
         else {
-            Mage::throwException(Mage::helper('cataloginventory')->__('Can not specify product identifier for order item'));
+            Mage::throwException(Mage::helper('cataloginventory')->__('Cannot specify product identifier for the order item.'));
         }
         return $this;
     }
@@ -154,7 +218,7 @@ class Mage_CatalogInventory_Model_Stock extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Enter description here...
+     * Adds filtering for collection to return only in stock products
      *
      * @param Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Link_Product_Collection $collection
      * @return Mage_CatalogInventory_Model_Stock $this

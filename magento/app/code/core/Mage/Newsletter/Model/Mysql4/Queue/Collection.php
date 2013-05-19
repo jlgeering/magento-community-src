@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Newsletter
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -49,11 +49,11 @@ class Mage_Newsletter_Model_Mysql4_Queue_Collection extends Mage_Core_Model_Mysq
         $this->_init('newsletter/queue');
     }
 
-
     /**
      * Joines templates information
      *
      * @return Mage_Newsletter_Model_Mysql4_Queue_Collection
+     * @deprecated since 1.4.0.1
      */
     public function addTemplateInfo() {
         $this->getSelect()->joinLeft(array('template'=>$this->getTable('template')),

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Paypal
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -61,8 +61,36 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
      * Line items export to request mapping settings
      * @var array
      */
-    protected $_lineItemExportTotals = array();
     protected $_lineItemExportItemsFormat = array();
+    protected $_lineItemExportItemsFilters = array();
+    protected $_lineItemTotalExportMap = array();
+
+    /**
+     * PayPal shopping cart instance
+     *
+     * @var Mage_Paypal_Model_Cart
+     */
+    protected $_cart = null;
+
+    /**
+     * Shipping options export to request mapping settings
+     * @var array
+     */
+    protected $_shippingOptionsExportItemsFormat = array();
+
+    /**
+     * Imported recurring profiles array
+     *
+     * @var array
+     */
+    protected $_recurringPaymentProfiles = array();
+
+   /**
+     * Fields that should be replaced in debug with '***'
+     *
+     * @var array
+     */
+    protected $_debugReplacePrivateDataKeys = array();
 
     /**
      * Return Paypal Api user name based on config data
@@ -135,13 +163,13 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     }
 
     /**
-     * Return Paypal Api debug flag based on config data
+     * @deprecated after 1.4.1.0
      *
      * @return bool
      */
     public function getDebug()
     {
-        return $this->_config->debugFlag;
+        return $this->getDebugFlag();
     }
 
     /**
@@ -205,6 +233,14 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     }
 
     /**
+     * PayPal merchant email getter
+     */
+    public function getBusinessAccount()
+    {
+        return $this->_getDataOrConfig('business_account');
+    }
+
+    /**
      * Import $this public data to specified object or array
      *
      * @param array|Varien_Object $to
@@ -226,6 +262,18 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     public function export($from, array $publicMap = array())
     {
         Varien_Object_Mapper::accumulateByMap($from, array($this, 'setDataUsingMethod'), $publicMap);
+        return $this;
+    }
+
+    /**
+     * Set PayPal cart instance
+     *
+     * @param Mage_Paypal_Model_Cart $cart
+     * @return Mage_Paypal_Model_Api_Abstract
+     */
+    public function setPaypalCart(Mage_Paypal_Model_Cart $cart)
+    {
+        $this->_cart = $cart;
         return $this;
     }
 
@@ -259,24 +307,17 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     }
 
     /**
-     * Whether specified payment status indicates that money were paid
+     * Set recurring profiles
      *
-     * @param string $paymentStatus
-     * @return bool
+     * @param array $items
+     * @return Mage_Paypal_Model_Api_Abstract
      */
-    public function isPaid($paymentStatus)
+    public function addRecurringPaymentProfiles(array $items)
     {
-        return $paymentStatus === 'Completed';
-    }
-
-    /**
-     * Whether payment is completed
-     *
-     * @return bool
-     */
-    public function isPaymentComplete()
-    {
-        return $this->isPaid($this->getPaymentStatus());
+        if ($items) {
+            $this->_recurringPaymentProfiles = $items;
+        }
+        return $this;
     }
 
     /**
@@ -330,19 +371,42 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     /**
      * Prepare line items request
      *
+     * Returns true if there were line items added
+     *
      * @param array &$request
      * @param int $i
+     * @return true|bool
      */
     protected function _exportLineItems(array &$request, $i = 0)
     {
-        $items = $this->getLineItems();
-        if (empty($items)) {
+        if (!$this->_cart) {
             return;
         }
-        // line items
+
+        // always add cart totals, even if line items are not requested
+        if ($this->_lineItemTotalExportMap) {
+            foreach ($this->_cart->getTotals() as $key => $total) {
+                if (isset($this->_lineItemTotalExportMap[$key])) { // !empty($total)
+                    $privateKey = $this->_lineItemTotalExportMap[$key];
+                    $request[$privateKey] = $this->_filterAmount($total);
+                }
+            }
+        }
+
+        // add cart line items
+        $items = $this->_cart->getItems();
+        if (empty($items) || !$this->getIsLineItemsEnabled()) {
+            return;
+        }
+        $result = null;
         foreach ($items as $item) {
             foreach ($this->_lineItemExportItemsFormat as $publicKey => $privateFormat) {
+                $result = true;
                 $value = $item->getDataUsingMethod($publicKey);
+                if (isset($this->_lineItemExportItemsFilters[$publicKey])) {
+                    $callback   = $this->_lineItemExportItemsFilters[$publicKey];
+                    $value = call_user_func(array($this, $callback), $value);
+                }
                 if (is_float($value)) {
                     $value = $this->_filterAmount($value);
                 }
@@ -350,19 +414,37 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
             }
             $i++;
         }
-        // line item totals
-        $lineItemTotals = $this->getLineItemTotals();
-        if ($lineItemTotals) {
-            $request = Varien_Object_Mapper::accumulateByMap($lineItemTotals, $request, $this->_lineItemExportTotals);
-            foreach ($this->_lineItemExportTotals as $privateKey) {
-                if (isset($request[$privateKey])) {
-                    $request[$privateKey] = $this->_filterAmount($request[$privateKey]);
-                } else {
-                    Mage::logException(new Exception(sprintf('Missing index "%s" for line item totals.', $privateKey)));
-                    Mage::throwException(Mage::helper('paypal')->__('Unable to calculate cart line item totals.'));
-                }
-            }
+        return $result;
+    }
+
+    /**
+     * Prepare shipping options request
+     * Returns false if there are no shipping options
+     *
+     * @param array &$request
+     * @param int $i
+     * @return bool
+     */
+    protected function _exportShippingOptions(array &$request, $i = 0)
+    {
+        $options = $this->getShippingOptions();
+        if (empty($options)) {
+            return false;
         }
+        foreach ($options as $option) {
+            foreach ($this->_shippingOptionsExportItemsFormat as $publicKey => $privateFormat) {
+                $value = $option->getDataUsingMethod($publicKey);
+                if (is_float($value)) {
+                    $value = $this->_filterAmount($value);
+                }
+                if (is_bool($value)) {
+                    $value = $this->_filterBool($value);
+                }
+                $request[sprintf($privateFormat, $i)] = $value;
+            }
+            $i++;
+        }
+        return true;
     }
 
     /**
@@ -373,6 +455,28 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     protected function _filterAmount($value)
     {
         return sprintf('%.2F', $value);
+    }
+
+    /**
+     * Filter boolean values in API calls
+     *
+     * @param mixed $value
+     * @return string
+     */
+    protected function _filterBool($value)
+    {
+        return ($value) ? 'true' : 'false';
+    }
+
+    /**
+     * Filter int values in API calls
+     *
+     * @param mixed $value
+     * @return int
+     */
+    protected function _filterInt($value)
+    {
+        return (int)$value;
     }
 
     /**
@@ -438,5 +542,41 @@ abstract class Mage_Paypal_Model_Api_Abstract extends Varien_Object
     protected function _buildQuery($request)
     {
         return http_build_query($request);
+    }
+
+    /**
+     * Filter qty in API calls
+     * Paypal note: The value for quantity must be a positive integer. Null, zero, or negative numbers are not allowed.
+     *
+     * @param float|string|int $value
+     * @return string
+     */
+    protected function _filterQty($value)
+    {
+        return intval($value);
+    }
+
+    /**
+     * Log debug data to file
+     *
+     * @param mixed $debugData
+     */
+    protected function _debug($debugData)
+    {
+        if ($this->getDebugFlag()) {
+            Mage::getModel('core/log_adapter', 'payment_' . $this->_config->getMethodCode() . '.log')
+               ->setFilterDataKeys($this->_debugReplacePrivateDataKeys)
+               ->log($debugData);
+        }
+    }
+
+    /**
+     * Define if debugging is enabled
+     *
+     * @return bool
+     */
+    public function getDebugFlag()
+    {
+        return $this->_config->debug;
     }
 }

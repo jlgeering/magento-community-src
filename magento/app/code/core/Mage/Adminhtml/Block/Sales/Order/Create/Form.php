@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -93,8 +93,14 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Form extends Mage_Adminhtml_Block_
         if (!is_null($this->getCustomerId())) {
             $data['customer_id'] = $this->getCustomerId();
             $data['addresses'] = array();
+
+            /* @var $addressForm Mage_Customer_Model_Form */
+            $addressForm = Mage::getModel('customer/form')
+                ->setFormCode('adminhtml_customer_address')
+                ->setStore($this->getStore());
             foreach ($this->getCustomer()->getAddresses() as $address) {
-                $data['addresses'][$address->getId()] = $address->getData();
+                $data['addresses'][$address->getId()] = $addressForm->setEntity($address)
+                    ->outputData(Mage_Customer_Model_Attribute_Data::OUTPUT_FORMAT_JSON);
             }
         }
         if (!is_null($this->getStoreId())) {

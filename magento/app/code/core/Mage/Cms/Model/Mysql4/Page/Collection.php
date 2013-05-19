@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Cms
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -36,16 +36,52 @@ class Mage_Cms_Model_Mysql4_Page_Collection extends Mage_Core_Model_Mysql4_Colle
 {
     protected $_previewFlag;
 
+    /**
+     * Declare base table and mapping of some fields
+     */
     protected function _construct()
     {
         $this->_init('cms/page');
-
         $this->_map['fields']['page_id'] = 'main_table.page_id';
+        $this->_map['fields']['store']   = 'store_table.store_id';
     }
 
+    /**
+     * deprecated after 1.4.0.1, use toOptionIdArray()
+     * 
+     * @return array
+     */
     public function toOptionArray()
     {
         return $this->_toOptionArray('identifier', 'title');
+    }
+
+    /**
+     * Returns pairs identifier - title for unique identifiers
+     * and pairs identifier|page_id - title for non-unique after first
+     * 
+     * @return array
+     */
+    public function toOptionIdArray()
+    {
+        $res = array();
+        $existingIdentifiers = array();
+        foreach ($this as $item) {
+            $identifier = $item->getData('identifier');
+
+            $data['value'] = $identifier;
+            $data['label'] = $item->getData('title');
+            if (in_array($identifier, $existingIdentifiers)) {
+                $data['value'] .= '|' . $item->getData('page_id');
+            }
+            else {
+                $existingIdentifiers[] = $identifier;
+            }
+
+            $res[] = $data;
+        }
+
+        return $res;
     }
 
     public function setFirstStoreFlag($flag = false)
@@ -86,30 +122,33 @@ class Mage_Cms_Model_Mysql4_Page_Collection extends Mage_Core_Model_Mysql4_Colle
     }
 
     /**
-     * Add Filter by store
+     * Add filter by store
      *
      * @param int|Mage_Core_Model_Store $store
      * @return Mage_Cms_Model_Mysql4_Page_Collection
      */
     public function addStoreFilter($store, $withAdmin = true)
     {
-        if (!$this->getFlag('store_filter_added')) {
-            if ($store instanceof Mage_Core_Model_Store) {
-                $store = array($store->getId());
-            }
+        if ($store instanceof Mage_Core_Model_Store) {
+            $store = array($store->getId());
+        }
+        $this->addFilter('store', array('in' => ($withAdmin ? array(0, $store) : $store)), 'public');
+        return $this;
+    }
 
+    /**
+     * Join store relation table if there is store filter
+     */
+    protected function _renderFiltersBefore()
+    {
+        if ($this->getFilter('store')) {
             $this->getSelect()->join(
                 array('store_table' => $this->getTable('cms/page_store')),
                 'main_table.page_id = store_table.page_id',
                 array()
-            )
-            ->where('store_table.store_id in (?)', ($withAdmin ? array(0, $store) : $store))
-            ->group('main_table.page_id');
-
-            $this->setFlag('store_filter_added', true);
+            )->group('main_table.page_id');
         }
-
-        return $this;
+        return parent::_renderFiltersBefore();
     }
 
     /**

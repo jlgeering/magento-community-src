@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -177,12 +177,13 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 ->setLastEditedCategory($category->getId());
 //            $this->_initLayoutMessages('adminhtml/session');
             $this->loadLayout();
-            $this->getResponse()->setBody(
-                $this->getLayout()->getMessagesBlock()->getGroupedHtml()
-                . $this->getLayout()->getBlock('category.edit')->getFormHtml()
-                . $this->getLayout()->getBlock('category.tree')
-                    ->getBreadcrumbsJavascript($breadcrumbsPath, 'editingCategoryBreadcrumbs')
-            );
+            $this->getResponse()->setBody(Zend_Json::encode(array(
+                'messages' => $this->getLayout()->getMessagesBlock()->getGroupedHtml(),
+                'content' =>
+                    $this->getLayout()->getBlock('category.edit')->getFormHtml()
+                    . $this->getLayout()->getBlock('category.tree')
+                        ->getBreadcrumbsJavascript($breadcrumbsPath, 'editingCategoryBreadcrumbs')
+            )));
             return;
         }
 
@@ -194,6 +195,12 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
         $this->_addBreadcrumb(Mage::helper('catalog')->__('Manage Catalog Categories'),
              Mage::helper('catalog')->__('Manage Categories')
         );
+
+        $block = $this->getLayout()->getBlock('catalog.wysiwyg.js');
+        if ($block) {
+            $block->setStoreId($storeId);
+        }
+
         $this->renderLayout();
     }
 
@@ -204,9 +211,15 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
     public function wysiwygAction()
     {
         $elementId = $this->getRequest()->getParam('element_id', md5(microtime()));
+        $storeId = $this->getRequest()->getParam('store_id', 0);
+        $storeMediaUrl = Mage::app()->getStore($storeId)->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA);
+
         $content = $this->getLayout()->createBlock('adminhtml/catalog_helper_form_wysiwyg_content', '', array(
-            'editor_element_id' => $elementId
+            'editor_element_id' => $elementId,
+            'store_id'          => $storeId,
+            'store_media_url'   => $storeMediaUrl,
         ));
+
         $this->getResponse()->setBody($content->toHtml());
     }
 
@@ -259,14 +272,6 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 $parentCategory = Mage::getModel('catalog/category')->load($parentId);
                 $category->setPath($parentCategory->getPath());
             }
-            /**
-             * Check "Use Default Value" checkboxes values
-             */
-            if ($useDefaults = $this->getRequest()->getPost('use_default')) {
-                foreach ($useDefaults as $attributeCode) {
-                    $category->setData($attributeCode, false);
-                }
-            }
 
             /**
              * Process "Use Config Settings" checkboxes
@@ -275,6 +280,15 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 foreach ($useConfig as $attributeCode) {
                     $category->setData($attributeCode, null);
                 }
+            }
+
+            /**
+             * Create Permanent Redirect for old URL key
+             */
+            if ($category->getId() && isset($data['general']['url_key_create_redirect']))
+            // && $category->getOrigData('url_key') != $category->getData('url_key')
+            {
+                $category->setData('save_rewrites_history', (bool)$data['general']['url_key_create_redirect']);
             }
 
             $category->setAttributeSetId($category->getDefaultAttributeSetId());
@@ -291,9 +305,41 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 'request' => $this->getRequest()
             ));
 
+            /**
+             * Proceed with $_POST['use_config']
+             * set into category model for proccessing through validation
+             */
+            $category->setData("use_post_data_config", $this->getRequest()->getPost('use_config'));
+
             try {
+                $validate = $category->validate();
+                if ($validate !== true) {
+                    foreach ($validate as $code => $error) {
+                        if ($error === true) {
+                            Mage::throwException(Mage::helper('catalog')->__('Attribute "%s" is required.', $category->getResource()->getAttribute($code)->getFrontend()->getLabel()));
+                        }
+                        else {
+                            Mage::throwException($error);
+                        }
+                    }
+                }
+
+                /**
+                 * Check "Use Default Value" checkboxes values
+                 */
+                if ($useDefaults = $this->getRequest()->getPost('use_default')) {
+                    foreach ($useDefaults as $attributeCode) {
+                        $category->setData($attributeCode, false);
+                    }
+                }
+
+                /**
+                 * Unset $_POST['use_config'] before save
+                 */
+                $category->unsetData('use_post_data_config');
+
                 $category->save();
-                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('catalog')->__('Category saved'));
+                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('catalog')->__('The category has been saved.'));
                 $refreshTree = 'true';
             }
             catch (Exception $e){
@@ -354,7 +400,7 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 Mage::getSingleton('admin/session')->setDeletedPath($category->getPath());
 
                 $category->delete();
-                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('catalog')->__('Category deleted'));
+                Mage::getSingleton('adminhtml/session')->addSuccess(Mage::helper('catalog')->__('The category has been deleted.'));
             }
             catch (Mage_Core_Exception $e){
                 Mage::getSingleton('adminhtml/session')->addError($e->getMessage());
@@ -362,7 +408,7 @@ class Mage_Adminhtml_Catalog_CategoryController extends Mage_Adminhtml_Controlle
                 return;
             }
             catch (Exception $e){
-                Mage::getSingleton('adminhtml/session')->addError(Mage::helper('catalog')->__('Category delete error'));
+                Mage::getSingleton('adminhtml/session')->addError(Mage::helper('catalog')->__('An error occurred while trying to delete the category.'));
                 $this->getResponse()->setRedirect($this->getUrl('*/*/edit', array('_current'=>true)));
                 return;
             }

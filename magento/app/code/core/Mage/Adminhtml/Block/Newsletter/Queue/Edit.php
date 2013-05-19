@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -97,7 +97,7 @@ class Mage_Adminhtml_Block_Newsletter_Queue_Edit extends Mage_Adminhtml_Block_Te
         $this->setChild('save_and_resume',
             $this->getLayout()->createBlock('adminhtml/widget_button')
                 ->setData(array(
-                    'label'     => Mage::helper('newsletter')->__('Save And Resume'),
+                    'label'     => Mage::helper('newsletter')->__('Save and Resume'),
                     'onclick'   => 'queueControl.resume()',
                     'class'     => 'save'
                 ))
@@ -126,26 +126,62 @@ class Mage_Adminhtml_Block_Newsletter_Queue_Edit extends Mage_Adminhtml_Block_Te
         return parent::_prepareLayout();
     }
 
+    /**
+     * Return preview action url for form
+     *
+     * @return string
+     */
+    public function getPreviewUrl()
+    {
+        return $this->getUrl('*/*/preview');
+    }
+    
+    
+    /**
+     * Retrieve Save Button HTML
+     *
+     * @return string
+     */
     public function getSaveButtonHtml()
     {
         return $this->getChildHtml('save_button');
     }
 
+    /**
+     * Retrieve Reset Button HTML
+     *
+     * @return string
+     */
     public function getResetButtonHtml()
     {
         return $this->getChildHtml('reset_button');
     }
 
+    /**
+     * Retrieve Back Button HTML
+     *
+     * @return string
+     */
     public function getBackButtonHtml()
     {
         return $this->getChildHtml('back_button');
     }
 
+    /**
+     * Retrieve Resume Button HTML
+     *
+     * @return string
+     */
     public function getResumeButtonHtml()
     {
         return $this->getChildHtml('save_and_resume');
     }
 
+    /**
+     * Getter for availability preview mode
+     *
+     * @return boolean
+     */
     public function getIsPreview()
     {
         return !in_array($this->getQueue()->getQueueStatus(), array(
@@ -154,11 +190,31 @@ class Mage_Adminhtml_Block_Newsletter_Queue_Edit extends Mage_Adminhtml_Block_Te
         ));
     }
 
-    public function getIsTextType()
+    /**
+     * Getter for single store mode check 
+     *
+     * @return boolean
+     */
+    protected function isSingleStoreMode()
     {
-        return $this->getQueue()->getTemplate()->isPlain();
+        return Mage::app()->isSingleStoreMode();
     }
 
+    /**
+     * Getter for check is this newsletter the plain text.
+     *
+     * @return boolean
+     */
+    public function getIsTextType()
+    {
+        return $this->getQueue()->isPlain();
+    }
+
+    /**
+     * Getter for availability resume action
+     *
+     * @return boolean
+     */
     public function getCanResume()
     {
         return in_array($this->getQueue()->getQueueStatus(), array(
@@ -166,8 +222,13 @@ class Mage_Adminhtml_Block_Newsletter_Queue_Edit extends Mage_Adminhtml_Block_Te
         ));
     }
 
+    /**
+     * Getter for header text
+     *
+     * @return boolean
+     */
     public function getHeaderText()
     {
         return ( $this->getIsPreview() ? Mage::helper('newsletter')->__('View Newsletter') : Mage::helper('newsletter')->__('Edit Newsletter'));
     }
-}// Class Mage_Adminhtml_Block_Newsletter_Queue_Edit END
+}

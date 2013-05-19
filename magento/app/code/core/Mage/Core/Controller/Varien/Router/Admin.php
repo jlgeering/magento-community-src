@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -30,12 +30,21 @@ class Mage_Core_Controller_Varien_Router_Admin extends Mage_Core_Controller_Vari
     public function fetchDefault()
     {
         // set defaults
-        $d = explode('/', (string)Mage::getConfig()->getNode('default/web/default/admin'));
+        $d = explode('/', $this->_getDefaultPath());
         $this->getFront()->setDefault(array(
             'module'     => !empty($d[0]) ? $d[0] : '',
             'controller' => !empty($d[1]) ? $d[1] : 'index',
             'action'     => !empty($d[2]) ? $d[2] : 'index'
         ));
+    }
+
+    /**
+     * Get router default request path
+     * @return string
+     */
+    protected function _getDefaultPath()
+    {
+        return (string)Mage::getConfig()->getNode('default/web/default/admin');
     }
 
     /**

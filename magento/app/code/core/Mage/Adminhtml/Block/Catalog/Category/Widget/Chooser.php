@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -89,7 +89,10 @@ class Mage_Adminhtml_Block_Catalog_Category_Widget_Chooser extends Mage_Adminhtm
 
         if ($element->getValue()) {
             $value = explode('/', $element->getValue());
-            $categoryId = isset($value[1]) ? $value[1] : false;
+            $categoryId = false;
+            if (isset($value[0]) && isset($value[1]) && $value[0] == 'category') {
+                $categoryId = $value[1];
+            }
             if ($categoryId) {
                 $label = Mage::getSingleton('catalog/category')->load($categoryId)->getName();
                 $chooser->setLabel($label);
@@ -113,7 +116,9 @@ class Mage_Adminhtml_Block_Catalog_Category_Widget_Chooser extends Mage_Adminhtm
         if ($this->getUseMassaction()) {
             $js = '
                 function (node, e) {
-                    node.ui.toggleCheck(true);
+                    if (node.ui.toggleCheck) {
+                        node.ui.toggleCheck(true);
+                    }
                 }
             ';
         } else {

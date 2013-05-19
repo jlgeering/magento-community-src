@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -57,13 +57,13 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
             'is_html_allowed_on_front'  => $this->_getValue($attr, 'is_html_allowed_on_front', 0),
             'is_visible_in_advanced_search'
                                         => $this->_getValue($attr, 'visible_in_advanced_search', 0),
-            'is_used_for_price_rules'   => $this->_getValue($attr, 'used_for_price_rules', 1),
             'is_filterable_in_search'   => $this->_getValue($attr, 'filterable_in_search', 0),
             'used_in_product_listing'   => $this->_getValue($attr, 'used_in_product_listing', 0),
             'used_for_sort_by'          => $this->_getValue($attr, 'used_for_sort_by', 0),
             'apply_to'                  => $this->_getValue($attr, 'apply_to', ''),
             'position'                  => $this->_getValue($attr, 'position', 0),
-            'is_configurable'           => $this->_getValue($attr, 'is_configurable', 1)
+            'is_configurable'           => $this->_getValue($attr, 'is_configurable', 1),
+            'is_used_for_promo_rules'   => $this->_getValue($attr, 'used_for_promo_rules', 0)
         ));
         return $data;
     }
@@ -558,7 +558,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                     'available_sort_by' => array(
                         'input'         => 'multiselect',
                         'type'          => 'text',
-                        'label'         => 'Available Product Listing Sort by',
+                        'label'         => 'Available Product Listing Sort By',
                         'source'        => 'catalog/category_attribute_source_sortby',
                         'backend'       => 'catalog/category_attribute_backend_sortby',
                         'required'      => true,
@@ -568,7 +568,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                     ),
                     'default_sort_by' => array(
                         'input'         => 'select',
-                        'label'         => 'Default Product Listing Sort by',
+                        'label'         => 'Default Product Listing Sort By',
                         'source'        => 'catalog/category_attribute_source_sortby',
                         'backend'       => 'catalog/category_attribute_backend_sortby',
                         'required'      => true,
@@ -1169,7 +1169,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                         'source'            => '',
                         'global'            => Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_STORE,
                         'visible'           => false,
-                        'required'          => true,
+                        'required'          => false,
                         'user_defined'      => false,
                         'default'           => '',
                         'searchable'        => false,
@@ -1178,6 +1178,51 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                         'visible_on_front'  => false,
                         'unique'            => false,
                         'apply_to'          => 'simple,configurable,virtual',
+                    ),
+                    'is_recurring' => array(
+                        'group'             => 'Recurring Profile',
+                        'type'              => 'int',
+                        'backend'           => '',
+                        'frontend'          => '',
+                        'label'             => 'Enable Recurring Profile',
+                        'note'              => 'Nominal price option may be used for manipulating recurring fees.',
+                        'input'             => 'select',
+                        'class'             => '',
+                        'source'            => 'eav/entity_attribute_source_boolean',
+                        'global'            => Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL,
+                        'visible'           => true,
+                        'required'          => false,
+                        'user_defined'      => false,
+                        'default'           => '',
+                        'searchable'        => false,
+                        'filterable'        => false,
+                        'comparable'        => false,
+                        'visible_on_front'  => false,
+                        'unique'            => false,
+                        'apply_to'          => 'simple,virtual',
+                        'is_configurable'   => false
+                    ),
+                    'recurring_profile' => array(
+                        'group'             => 'Recurring Profile',
+                        'type'              => 'text',
+                        'backend'           => 'catalog/product_attribute_backend_recurring',
+                        'frontend'          => '',
+                        'label'             => 'Recurring Profile',
+                        'input'             => 'text', // doesn't matter
+                        'class'             => '',
+                        'source'            => '',
+                        'global'            => Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL,
+                        'visible'           => true,
+                        'required'          => false,
+                        'user_defined'      => false,
+                        'default'           => '',
+                        'searchable'        => false,
+                        'filterable'        => false,
+                        'comparable'        => false,
+                        'visible_on_front'  => false,
+                        'unique'            => false,
+                        'apply_to'          => 'simple,virtual',
+                        'is_configurable'   => false
                     ),
                     'visibility' => array(
                         'group'             => 'General',
@@ -1302,26 +1347,6 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                         'unique'            => false,
                         'group'             => 'Design'
                     ),
-                    'category_ids' => array(
-                        'type'              => 'static',
-                        'backend'           => '',
-                        'label'             => '',
-                        'frontend'          => '',
-                        'table'             => '',
-                        'input'             => '',
-                        'class'             => '',
-                        'source'            => '',
-                        'global'            => Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL,
-                        'visible'           => false,
-                        'required'          => false,
-                        'user_defined'      => false,
-                        'default'           => '',
-                        'searchable'        => false,
-                        'filterable'        => false,
-                        'comparable'        => false,
-                        'visible_on_front'  => false,
-                        'unique'            => false,
-                    ),
                     'options_container' => array(
                         'group'             => 'Design',
                         'type'              => 'varchar',
@@ -1348,11 +1373,13 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Setup extends Mage_Eav_Model_Entity
                         'visible'                 => false,
                         'default'                 => false,
                         'used_in_product_listing' => true,
+                        'required' => false,
                     ),
                     'has_options' => array(
                         'type'    => 'static',
                         'visible' =>false,
                         'default' => false,
+                        'required' => false,
                     ),
                     'image_label' => array(
                         'type'              => 'varchar',

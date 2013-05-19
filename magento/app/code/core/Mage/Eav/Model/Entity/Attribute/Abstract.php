@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Eav
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -113,7 +113,7 @@ abstract class Mage_Eav_Model_Entity_Attribute_Abstract extends Mage_Core_Model_
             $entityTypeId = $entityType->getId();
         }
         if (empty($entityTypeId)) {
-            throw Mage::exception('Mage_Eav', Mage::helper('eav')->__('Invalid entity supplied'));
+            throw Mage::exception('Mage_Eav', Mage::helper('eav')->__('Invalid entity supplied.'));
         }
         $this->_getResource()->loadByCode($this, $entityTypeId, $code);
         $this->_afterLoad();
@@ -370,15 +370,21 @@ abstract class Mage_Eav_Model_Entity_Attribute_Abstract extends Mage_Core_Model_
             if (!$this->getSourceModel()) {
                 $this->setSourceModel($this->_getDefaultSourceModel());
             }
-            $this->_source = Mage::getModel($this->getSourceModel())
-                ->setAttribute($this);
+            $source = Mage::getModel($this->getSourceModel());
+            if (!$source) {
+                throw new Exception(sprintf('Source model "%s" not found for attribute "%s".',
+                    $this->getSourceModel(), $this->getAttributeCode()
+                ));
+            }
+            $this->_source = $source->setAttribute($this);
         }
         return $this->_source;
     }
 
     public function usesSource()
     {
-        return $this->getFrontendInput()==='select' || $this->getFrontendInput()==='multiselect';
+        return $this->getFrontendInput() === 'select' || $this->getFrontendInput() === 'multiselect'
+            || $this->getData('source_model') != '';
     }
 
     protected function _getDefaultBackendModel()

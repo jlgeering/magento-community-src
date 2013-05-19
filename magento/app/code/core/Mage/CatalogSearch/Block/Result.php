@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogSearch
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -58,10 +58,11 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
      */
     protected function _prepareLayout()
     {
-        $title = $this->__("Search results for: '%s'", $this->helper('catalogsearch')->getEscapedQueryText());
-
         // add Home breadcrumb
-        if ($breadcrumbs = $this->getLayout()->getBlock('breadcrumbs')) {
+        $breadcrumbs = $this->getLayout()->getBlock('breadcrumbs');
+        if ($breadcrumbs) {
+            $title = $this->__("Search results for: '%s'", $this->helper('catalogsearch')->getQueryText());
+
             $breadcrumbs->addCrumb('home', array(
                 'label' => $this->__('Home'),
                 'title' => $this->__('Go to Home Page'),
@@ -71,9 +72,22 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
                 'title' => $title
             ));
         }
+
+        // modify page title
+        $title = $this->__("Search results for: '%s'", $this->helper('catalogsearch')->getEscapedQueryText());
         $this->getLayout()->getBlock('head')->setTitle($title);
 
         return parent::_prepareLayout();
+    }
+
+    /**
+     * Retrieve additional blocks html
+     *
+     * @return string
+     */
+    public function getAdditionalHtml()
+    {
+        return $this->getLayout()->getBlock('search_result_list')->getChildHtml('additional');
     }
 
     /**
@@ -91,7 +105,8 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
      *
      * @return Mage_CatalogSearch_Block_Result
      */
-    public function setListOrders() {
+    public function setListOrders()
+    {
         $category = Mage::getSingleton('catalog/layer')
             ->getCurrentCategory();
         /* @var $category Mage_Catalog_Model_Category */
@@ -114,7 +129,8 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
      *
      * @return Mage_CatalogSearch_Block_Result
      */
-    public function setListModes() {
+    public function setListModes()
+    {
         $this->getListBlock()
             ->setModes(array(
                 'grid' => $this->__('Grid'),
@@ -128,9 +144,10 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
      *
      * @return Mage_CatalogSearch_Block_Result
      */
-    public function setListCollection() {
-        $this->getListBlock()
-           ->setCollection($this->_getProductCollection());
+    public function setListCollection()
+    {
+//        $this->getListBlock()
+//           ->setCollection($this->_getProductCollection());
        return $this;
     }
 
@@ -152,7 +169,7 @@ class Mage_CatalogSearch_Block_Result extends Mage_Core_Block_Template
     protected function _getProductCollection()
     {
         if (is_null($this->_productCollection)) {
-            $this->_productCollection = Mage::getSingleton('catalogsearch/layer')->getProductCollection();
+            $this->_productCollection = $this->getListBlock()->getLoadedProductCollection();
         }
 
         return $this->_productCollection;

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -125,8 +125,8 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Layer_Filter_Price extends Mage_Cor
 
         $table = $this->_getIndexTableAlias();
 
-        $additional     = join('', $response->getAdditionalCalculations());
-        $maxPriceExpr   = new Zend_Db_Expr("MAX({$table}.min_price {$additional})");
+        $additional   = join('', $response->getAdditionalCalculations());
+        $maxPriceExpr = new Zend_Db_Expr("MAX({$table}.min_price {$additional})");
 
         $select->columns(array($maxPriceExpr));
 
@@ -145,12 +145,11 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Layer_Filter_Price extends Mage_Cor
         $select     = $this->_getSelect($filter);
         $connection = $this->_getReadAdapter();
         $response   = $this->_dispatchPreparePriceEvent($filter, $select);
-
-        $table = $this->_getIndexTableAlias();
+        $table      = $this->_getIndexTableAlias();
 
         $additional = join('', $response->getAdditionalCalculations());
         $rate       = $filter->getCurrencyRate();
-        $countExpr  = new Zend_Db_Expr("COUNT(*)");
+        $countExpr  = new Zend_Db_Expr('COUNT(*)');
         $rangeExpr  = new Zend_Db_Expr("FLOOR((({$table}.min_price {$additional}) * {$rate}) / {$range}) + 1");
 
         $select->columns(array(
@@ -175,6 +174,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Layer_Filter_Price extends Mage_Cor
     {
         $collection = $filter->getLayer()->getProductCollection();
         $collection->addPriceData($filter->getCustomerGroupId(), $filter->getWebsiteId());
+
         $select     = $collection->getSelect();
         $response   = $this->_dispatchPreparePriceEvent($filter, $select);
 

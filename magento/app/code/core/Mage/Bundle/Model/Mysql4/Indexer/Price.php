@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Bundle
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -42,6 +42,7 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     public function reindexAll()
     {
+        $this->useIdxTable(true);
         $this->_prepareBundlePrice();
 
         return $this;
@@ -67,42 +68,10 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     protected function _getBundlePriceTable()
     {
-        return $this->getMainTable() . '_bundle';
-    }
-
-    /**
-     * Prepare temporary price index table for fixed bundle products
-     *
-     * @return Mage_Bundle_Model_Mysql4_Indexer_Price
-     */
-    protected function _prepareBundlePriceTable()
-    {
-        $write = $this->_getWriteAdapter();
-        $table = $this->_getBundlePriceTable();
-
-        $query = sprintf('DROP TABLE IF EXISTS %s', $write->quoteIdentifier($table));
-        $write->query($query);
-
-        $query = sprintf('CREATE TABLE %s ('
-            . ' `entity_id` INT(10) UNSIGNED NOT NULL,'
-            . ' `customer_group_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `website_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `tax_class_id` SMALLINT(5) UNSIGNED DEFAULT \'0\','
-            . ' `price_type` TINYINT(1) UNSIGNED NOT NULL,'
-            . ' `special_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `tier_percent` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `orig_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `min_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `max_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `tier_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `base_tier` DECIMAL(12,4) DEFAULT NULL,'
-            . ' PRIMARY KEY (`entity_id`,`customer_group_id`,`website_id`)'
-            . ') ENGINE=MYISAM DEFAULT CHARSET=utf8',
-            $write->quoteIdentifier($table));
-        $write->query($query);
-
-        return $this;
+        if ($this->useIdxTable()) {
+            return $this->getTable('bundle/price_indexer_idx');
+        }
+        return $this->getTable('bundle/price_indexer_tmp');
     }
 
     /**
@@ -112,7 +81,10 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     protected function _getBundleSelectionTable()
     {
-        return $this->getMainTable() . '_bndl_sel';
+        if ($this->useIdxTable()) {
+            return $this->getTable('bundle/selection_indexer_idx');
+        }
+        return $this->getTable('bundle/selection_indexer_tmp');
     }
 
     /**
@@ -122,7 +94,21 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     protected function _getBundleOptionTable()
     {
-        return $this->getMainTable() . '_bndl_opt';
+        if ($this->useIdxTable()) {
+            return $this->getTable('bundle/option_indexer_idx');
+        }
+        return $this->getTable('bundle/option_indexer_tmp');
+    }
+
+    /**
+     * Prepare temporary price index table for fixed bundle products
+     *
+     * @return Mage_Bundle_Model_Mysql4_Indexer_Price
+     */
+    protected function _prepareBundlePriceTable()
+    {
+        $this->_getWriteAdapter()->delete($this->_getBundlePriceTable());
+        return $this;
     }
 
     /**
@@ -132,27 +118,7 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     protected function _prepareBundleSelectionTable()
     {
-        $write = $this->_getWriteAdapter();
-        $table = $this->_getBundleSelectionTable();
-
-        $query = sprintf('DROP TABLE IF EXISTS %s', $write->quoteIdentifier($table));
-        $write->query($query);
-
-        $query = sprintf('CREATE TABLE %s ('
-            . ' `entity_id` INT(10) UNSIGNED NOT NULL,'
-            . ' `customer_group_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `website_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `option_id` INT(10) UNSIGNED DEFAULT \'0\','
-            . ' `selection_id` INT(10) UNSIGNED DEFAULT \'0\','
-            . ' `group_type` TINYINT(1) UNSIGNED DEFAULT \'0\','
-            . ' `is_required` TINYINT(1) UNSIGNED DEFAULT \'0\','
-            . ' `price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `tier_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' PRIMARY KEY (`entity_id`,`customer_group_id`,`website_id`, `option_id`, `selection_id`)'
-            . ') ENGINE=MYISAM DEFAULT CHARSET=utf8',
-            $write->quoteIdentifier($table));
-        $write->query($query);
-
+        $this->_getWriteAdapter()->delete($this->_getBundleSelectionTable());
         return $this;
     }
 
@@ -163,27 +129,7 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
      */
     protected function _prepareBundleOptionTable()
     {
-        $write = $this->_getWriteAdapter();
-        $table = $this->_getBundleOptionTable();
-
-        $query = sprintf('DROP TABLE IF EXISTS %s', $write->quoteIdentifier($table));
-        $write->query($query);
-
-        $query = sprintf('CREATE TABLE %s ('
-            . ' `entity_id` INT(10) UNSIGNED NOT NULL,'
-            . ' `customer_group_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `website_id` SMALLINT(5) UNSIGNED NOT NULL,'
-            . ' `option_id` INT(10) UNSIGNED DEFAULT \'0\','
-            . ' `min_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `alt_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `max_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `tier_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' `alt_tier_price` DECIMAL(12,4) DEFAULT NULL,'
-            . ' PRIMARY KEY (`entity_id`,`customer_group_id`,`website_id`, `option_id`)'
-            . ') ENGINE=MYISAM DEFAULT CHARSET=utf8',
-            $write->quoteIdentifier($table));
-        $write->query($query);
-
+        $this->_getWriteAdapter()->delete($this->_getBundleOptionTable());
         return $this;
     }
 
@@ -356,14 +302,21 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
         $write = $this->_getWriteAdapter();
 
         if ($priceType == Mage_Bundle_Model_Product_Price::PRICE_TYPE_FIXED) {
-            $priceExpr = new Zend_Db_Expr("IF(bs.selection_price_type = 1, "
-                . "ROUND(i.price * (bs.selection_price_value / 100), 4), IF(i.special_price > 0, "
-                . "ROUND(bs.selection_price_value * (i.special_price / 100), 4), bs.selection_price_value)) "
-                . "* bs.selection_qty");
-            $tierExpr = new Zend_Db_Expr("IF(i.base_tier IS NOT NULL, IF(bs.selection_price_type = 1, "
-                . "ROUND(i.base_tier - (i.base_tier * (bs.selection_price_value / 100)), 4), IF(i.tier_percent > 0, "
-                . "ROUND(bs.selection_price_value - (bs.selection_price_value * (i.tier_percent / 100)), 4), "
-                . "bs.selection_price_value)) * bs.selection_qty, NULL)");
+            $priceExpr = new Zend_Db_Expr("IF(IF(bsp.selection_price_type IS NULL, bs.selection_price_type, "
+                . "bsp.selection_price_type) = 1, "
+                . "ROUND(i.price * (IF(bsp.selection_price_value IS NULL, bs.selection_price_value, "
+                . "bsp.selection_price_value) / 100), 4), IF(i.special_price > 0, "
+                . "ROUND(IF(bsp.selection_price_value IS NULL, bs.selection_price_value, bsp.selection_price_value) "
+                . "* (i.special_price / 100), 4), IF(bsp.selection_price_value IS NULL, bs.selection_price_value, "
+                . "bsp.selection_price_value))) * bs.selection_qty");
+            $tierExpr = new Zend_Db_Expr("IF(i.base_tier IS NOT NULL, IF(IF(bsp.selection_price_type IS NULL, "
+                . "bs.selection_price_type, bsp.selection_price_type) = 1, "
+                . "ROUND(i.base_tier - (i.base_tier * (IF(bsp.selection_price_value IS NULL, bs.selection_price_value, "
+                . "bsp.selection_price_value) / 100)), 4), IF(i.tier_percent > 0, "
+                . "ROUND(IF(bsp.selection_price_value IS NULL, bs.selection_price_value, bsp.selection_price_value) "
+                . "- (IF(bsp.selection_price_value IS NULL, bs.selection_price_value, bsp.selection_price_value) "
+                . "* (i.tier_percent / 100)), 4), IF(bsp.selection_price_value IS NULL, bs.selection_price_value, "
+                . "bsp.selection_price_value))) * bs.selection_qty, NULL)");
         } else {
             $priceExpr = new Zend_Db_Expr("IF(i.special_price > 0, ROUND(idx.min_price * (i.special_price / 100), 4), "
                 . "idx.min_price) * bs.selection_qty");
@@ -383,6 +336,10 @@ class Mage_Bundle_Model_Mysql4_Indexer_Price
                 array('bs' => $this->getTable('bundle/selection')),
                 'bs.option_id = bo.option_id',
                 array('selection_id'))
+             ->joinLeft(
+                array('bsp' => $this->getTable('bundle/selection_price')),
+                'bs.selection_id = bsp.selection_id AND bsp.website_id = i.website_id',
+                array(''))
             ->join(
                 array('idx' => $this->getIdxTable()),
                 'bs.product_id = idx.entity_id AND i.customer_group_id = idx.customer_group_id'

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogInventory
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -96,7 +96,7 @@ class Mage_CatalogInventory_Model_Indexer_Stock extends Mage_Index_Model_Indexer
      */
     public function getName()
     {
-        return Mage::helper('cataloginventory')->__('Stock status');
+        return Mage::helper('cataloginventory')->__('Stock Status');
     }
 
     /**
@@ -106,7 +106,7 @@ class Mage_CatalogInventory_Model_Indexer_Stock extends Mage_Index_Model_Indexer
      */
     public function getDescription()
     {
-        return Mage::helper('cataloginventory')->__('Index product stock status');
+        return Mage::helper('cataloginventory')->__('Index Product Stock Status');
     }
 
     /**
@@ -248,25 +248,14 @@ class Mage_CatalogInventory_Model_Indexer_Stock extends Mage_Index_Model_Indexer
         /* @var $object Mage_CatalogInventory_Model_Stock_Item */
         $object      = $event->getDataObject();
 
-//        $properties = array(
-//            'manage_stock',
-//            'use_config_manage_stock',
-//            'is_in_stock'
-//        );
-
-//        $reindexStock = false;
-//        foreach ($properties as $property) {
-//            if ($event->dataHasChangedFor($property)) {
-//                $reindexStock = true;
-//                break;
-//            }
-//        }
-
         $event->addNewData('reindex_stock', 1);
         $event->addNewData('product_id', $object->getProductId());
 
-//        if ($reindexStock && !Mage::helper('cataloginventory')->isShowOutOfStock()) {
-//        }
+        // Saving stock item without product object
+        // Register re-index price process if products out of stock hidden on Front-end
+        if (!Mage::helper('cataloginventory')->isShowOutOfStock() && !$object->getProduct()) {
+            $event->addNewData('force_reindex_required', 1);
+        }
 
         return $this;
     }

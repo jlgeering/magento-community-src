@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -128,6 +128,11 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
         }
 
         /**
+         * Initialize catalog rule data
+         */
+        $this->_getOrderCreateModel()->initRuleData();
+
+        /**
          * init first billing address, need for virtual products
          */
         $this->_getOrderCreateModel()->getBillingAddress();
@@ -217,7 +222,6 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
         Mage::dispatchEvent('adminhtml_sales_order_create_process_data', $eventData);
 
         $this->_getOrderCreateModel()
-            ->initRuleData()
             ->saveQuote();
 
         if ($paymentData = $this->getRequest()->getPost('payment')) {
@@ -252,7 +256,7 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
             if ($this->_getQuote()->getCouponCode() !== $data['coupon']['code']) {
                 $this->_getSession()->addError($this->__('"%s" coupon code is not valid.', $data['coupon']['code']));
             } else {
-                $this->_getSession()->addSuccess($this->__('Coupon code accepted.'));
+                $this->_getSession()->addSuccess($this->__('The coupon code has been accepted.'));
             }
         }
 
@@ -265,10 +269,10 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
     public function indexAction()
     {
         $this->_title($this->__('Sales'))->_title($this->__('Orders'))->_title($this->__('New Order'));
+        $this->_initSession();
         $this->loadLayout();
 
-        $this->_initSession()
-            ->_setActiveMenu('sales/order')
+        $this->_setActiveMenu('sales/order')
             ->renderLayout();
     }
 
@@ -314,7 +318,6 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
         }
         catch (Exception $e){
             $this->_reloadQuote();
-//            $this->_getSession()->addException($e, $this->__('Processing data problem'));
             $this->_getSession()->addException($e, $e->getMessage());
         }
 
@@ -382,11 +385,12 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
             }
 
             $order = $this->_getOrderCreateModel()
+                ->setIsValidate(true)
                 ->importPostData($this->getRequest()->getPost('order'))
                 ->createOrder();
 
             $this->_getSession()->clear();
-            Mage::getSingleton('adminhtml/session')->addSuccess($this->__('Order has been successfully created'));
+            Mage::getSingleton('adminhtml/session')->addSuccess($this->__('The order has been created.'));
             $this->_redirect('*/sales_order/view', array('order_id' => $order->getId()));
         }
         catch (Mage_Core_Exception $e){

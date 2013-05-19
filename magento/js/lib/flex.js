@@ -17,8 +17,10 @@
  * versions in the future. If you wish to customize Magento for your
  * needs please refer to http://www.magentocommerce.com for more information.
  *
- * @copyright  Copyright (c) 2008 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
- * @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @category    Mage
+ * @package     js
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
 /**
@@ -181,7 +183,7 @@ Flex.Object = Class.create({
      */
     initialize: function (config) {
         this.isIE  = Prototype.Browser.IE;
-        this.isWin = navigator.appVersion.match(/win/i).length > 0;
+        this.isWin = (navigator.appVersion.toLowerCase().indexOf("win") != -1) ? true : false;
         this.attributes = {
              quality:"high",
              pluginspage: "http://www.adobe.com/go/getflashplayer",

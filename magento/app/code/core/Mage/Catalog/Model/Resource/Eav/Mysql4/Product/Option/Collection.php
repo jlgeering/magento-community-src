@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -133,6 +133,18 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Option_Collection
             $this->addFieldToFilter('product_id', $product);
         }
 
+        return $this;
+    }
+
+    /**
+     * Add filtering by option ids
+     *
+     * @param mixed $optionIds
+     * @return Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Option_Collection
+     */
+    public function addIdsToFilter($optionIds)
+    {
+        $this->addFieldToFilter('main_table.option_id', $optionIds);
         return $this;
     }
 

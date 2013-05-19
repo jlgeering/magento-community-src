@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -726,17 +726,26 @@ class Mage_Core_Model_Design_Package
     {
         // check absolute or relative url
         if (!preg_match('/^[http|https]/i', $uri) && !preg_match('/^\//i', $uri)) {
-
             $fileDir = '';
             $pathParts = explode(DS, $uri);
             $fileDirParts = explode(DS, $this->_callbackFileDir);
-            $baseUrl = Mage::getBaseUrl('web');
+            $store = $this->getStore();
+            $secure = $store->isAdmin() ? $store->isAdminUrlSecure() : $store->isFrontUrlSecure();
+
+            if ('skin' == $fileDirParts[0]) {
+                $baseUrl = Mage::getBaseUrl('skin', $secure);
+                $fileDirParts = array_slice($fileDirParts, 1);
+            } elseif ('media' == $fileDirParts[0]) {
+                $baseUrl = Mage::getBaseUrl('media', $secure);
+                $fileDirParts = array_slice($fileDirParts, 1);
+            } else {
+                $baseUrl = Mage::getBaseUrl('web', $secure);
+            }
 
             foreach ($pathParts as $key=>$part) {
                 if ($part == '.' || $part == '..') {
                     unset($pathParts[$key]);
                 }
-
                 if ($part == '..' && count($fileDirParts)) {
                     $fileDirParts = array_slice($fileDirParts, 0, count($fileDirParts) - 1);
                 }

@@ -19,7 +19,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -1017,6 +1017,31 @@ function initDisableFields(fieldContainer) {
 function onCompleteDisableInited() {
     onInitDisableFieldsList.each( function(item) {
         disableFieldEditMode(item);
+    });
+}
+
+function onUrlkeyChanged(urlKey) {
+    urlKey = $(urlKey);
+    var hidden = urlKey.next('input[type=hidden]');
+    var chbx = urlKey.next('input[type=checkbox]');
+    var oldValue = chbx.value;
+    chbx.disabled = (oldValue == urlKey.value);
+    hidden.disabled = chbx.disabled;
+}
+
+function onCustomUseParentChanged(element) {
+    var useParent = (element.value == 1) ? true : false;
+    element.up(2).select('input', 'select', 'textarea').each(function(el){
+        if (element.id != el.id) {
+            el.disabled = useParent;
+        }
+    });
+    element.up(2).select('img').each(function(el){
+        if (useParent) {
+            el.hide();
+        } else {
+            el.show();
+        }
     });
 }
 

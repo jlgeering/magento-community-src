@@ -19,7 +19,7 @@
  *
  * @category    design
  * @package     base_default
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if(typeof Product=='undefined') {
@@ -33,7 +33,7 @@ Product.Bundle.prototype = {
         this.reloadPrice();
     },
     changeSelection: function(selection){
-        parts = selection.id.split('-');
+        var parts = selection.id.split('-');
         if (this.config['options'][parts[2]].isMulti) {
             selected = new Array();
             if (selection.tagName == 'SELECT') {
@@ -77,11 +77,6 @@ Product.Bundle.prototype = {
             }
         }
 
-        if (this.config.specialPrice) {
-            var newPrice = (calculatedPrice*this.config.specialPrice)/100;
-            calculatedPrice = Math.min(newPrice, calculatedPrice);
-        }
-
         optionsPrice.changePrice('bundle', calculatedPrice);
         optionsPrice.changePrice('nontaxable', dispositionPrice);
         optionsPrice.reload();
@@ -93,7 +88,7 @@ Product.Bundle.prototype = {
         if (selectionId == '' || selectionId == 'none') {
             return 0;
         }
-
+        var qty = null;
         if (this.config.options[optionId].selections[selectionId].customQty == 1 && !this.config['options'][optionId].isMulti) {
             if ($('bundle-option-' + optionId + '-qty-input')) {
                 qty = $('bundle-option-' + optionId + '-qty-input').value;
@@ -127,6 +122,11 @@ Product.Bundle.prototype = {
         var disposition = this.config.options[optionId].selections[selectionId].plusDisposition +
             this.config.options[optionId].selections[selectionId].minusDisposition;
 
+        if (this.config.specialPrice) {
+            newPrice = (price*this.config.specialPrice)/100;
+            newPrice = (Math.round(newPrice*100)/100).toString();
+            price = Math.min(newPrice, price);
+        }
         var result = new Array(price*qty, disposition*qty);
         return result;
     },
@@ -174,7 +174,7 @@ Product.Bundle.prototype = {
     },
 
     validationCallback: function (elmId, result){
-        if (typeof elmId == 'undefined') {
+        if (elmId == undefined || $(elmId) == undefined) {
             return;
         }
         var container = $(elmId).up('ul.options-list');

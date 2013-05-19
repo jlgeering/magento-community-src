@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogSearch
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -31,13 +31,34 @@
 class Mage_CatalogSearch_Block_Layer extends Mage_Catalog_Block_Layer_View
 {
     /**
+     * Internal constructor
+     */
+    protected function _construct()
+    {
+        parent::_construct();
+        Mage::register('current_layer', $this->getLayer());
+    }
+
+    /**
      * Get attribute filter block name
+     *
+     * @deprecated after 1.4.1.0
      *
      * @return string
      */
     protected function _getAttributeFilterBlockName()
     {
         return 'catalogsearch/layer_filter_attribute';
+    }
+
+    /**
+     * Initialize blocks names
+     */
+    protected function _initBlocks()
+    {
+        parent::_initBlocks();
+
+        $this->_attributeFilterBlockName = 'catalogsearch/layer_filter_attribute';
     }
 
     /**
@@ -57,8 +78,12 @@ class Mage_CatalogSearch_Block_Layer extends Mage_Catalog_Block_Layer_View
      */
     public function canShowBlock()
     {
+        $_isLNAllowedByEngine = Mage::helper('catalogsearch')->getEngine()->isLeyeredNavigationAllowed();
+        if (!$_isLNAllowedByEngine) {
+            return false;
+        }
         $availableResCount = (int) Mage::app()->getStore()
-            ->getConfig(Mage_CatalogSearch_Model_Layer::XML_PATH_DISPLAY_LAYER_COUNT );
+            ->getConfig(Mage_CatalogSearch_Model_Layer::XML_PATH_DISPLAY_LAYER_COUNT);
 
         if (!$availableResCount
             || ($availableResCount>=$this->getLayer()->getProductCollection()->getSize())) {

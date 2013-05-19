@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -44,11 +44,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
         parent::__construct();
         $resource = Mage::getSingleton('core/resource');
         $this->setType('catalog_product')
-            ->setConnection(
-                $resource->getConnection('catalog_read'),
-                $resource->getConnection('catalog_write')
-            );
-
+            ->setConnection('catalog_read', 'catalog_write');
         $this->_productWebsiteTable = $resource->getTableName('catalog/product_website');
         $this->_productCategoryTable= $resource->getTableName('catalog/category_product');
     }
@@ -99,7 +95,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
      */
     public function getIdBySku($sku)
     {
-         return $this->_read->fetchOne('select entity_id from '.$this->getEntityTable().' where sku=?', $sku);
+         return $this->_getReadAdapter()->fetchOne('select entity_id from '.$this->getEntityTable().' where sku=?', $sku);
     }
 
     /**
@@ -333,7 +329,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
         $indexTable = $this->getTable('catalog/product_enabled_index');
         if (is_null($store) && is_null($product)) {
             Mage::throwException(
-                Mage::helper('catalog')->__('For reindex enabled product(s) you need specify store or product')
+                Mage::helper('catalog')->__('To reindex the enabled product(s), the store or product must be specified.')
             );
         } elseif (is_null($product) || is_array($product)) {
             $storeId    = $store->getId();
@@ -456,11 +452,15 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
     /**
      * Validate all object's attributes against configuration
      *
+     * @todo implement full validation process with errors returning which are ignoring now
+     *
      * @param Varien_Object $object
      * @return Varien_Object
      */
     public function validate($object)
     {
+//        $this->walkAttributes('backend/beforeSave', array($object));
+//        return parent::validate($object);
         parent::validate($object);
         return $this;
     }
@@ -489,6 +489,7 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
      */
     public function duplicate($oldId, $newId)
     {
+        $adapter = $this->_getWriteAdapter();
         $eavTables = array('datetime', 'decimal', 'int', 'text', 'varchar');
 
         // duplicate EAV store values
@@ -497,33 +498,36 @@ class Mage_Catalog_Model_Resource_Eav_Mysql4_Product extends Mage_Catalog_Model_
             $sql = 'REPLACE INTO `' . $tableName . '` '
                 . 'SELECT NULL, `entity_type_id`, `attribute_id`, `store_id`, ' . $newId . ', `value`'
                 . 'FROM `' . $tableName . '` WHERE `entity_id`=' . $oldId . ' AND `store_id`>0';
-            $this->_getWriteAdapter()->query($sql);
+            $adapter->query($sql);
         }
 
+        // set status as disabled
+        $statusAttribute      = $this->getAttribute('status');
+        $statusAttributeId    = $statusAttribute->getAttributeId();
+        $statusAttributeTable = $statusAttribute->getBackend()->getTable();
+        $updateCond[]         = 'store_id > 0';
+        $updateCond[]         = $adapter->quoteInto('entity_id = ?', $newId);
+        $updateCond[]         = $adapter->quoteInto('attribute_id = ?', $statusAttributeId);
+        $adapter->update(
+            $statusAttributeTable,
+            array('value' => Mage_Catalog_Model_Product_Status::STATUS_DISABLED),
+            $updateCond
+        );
+        
         return $this;
     }
 
-    public function getParentProductIds($object)
+    /**
+     * Get SKU through product identifiers
+     *
+     * @param  array $productIds
+     * @return array
+     */
+    public function getProductsSku(array $productIds)
     {
-        $childId = $object->getId();
-
-        $groupedProductsTable = $this->getTable('catalog/product_link');
-        $groupedLinkTypeId = Mage_Catalog_Model_Product_Link::LINK_TYPE_GROUPED;
-
-        $configurableProductsTable = $this->getTable('catalog/product_super_link');
-
-        $groupedSelect = $this->_getReadAdapter()->select()
-            ->from(array('g'=>$groupedProductsTable), 'g.product_id')
-            ->where("g.linked_product_id = ?", $childId)
-            ->where("link_type_id = ?", $groupedLinkTypeId);
-
-        $groupedIds = $this->_getReadAdapter()->fetchCol($groupedSelect);
-
-        $configurableSelect = $this->_getReadAdapter()->select()
-            ->from(array('c'=>$configurableProductsTable), 'c.parent_id')
-            ->where("c.product_id = ?", $childId);
-
-        $configurableIds = $this->_getReadAdapter()->fetchCol($configurableSelect);
-        return array_merge($groupedIds, $configurableIds);
+        $select = $this->_getReadAdapter()->select()
+            ->from($this->getTable('catalog/product'), array('entity_id', 'sku'))
+            ->where('entity_id IN (?)', $productIds);
+        return $this->_getReadAdapter()->fetchAll($select);
     }
 }

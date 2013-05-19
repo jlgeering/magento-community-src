@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -43,6 +43,13 @@ class Mage_Catalog_Block_Product_New extends Mage_Catalog_Block_Product_Abstract
     protected function _construct()
     {
         parent::_construct();
+
+        $this->addColumnCountLayoutDepend('empty', 6)
+            ->addColumnCountLayoutDepend('one_column', 5)
+            ->addColumnCountLayoutDepend('two_columns_left', 4)
+            ->addColumnCountLayoutDepend('two_columns_right', 4)
+            ->addColumnCountLayoutDepend('three_columns', 3);
+
         $this->addData(array(
             'cache_lifetime'    => 86400,
             'cache_tags'        => array(Mage_Catalog_Model_Product::CACHE_TAG),
@@ -50,18 +57,21 @@ class Mage_Catalog_Block_Product_New extends Mage_Catalog_Block_Product_Abstract
     }
 
     /**
-     * Retrieve Key for caching block content
+     * Get Key pieces for caching block content
      *
-     * @return string
+     * @return array
      */
-    public function getCacheKey()
+    public function getCacheKeyInfo()
     {
-        return 'CATALOG_PRODUCT_NEW_' . Mage::app()->getStore()->getId()
-            . '_' . Mage::getDesign()->getPackageName()
-            . '_' . Mage::getDesign()->getTheme('template')
-            . '_' . Mage::getSingleton('customer/session')->getCustomerGroupId()
-            . '_' . md5($this->getTemplate())
-            . '_' . $this->getProductsCount();
+        return array(
+           'CATALOG_PRODUCT_NEW',
+           Mage::app()->getStore()->getId(),
+           Mage::getDesign()->getPackageName(),
+           Mage::getDesign()->getTheme('template'),
+           Mage::getSingleton('customer/session')->getCustomerGroupId(),
+           'template' => $this->getTemplate(),
+           $this->getProductsCount()
+        );
     }
 
     /**

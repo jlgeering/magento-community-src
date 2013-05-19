@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -615,7 +615,7 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
                 } elseif ('websites' == $scope) {
                     $scopeCode = Mage::app()->getWebsite($scopeCode)->getCode();
                 } else {
-                    Mage::throwException(Mage::helper('core')->__('Unknown scope "%s"', $scope));
+                    Mage::throwException(Mage::helper('core')->__('Unknown scope "%s".', $scope));
                 }
             }
             $path = $scope . ($scopeCode ? '/' . $scopeCode : '' ) . (empty($path) ? '' : '/' . $path);
@@ -755,7 +755,7 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
             $depends = $moduleProps['depends'];
             foreach ($moduleProps['depends'] as $depend => $true) {
                 if ($moduleProps['active'] && ((!isset($modules[$depend])) || empty($modules[$depend]['active']))) {
-                    Mage::throwException(Mage::helper('core')->__('Module "%1$s" requires module "%2$s"', $moduleName, $depend));
+                    Mage::throwException(Mage::helper('core')->__('Module "%1$s" requires module "%2$s".', $moduleName, $depend));
                 }
                 $depends = array_merge($depends, $modules[$depend]['depends']);
             }
@@ -779,7 +779,7 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
             foreach ($moduleProp['depends'] as $dependModule => $true) {
                 if (!isset($definedModules[$dependModule])) {
                     Mage::throwException(
-                        Mage::helper('core')->__('Module "%1$s" can not be depended from "%2$s"', $moduleProp['module'], $dependModule)
+                        Mage::helper('core')->__('Module "%1$s" cannot depend on "%2$s".', $moduleProp['module'], $dependModule)
                     );
                 }
             }
@@ -812,21 +812,23 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
 
         $name = explode('_', strtolower($name));
         $partsNum = count($name);
-        $i = 0;
+        $defaultNamespaceFlag = false;
         foreach ($this->_moduleNamespaces as $namespaceName => $namespace) {
             // assume the namespace is omitted (default namespace only, which comes first)
-            if (0 === $i) {
+            if ($defaultNamespaceFlag === false) {
+                $defaultNamespaceFlag = true;
                 $defaultNS = $namespaceName . '_' . $name[0];
                 if (isset($namespace[$defaultNS])) {
                     return $asFullModuleName ? $namespace[$defaultNS] : $name[0]; // return omitted as well
                 }
             }
             // assume namespace is qualified
-            $fullNS = $name[0] . '_' . $name[1];
-            if (2 <= $partsNum && isset($namespace[$fullNS])) {
-                return $asFullModuleName ? $namespace[$fullNS] : $fullNS;
+            if(isset($name[1])) {
+                $fullNS = $name[0] . '_' . $name[1];
+                if (2 <= $partsNum && isset($namespace[$fullNS])) {
+                    return $asFullModuleName ? $namespace[$fullNS] : $fullNS;
+                }
             }
-            $i++;
         }
         return '';
     }
@@ -1207,7 +1209,7 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
             Varien_Profiler::stop('CORE::create_object_of::'.$className);
             return $obj;
         } else {
-            #throw Mage::exception('Mage_Core', Mage::helper('core')->__('Model class does not exist: %s', $modelClass));
+            #throw Mage::exception('Mage_Core', Mage::helper('core')->__('Model class does not exist: %s.', $modelClass));
             return false;
         }
     }

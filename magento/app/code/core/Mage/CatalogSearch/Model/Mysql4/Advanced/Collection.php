@@ -20,16 +20,21 @@
  *
  * @category    Mage
  * @package     Mage_CatalogSearch
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
 class Mage_CatalogSearch_Model_Mysql4_Advanced_Collection extends Mage_Catalog_Model_Resource_Eav_Mysql4_Product_Collection
 {
+    /**
+     * Add not indexable fields to search
+     *
+     * @param array $fields
+     * @return Mage_CatalogSearch_Model_Mysql4_Advanced_Collection
+     */
     public function addFieldsToFilter($fields)
     {
         if ($fields) {
-            /*$entityIds = null;*/
             $previousSelect = null;
             foreach ($fields as $table => $conditions) {
                 foreach ($conditions as $attributeId => $conditionValue) {
@@ -102,27 +107,8 @@ class Mage_CatalogSearch_Model_Mysql4_Advanced_Collection extends Mage_Catalog_M
                     }
                     $previousSelect = $select;
                 }
-
-                /*if (!is_null($entityIds) && $entityIds) {
-                    $select->where('t1.entity_id IN(?)', $entityIds);
-                }
-                elseif (!is_null($entityIds) && !$entityIds) {
-                    continue;
-                }
-
-                $entityIds = array();
-                $rowSet = $this->getConnection()->fetchAll($select);
-                foreach ($rowSet as $row) {
-                    $entityIds[] = $row['entity_id'];
-                }*/
             }
 
-            /*if ($entityIds) {
-                $this->addFieldToFilter('entity_id', array('IN', $entityIds));
-            }
-            else {
-                $this->addFieldToFilter('entity_id', 'IS NULL');
-            }*/
             $this->addFieldToFilter('entity_id', array('in' => new Zend_Db_Expr($select)));
         }
 

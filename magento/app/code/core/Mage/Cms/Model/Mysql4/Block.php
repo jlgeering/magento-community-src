@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Cms
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -48,7 +48,7 @@ class Mage_Cms_Model_Mysql4_Block extends Mage_Core_Model_Mysql4_Abstract
     protected function _beforeSave(Mage_Core_Model_Abstract $object)
     {
         if (!$this->getIsUniqueBlockToStores($object)) {
-            Mage::throwException(Mage::helper('cms')->__('Such a block identifier in selected store already exist.'));
+            Mage::throwException(Mage::helper('cms')->__('A block identifier with the same properties already exists in the selected store.'));
         }
 
         if (! $object->getId()) {
@@ -92,16 +92,18 @@ class Mage_Cms_Model_Mysql4_Block extends Mage_Core_Model_Mysql4_Abstract
      */
     protected function _afterLoad(Mage_Core_Model_Abstract $object)
     {
-        $select = $this->_getReadAdapter()->select()
-            ->from($this->getTable('cms/block_store'))
-            ->where('block_id = ?', $object->getId());
+        if ($object->getId()) {
+            $select = $this->_getReadAdapter()->select()
+                ->from($this->getTable('cms/block_store'))
+                ->where('block_id = ?', $object->getId());
 
-        if ($data = $this->_getReadAdapter()->fetchAll($select)) {
-            $storesArray = array();
-            foreach ($data as $row) {
-                $storesArray[] = $row['store_id'];
+            if ($data = $this->_getReadAdapter()->fetchAll($select)) {
+                $storesArray = array();
+                foreach ($data as $row) {
+                    $storesArray[] = $row['store_id'];
+                }
+                $object->setData('store_id', $storesArray);
             }
-            $object->setData('store_id', $storesArray);
         }
 
         return parent::_afterLoad($object);

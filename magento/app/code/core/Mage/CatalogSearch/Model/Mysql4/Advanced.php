@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogSearch
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -79,11 +79,49 @@ class Mage_CatalogSearch_Model_Mysql4_Advanced extends Mage_Core_Model_Mysql4_Ab
     }
 
     /**
+     * Prepare search condition for attribute
+     *
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @param string|array $value
+     * @param Mage_CatalogSearch_Model_Mysql4_Advanced_Collection $collection
+     *
+     * @return mixed
+     */
+    public function prepareCondition($attribute, $value, $collection)
+    {
+        $condition = false;
+
+        if (is_array($value)) {
+            if (!empty($value['from']) || !empty($value['to'])) { // range
+                $condition = $value;
+            } else if ($attribute->getBackendType() == 'varchar') { // multiselect
+                $condition = array('in_set' => $value);
+            } else if (!isset($value['from']) && !isset($value['to'])) { // select
+                $condition = array('in' => $value);
+            }
+        } else {
+            if (strlen($value) > 0) {
+                if (in_array($attribute->getBackendType(), array('varchar', 'text', 'static'))) {
+                    $condition = array('like' => '%' . $value . '%'); // text search
+                } else {
+                    $condition = $value;
+                }
+            }
+        }
+
+        return $condition;
+    }
+
+    /**
      * Add filter by attribute price
+     *
+     * @deprecated after 1.4.1.0 - use $this->addRatedPriceFilter()
      *
      * @param Mage_CatalogSearch_Model_Advanced $object
      * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
      * @param string|array $value
+     *
+     * @return bool
      */
     public function addPriceFilter($object, $attribute, $value)
     {
@@ -123,21 +161,69 @@ class Mage_CatalogSearch_Model_Mysql4_Advanced extends Mage_Core_Model_Mysql4_Ab
     }
 
     /**
+     * Add filter by attribute rated price
+     *
+     * @param Mage_CatalogSearch_Model_Mysql4_Advanced_Collection $collection
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @param string|array $value
+     * @param int $rate
+     *
+     * @return bool
+     */
+    public function addRatedPriceFilter($collection, $attribute, $value, $rate = 1)
+    {
+        $adapter = $this->_getReadAdapter();
+
+        $conditions = array();
+        if (strlen($value['from']) > 0) {
+            $conditions[] = $adapter->quoteInto('price_index.min_price %s * %s >= ?', $value['from']);
+        }
+        if (strlen($value['to']) > 0) {
+            $conditions[] = $adapter->quoteInto('price_index.min_price %s * %s <= ?', $value['to']);
+        }
+
+        if (!$conditions) {
+            return false;
+        }
+
+        $collection->addPriceData();
+        $select     = $collection->getSelect();
+        $response   = $this->_dispatchPreparePriceEvent($select);
+        $additional = join('', $response->getAdditionalCalculations());
+
+        foreach ($conditions as $condition) {
+            $select->where(sprintf($condition, $additional, $rate));
+        }
+
+        return true;
+    }
+
+    /**
      * Add filter by indexable attribute
+     *
+     * @deprecated after 1.4.1.0 - use $this->addIndexableAttributeModifiedFilter()
      *
      * @param Mage_CatalogSearch_Model_Advanced $object
      * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
      * @param string|array $value
+     *
+     * @return bool
      */
     public function addIndexableAttributeFilter($object, $attribute, $value)
     {
-        if (is_string($value) && strlen($value) == 0) {
-            return false;
-        }
-        if (is_array($value) && (isset($value['from']) || isset($value['to']))) {
-            return false;
-        }
+        return $this->addIndexableAttributeModifiedFilter($object, $attribute, $value);
+    }
 
+    /**
+     *
+     * @param Mage_CatalogSearch_Model_Mysql4_Advanced_Collection $collection
+     * @param Mage_Catalog_Model_Resource_Eav_Attribute $attribute
+     * @param string|array $value
+     *
+     * @return bool
+     */
+    public function addIndexableAttributeModifiedFilter($collection, $attribute, $value)
+    {
         if ($attribute->getIndexType() == 'decimal') {
             $table = $this->getTable('catalog/product_index_eav_decimal');
         } else {
@@ -146,7 +232,15 @@ class Mage_CatalogSearch_Model_Mysql4_Advanced extends Mage_Core_Model_Mysql4_Ab
 
         $tableAlias = 'ast_' . $attribute->getAttributeCode();
         $storeId    = Mage::app()->getStore()->getId();
-        $select     = $object->getProductCollection()->getSelect();
+        $select     = $collection->getSelect();
+
+        if (is_array($value)) {
+            if (isset($value['from']) && isset($value['to'])) {
+                if (empty($value['from']) && empty($value['to'])) {
+                    return false;
+                }
+            }
+        }
 
         $select->distinct(true);
         $select->join(
@@ -155,6 +249,17 @@ class Mage_CatalogSearch_Model_Mysql4_Advanced extends Mage_Core_Model_Mysql4_Ab
                 . " AND {$tableAlias}.store_id={$storeId}",
             array()
         );
+
+        if (is_array($value) && (isset($value['from']) || isset($value['to']))) {
+            if (isset($value['from']) && !empty($value['from'])) {
+                $select->where("{$tableAlias}.`value` >= ?", $value['from']);
+            }
+            if (isset($value['to']) && !empty($value['to'])) {
+                $select->where("{$tableAlias}.`value` <= ?", $value['to']);
+            }
+            return true;
+        }
+
         $select->where("{$tableAlias}.`value` IN(?)", $value);
 
         return true;

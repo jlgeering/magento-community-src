@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogSearch
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -31,6 +31,20 @@
  */
 class Mage_CatalogSearch_Model_Query extends Mage_Core_Model_Abstract
 {
+    /**
+     * Event prefix
+     *
+     * @var string
+     */
+    protected $_eventPrefix = 'catalogsearch_query';
+
+    /**
+     * Event object key name
+     *
+     * @var string
+     */
+    protected $_eventObject = 'catalogsearch_query';
+
     const CACHE_TAG                     = 'SEARCH_QUERY';
     const XML_PATH_MIN_QUERY_LENGTH     = 'catalog/search/min_query_length';
     const XML_PATH_MAX_QUERY_LENGTH     = 'catalog/search/max_query_length';
@@ -112,7 +126,7 @@ class Mage_CatalogSearch_Model_Query extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Load Query object only by query text (skip 'synonym for')
+     * Load Query object only by query text (skip 'synonym For')
      *
      * @param string $text
      * @return Mage_CatalogSearch_Model_Query

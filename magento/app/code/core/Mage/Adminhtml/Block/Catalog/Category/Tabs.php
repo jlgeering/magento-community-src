@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -94,6 +94,15 @@ class Mage_Adminhtml_Block_Catalog_Category_Tabs extends Mage_Adminhtml_Block_Wi
     protected function _prepareLayout()
     {
         $categoryAttributes = $this->getCategory()->getAttributes();
+        if (!$this->getCategory()->getId()) {
+            foreach ($categoryAttributes as $attribute) {
+                $default = $attribute->getDefaultValue();
+                if ($default != '') {
+                    $this->getCategory()->setData($attribute->getAttributeCode(), $default);
+                }
+            }
+        }
+
         $attributeSetId     = $this->getCategory()->getDefaultAttributeSetId();
         $groupCollection    = Mage::getResourceModel('eav/entity_attribute_group_collection')
             ->setAttributeSetFilter($attributeSetId)

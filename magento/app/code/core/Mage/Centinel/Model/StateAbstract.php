@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Centinel
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -64,8 +64,8 @@ abstract class Mage_Centinel_Model_StateAbstract extends Varien_Object
      * If $key is empty will return all the data as an array
      * Otherwise it will return value of the attribute specified by $key
      *
-     * If $index is specified it will assume that attribute data is an array
-     * and retrieve corresponding member.
+     * $index parameter is ignored
+     * @see Mage_Core_Model_Session_Abstract::getData()
      *
      * @param string $key
      * @param string|int $index
@@ -73,7 +73,7 @@ abstract class Mage_Centinel_Model_StateAbstract extends Varien_Object
      */
     public function getData($key='', $index=null)
     {
-        return $this->getDataStorage()->getData($key, $index);
+        return $this->getDataStorage()->getData($key);
     }
 
     /**
@@ -128,7 +128,29 @@ abstract class Mage_Centinel_Model_StateAbstract extends Varien_Object
      *
      * @return bool
      */
-    abstract public function isLookupSuccessful();
+    final public function isLookupSuccessful()
+    {
+        if ($this->_isLookupStrictSuccessful()) {
+            return true;
+        } elseif (!$this->getIsModeStrict() && $this->_isLookupSoftSuccessful()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Analyse lookup`s results. If lookup is strict successful return true
+     *
+     * @return bool
+     */
+    abstract protected function _isLookupStrictSuccessful();
+
+    /**
+     * Analyse lookup`s results. If lookup is soft successful return true
+     *
+     * @return bool
+     */
+    abstract protected function _isLookupSoftSuccessful();
 
     /**
      * Analyse lookup`s results. If it has require params for authenticate, return true

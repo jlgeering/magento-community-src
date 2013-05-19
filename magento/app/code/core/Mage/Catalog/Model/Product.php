@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -128,7 +128,7 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
     public function getResourceCollection()
     {
         if (empty($this->_resourceCollectionName)) {
-            Mage::throwException(Mage::helper('core')->__('Model collection resource name is not defined'));
+            Mage::throwException(Mage::helper('core')->__('The model collection resource name is not defined.'));
         }
         $collection = Mage::getResourceModel($this->_resourceCollectionName);
         $collection->setStoreId($this->getStoreId());
@@ -151,10 +151,17 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
     /**
      * Validate Product Data
      *
+     * @todo implement full validation process with errors returning which are ignoring now
+     *
      * @return Mage_Catalog_Model_Product
      */
     public function validate()
     {
+//        $this->getAttributes();
+//        Mage::dispatchEvent($this->_eventPrefix.'_validate_before', array($this->_eventObject=>$this));
+//        $result = $this->_getResource()->validate($this);
+//        Mage::dispatchEvent($this->_eventPrefix.'_validate_after', array($this->_eventObject=>$this));
+//        return $result;
         Mage::dispatchEvent($this->_eventPrefix.'_validate_before', array($this->_eventObject=>$this));
         $this->_getResource()->validate($this);
         Mage::dispatchEvent($this->_eventPrefix.'_validate_after', array($this->_eventObject=>$this));
@@ -308,7 +315,7 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
             $ids = explode(',', $ids);
         }
         elseif (!is_array($ids)) {
-            Mage::throwException(Mage::helper('catalog')->__('Invalid category IDs'));
+            Mage::throwException(Mage::helper('catalog')->__('Invalid category IDs.'));
         }
         foreach ($ids as $i => $v) {
             if (empty($v)) {
@@ -639,6 +646,19 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
     public function getFormatedPrice()
     {
         return $this->getPriceModel()->getFormatedPrice($this);
+    }
+
+    /**
+     * Sets final price of product
+     *
+     * This func is equal to magic 'setFinalPrice()', but added as a separate func, because in cart with bundle products it's called
+     * very often in Item->getProduct(). So removing chaing of magic with more cpu consuming algorithms gives nice optimization boost.
+     *
+     * @return array
+     */
+    public function setFinalPrice($price)
+    {
+        $this->_data['final_price'] = $price;
     }
 
     /**
@@ -1181,7 +1201,7 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
             'product'   => $this
         ));
 
-        $salable = $this->getTypeInstance(true)->isSalable($this);
+        $salable = $this->isAvailable();
 
         $object = new Varien_Object(array(
             'product'    => $this,
@@ -1195,6 +1215,16 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
     }
 
     /**
+     * Check whether the product type or stock allows to purchase the product
+     *
+     * @return bool
+     */
+    public function isAvailable()
+    {
+        return $this->getTypeInstance(true)->isSalable($this);
+    }
+
+    /**
      * Check is a virtual product
      * Data helper wraper
      *
@@ -1203,6 +1233,16 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
     public function isVirtual()
     {
         return $this->getIsVirtual();
+    }
+
+    /**
+     * Whether the product is a recurring payment
+     *
+     * @return bool
+     */
+    public function isRecurring()
+    {
+        return $this->getIsRecurring() == '1';
     }
 
     public function isSaleable()
@@ -1628,6 +1668,12 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
      */
     public function reset()
     {
+        foreach ($this->_data as $data){
+            if (is_object($data) && method_exists($data, 'reset')){
+                $data->reset();
+            }
+        }
+
         $this->setData(array());
         $this->setOrigData();
         $this->_customOptions       = array();
@@ -1655,5 +1701,25 @@ class Mage_Catalog_Model_Product extends Mage_Catalog_Model_Abstract
             $tags[] = Mage_Catalog_Model_Category::CACHE_TAG.'_'.$categoryId;
         }
         return $tags;
+    }
+
+    /**
+     * Check for empty SKU on each product 
+     *
+     * @param  array $productIds
+     * @return boolean|null
+     */
+    public function isProductsHasSku(array $productIds)
+    {
+        $products = $this->_getResource()->getProductsSku($productIds);
+        if (count($products)) {
+            foreach ($products as $product) {
+                if (empty($product['sku'])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return null;
     }
 }

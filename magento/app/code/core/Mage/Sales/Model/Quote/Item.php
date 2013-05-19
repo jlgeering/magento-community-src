@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -169,8 +169,6 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     public function setQty($qty)
     {
         $qty    = $this->_prepareQty($qty);
-
-
         $oldQty = $this->_getData('qty');
         $this->setData('qty', $qty);
 
@@ -182,6 +180,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
         if ($this->getUseOldQty()) {
             $this->setData('qty', $oldQty);
         }
+
         return $this;
     }
 
@@ -196,23 +195,39 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
      */
     public function getQtyOptions()
     {
-        $productIds = array();
-        $return     = array();
-        foreach ($this->getOptions() as $option) {
-            /* @var $option Mage_Sales_Model_Quote_Item_Option */
-            if (is_object($option->getProduct()) && $option->getProduct()->getId() != $this->getProduct()->getId()
-                && !isset($productIds[$option->getProduct()->getId()])) {
-                $productIds[$option->getProduct()->getId()] = $option->getProduct()->getId();
+        $qtyOptions = $this->getData('qty_options');
+        if (is_null($qtyOptions)) {
+            $productIds = array();
+            $qtyOptions = array();
+            foreach ($this->getOptions() as $option) {
+                /** @var $option Mage_Sales_Model_Quote_Item_Option */
+                if (is_object($option->getProduct()) && $option->getProduct()->getId() != $this->getProduct()->getId()) {
+                    $productIds[$option->getProduct()->getId()] = $option->getProduct()->getId();
+                }
             }
+
+            foreach ($productIds as $productId) {
+                $option = $this->getOptionByCode('product_qty_' . $productId);
+                if ($option) {
+                    $qtyOptions[$productId] = $option;
+                }
+            }
+
+            $this->setData('qty_options', $qtyOptions);
         }
 
-        foreach ($productIds as $productId) {
-            if ($option = $this->getOptionByCode('product_qty_' . $productId)) {
-                $return[$productId] = $option;
-            }
-        }
+        return $qtyOptions;
+    }
 
-        return $return;
+    /**
+     * Set option product with Qty
+     *
+     * @param  $qtyOptions
+     * @return Mage_Sales_Model_Quote_Item
+     */
+    public function setQtyOptions($qtyOptions)
+    {
+        return $this->setData('qty_options', $qtyOptions);
     }
 
     /**
@@ -225,7 +240,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
         $parent = parent::checkData();
         if ($this->getProduct()->getHasError()) {
             $this->setHasError(true);
-            $this->setMessage(Mage::helper('sales')->__('Item options declare error'));
+            $this->setMessage(Mage::helper('sales')->__('Item options declaration error.'));
             $this->getQuote()->setHasError(true);
             $this->getQuote()->addMessage($this->getProduct()->getMessage(), 'options');
         }
@@ -242,6 +257,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     {
         if ($this->getQuote()) {
             $product->setStoreId($this->getQuote()->getStoreId());
+            $product->setCustomerGroupId($this->getQuote()->getCustomerGroupId());
         }
         $this->setData('product', $product)
             ->setProductId($product->getId())
@@ -250,15 +266,19 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             ->setName($product->getName())
             ->setWeight($this->getProduct()->getWeight())
             ->setTaxClassId($product->getTaxClassId())
-            ->setBaseCost($product->getCost());
-            if ($product->getStockItem()) {
-                $this->setIsQtyDecimal($product->getStockItem()->getIsQtyDecimal());
-            }
+            ->setBaseCost($product->getCost())
+            ->setIsRecurring($product->getIsRecurring())
+        ;
+
+        if ($product->getStockItem()) {
+            $this->setIsQtyDecimal($product->getStockItem()->getIsQtyDecimal());
+        }
 
         Mage::dispatchEvent('sales_quote_item_set_product', array(
             'product' => $product,
             'quote_item'=>$this
         ));
+
 
 //        if ($options = $product->getCustomOptions()) {
 //            foreach ($options as $option) {
@@ -280,7 +300,6 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             $product = Mage::getModel('catalog/product')
                 ->setStoreId($this->getQuote()->getStoreId())
                 ->load($this->getProductId());
-
             $this->setProduct($product);
         }
 
@@ -354,6 +373,9 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             return false;
         }
         foreach ($this->getOptions() as $option) {
+            if (in_array($option->getCode(), $this->_notRepresentOptions)) {
+                continue;
+            }
             if ($itemOption = $item->getOptionByCode($option->getCode())) {
                 $itemOptionValue = $itemOption->getValue();
                 $optionValue     = $option->getValue();
@@ -478,7 +500,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             $option->setItem($this);
         }
         else {
-            Mage::throwException(Mage::helper('sales')->__('Invalid item option format'));
+            Mage::throwException(Mage::helper('sales')->__('Invalid item option format.'));
         }
 
         if ($exOption = $this->getOptionByCode($option->getCode())) {
@@ -504,9 +526,9 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
      */
     public function updateQtyOption(Varien_Object $option, $value)
     {
-        $optionProduct = $option->getProduct();
+        $optionProduct  = $option->getProduct();
+        $options        = $this->getQtyOptions();
 
-        $options = $this->getQtyOptions();
         if (isset($options[$optionProduct->getId()])) {
             $options[$optionProduct->getId()]->setValue($value);
         }
@@ -525,7 +547,8 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
      */
     public function removeOption($code)
     {
-        if ($option = $this->getOptionByCode($code)) {
+        $option = $this->getOptionByCode($code);
+        if ($option) {
             $option->isDeleted(true);
         }
         return $this;
@@ -543,7 +566,7 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
             $this->_optionsByCode[$option->getCode()] = $option;
         }
         else {
-            Mage::throwException(Mage::helper('sales')->__('Item option with code %s already exist', $option->getCode()));
+            Mage::throwException(Mage::helper('sales')->__('An item option with code %s already exists.', $option->getCode()));
         }
         return $this;
     }
@@ -563,22 +586,53 @@ class Mage_Sales_Model_Quote_Item extends Mage_Sales_Model_Quote_Item_Abstract
     }
 
     /**
+     * Checks that item model has data changes.
+     * Call save item options if model isn't need to save in DB
+     *
+     * @return boolean
+     */
+    protected function _hasModelChanged()
+    {
+        if (!$this->hasDataChanges()) {
+            return false;
+        }
+
+        $result = $this->_getResource()->hasDataChanged($this);
+        if ($result === false) {
+           $this->_saveItemOptions();
+        }
+
+        return $result;
+    }
+
+    /**
      * Save item options
      *
      * @return Mage_Sales_Model_Quote_Item
      */
-    protected function _afterSave()
+    protected function _saveItemOptions()
     {
         foreach ($this->_options as $index => $option) {
             if ($option->isDeleted()) {
                 $option->delete();
                 unset($this->_options[$index]);
                 unset($this->_optionsByCode[$option->getCode()]);
-            }
-            else {
+            } else {
                 $option->save();
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Save item options after item saved
+     *
+     * @return Mage_Sales_Model_Quote_Item
+     */
+    protected function _afterSave()
+    {
+        $this->_saveItemOptions();
         return parent::_afterSave();
     }
 

@@ -19,7 +19,7 @@
  *
  * @category    Varien
  * @package     js
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if(typeof Product=='undefined') {
@@ -129,7 +129,7 @@ Product.Zoom.prototype = {
         var centerX  = (this.containerDim.width*(1-this.imageZoom)/2-this.imageX)/this.imageZoom;
         var centerY  = (this.containerDim.height*(1-this.imageZoom)/2-this.imageY)/this.imageZoom;
         var overSize = (this.imageDim.width > this.containerDim.width && this.imageDim.height > this.containerDim.height);
-        
+
         this.imageZoom = this.floorZoom+(v*(this.ceilingZoom-this.floorZoom));
 
         if (overSize) {
@@ -286,7 +286,7 @@ Product.Config.prototype = {
             this.values = paramsStr.toQueryParams();
             this.settings.each(function(element){
                 var attributeId = element.attributeId;
-                element.value = this.values[attributeId];
+                element.value = (typeof(this.values[attributeId]) == 'undefined')? '' : this.values[attributeId];
                 this.configureElement(element);
             }.bind(this));
         }
@@ -443,15 +443,17 @@ Product.Config.prototype = {
     },
 
     reloadPrice: function(){
-        var price = 0;
+        var price    = 0;
+        var oldPrice = 0;
         for(var i=this.settings.length-1;i>=0;i--){
             var selected = this.settings[i].options[this.settings[i].selectedIndex];
             if(selected.config){
-                price += parseFloat(selected.config.price);
+                price    += parseFloat(selected.config.price);
+                oldPrice += parseFloat(selected.config.oldPrice);
             }
         }
 
-        optionsPrice.changePrice('config', price);
+        optionsPrice.changePrice('config', {'price': price, 'oldPrice': oldPrice});
         optionsPrice.reload();
 
         return price;
@@ -546,8 +548,8 @@ Product.OptionsPrice.prototype = {
         this.oldMinusDisposition = config.oldMinusDisposition;
         this.minusDisposition    = config.minusDisposition;
 
-        this.optionPrices = {};
-        this.containers = {};
+        this.optionPrices    = {};
+        this.containers      = {};
 
         this.displayZeroPrice   = true;
 
@@ -567,21 +569,26 @@ Product.OptionsPrice.prototype = {
     },
 
     changePrice: function(key, price) {
-        this.optionPrices[key] = parseFloat(price);
+        this.optionPrices[key] = price;
     },
 
     getOptionPrices: function() {
-        var result = 0;
+        var price = 0;
         var nonTaxable = 0;
+        var oldPrice = 0;
         $H(this.optionPrices).each(function(pair) {
-            if (pair.key == 'nontaxable') {
+            if ('undefined' != typeof(pair.value.price) && 'undefined' != typeof(pair.value.oldPrice)) {
+                price += parseFloat(pair.value.price);
+                oldPrice += parseFloat(pair.value.oldPrice);
+            } else if (pair.key == 'nontaxable') {
                 nonTaxable = pair.value;
             } else {
-                result += pair.value;
+                price += parseFloat(pair.value);
+                oldPrice += parseFloat(pair.value);
             }
         });
-        var r = new Array(result, nonTaxable);
-        return r;
+        var result = [price, nonTaxable, oldPrice];
+        return result;
     },
 
     reload: function() {
@@ -589,6 +596,7 @@ Product.OptionsPrice.prototype = {
         var formattedPrice;
         var optionPrices = this.getOptionPrices();
         var nonTaxable = optionPrices[1];
+        var optionOldPrice = optionPrices[2];
         optionPrices = optionPrices[0];
         $H(this.containers).each(function(pair) {
             var _productPrice;
@@ -605,7 +613,12 @@ Product.OptionsPrice.prototype = {
                     _minusDisposition = this.minusDisposition;
                 }
 
-                var price = optionPrices+parseFloat(_productPrice)
+                var price = 0;
+                if (pair.value == 'old-price-'+this.productId && optionOldPrice !== undefined) {
+                    price = optionOldPrice+parseFloat(_productPrice);
+                } else {
+                    price = optionPrices+parseFloat(_productPrice);
+                }
                 if (this.includeTax == 'true') {
                     // tax = tax included into product price by admin
                     var tax = price / (100 + this.defaultTax) * this.defaultTax;

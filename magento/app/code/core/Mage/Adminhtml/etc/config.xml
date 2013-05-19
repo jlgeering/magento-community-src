@@ -21,7 +21,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 -->
@@ -70,6 +70,14 @@
                     </massaction>
                 </observers>
             </adminhtml_controller_action_predispatch_start>
+            <admin_user_authenticate_after>
+                <observers>
+                    <configuration_files_access_level_verification>
+                        <class>adminhtml/observer</class>
+                        <method>clearCacheConfigurationFilesAccessLevelVerification</method>
+                    </configuration_files_access_level_verification>
+                </observers>
+            </admin_user_authenticate_after>
         </events>
     </global>
 
@@ -95,14 +103,6 @@
                     </auth>
                 </observers>
             </controller_action_predispatch>
-            <controller_action_postdispatch>
-                <observers>
-                    <auth>
-                        <class>admin/observer</class>
-                        <method>actionPostDispatchAdmin</method>
-                    </auth>
-                </observers>
-            </controller_action_postdispatch>
             <core_locale_set_locale>
                 <observers>
                     <bind_locale>
@@ -140,6 +140,9 @@
                 <adminhtml>
                     <file>main.xml</file>
                 </adminhtml>
+                <report>
+                    <file>report.xml</file>
+                </report>
                 <catalog>
                     <file>catalog.xml</file>
                 </catalog>
@@ -168,6 +171,9 @@
                 <forgot_email_template>system_emails_forgot_email_template</forgot_email_template>
                 <forgot_email_identity>general</forgot_email_identity>
             </emails>
+            <dashboard>
+                <enable_charts>1</enable_charts>
+            </dashboard>
         </system>
     </default>
     <stores>

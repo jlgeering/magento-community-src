@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Api
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -436,6 +436,11 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
     public function resources($sessionId)
     {
         $this->_startSession($sessionId);
+
+        if (!$this->_getSession()->isLoggedIn($sessionId)) {
+            return $this->_fault('session_expired');
+        }
+
         $resources = array();
 
         $resourcesAlias = array();
@@ -496,6 +501,10 @@ abstract class Mage_Api_Model_Server_Handler_Abstract
     public function resourceFaults($sessionId, $resourceName)
     {
         $this->_startSession($sessionId);
+
+        if (!$this->_getSession()->isLoggedIn($sessionId)) {
+            return $this->_fault('session_expired');
+        }
 
         $resourcesAlias = $this->_getConfig()->getResourcesAlias();
         $resources      = $this->_getConfig()->getResources();

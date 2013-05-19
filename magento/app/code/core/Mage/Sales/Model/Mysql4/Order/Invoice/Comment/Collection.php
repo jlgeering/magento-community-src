@@ -20,34 +20,45 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
-
 /**
- * Invoice comments collection
+ * Flat sales order invoice comment collection
  *
- * @category   Mage
- * @package    Mage_Sales
- * @author      Magento Core Team <core@magentocommerce.com>
  */
-class Mage_Sales_Model_Mysql4_Order_Invoice_Comment_Collection extends Mage_Eav_Model_Entity_Collection_Abstract
+class Mage_Sales_Model_Mysql4_Order_Invoice_Comment_Collection extends Mage_Sales_Model_Mysql4_Order_Comment_Collection_Abstract
 {
+    /*
+     * @var string
+     */
+    protected $_eventPrefix = 'sales_order_invoice_comment_collection';
+
+    /*
+     * @var string
+     */
+    protected $_eventObject = 'order_invoice_comment_collection';
+
+    /*
+     * Inits invoice comment collection
+     *
+     * @return void
+     */
     protected function _construct()
     {
+        parent::_construct();
         $this->_init('sales/order_invoice_comment');
     }
 
+    /**
+     * Set invoice filter
+     *
+     * @param int $invoiceId
+     * @return Mage_Sales_Model_Mysql4_Order_Invoice_Comment_Collection
+     */
     public function setInvoiceFilter($invoiceId)
     {
-        $this->addAttributeToFilter('parent_id', $invoiceId);
-        return $this;
-    }
-
-    public function setCreatedAtOrder($order='desc')
-    {
-        $this->setOrder('created_at', $order);
-        return $this;
+        return $this->setParentFilter($invoiceId);
     }
 }

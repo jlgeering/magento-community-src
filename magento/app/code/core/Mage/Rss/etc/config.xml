@@ -21,7 +21,7 @@
  *
  * @category    Mage
  * @package     Mage_Rss
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 -->
@@ -106,7 +106,8 @@
         </translate>
         <secure_url>
             <rss_catalog_review>/rss/catalog/review</rss_catalog_review>
-            <rss_order_new>/rss/catalog/review</rss_order_new>
+            <rss_order_new>/rss/order/new</rss_order_new>
+            <rss_catalog_notifystock>/rss/catalog/notifystock</rss_catalog_notifystock>
         </secure_url>
         <routers>
             <rss>

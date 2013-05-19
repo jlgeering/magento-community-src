@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Eav
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -98,7 +98,24 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
         // prevent overriding product data
         if (isset($this->_data['attribute_code'])
             && Mage::getModel('catalog/product')->isReservedAttribute($this)) {
-            Mage::throwException(Mage::helper('eav')->__('The attribute code \'%s\' is reserved by system. Please, try another attribute code.', $this->_data['attribute_code']));
+            Mage::throwException(Mage::helper('eav')->__('The attribute code \'%s\' is reserved by system. Please try another attribute code.', $this->_data['attribute_code']));
+        }
+
+        $defaultValue = $this->getDefaultValue();
+        $hasDefaultValue = ((string)$defaultValue != '');
+
+        if ($this->getBackendType() == 'decimal' && $hasDefaultValue) {
+            if (!Zend_Locale_Format::isNumber($defaultValue, array('locale' => Mage::app()->getLocale()->getLocaleCode()))) {
+                throw new Exception('Invalid default decimal value.');
+            }
+            try {
+                $filter = new Zend_Filter_LocalizedToNormalized(
+                    array('locale' => Mage::app()->getLocale()->getLocaleCode())
+                );
+                $this->setDefaultValue($filter->filter($defaultValue));
+            } catch (Exception $e) {
+                throw new Exception('Invalid default decimal value.');
+            }
         }
 
         if ($this->getBackendType() == 'datetime') {
@@ -111,13 +128,13 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
             }
 
             // save default date value as timestamp
-            if ($defaultValue = $this->getDefaultValue()) {
+            if ($hasDefaultValue) {
                 $format = Mage::app()->getLocale()->getDateFormat(Mage_Core_Model_Locale::FORMAT_TYPE_SHORT);
                 try {
                     $defaultValue = Mage::app()->getLocale()->date($defaultValue, $format, null, false)->toValue();
                     $this->setDefaultValue($defaultValue);
                 } catch (Exception $e) {
-                    throw new Exception("Invalid default date.");
+                    throw new Exception('Invalid default date.');
                 }
             }
         }
@@ -141,7 +158,7 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
     protected function _beforeDelete()
     {
         if ($this->_getResource()->isUsedBySuperProducts($this)) {
-            Mage::throwException(Mage::helper('eav')->__('Attribute used in configurable products.'));
+            Mage::throwException(Mage::helper('eav')->__('This attribute is used in configurable products.'));
         }
         return parent::_beforeDelete();
     }

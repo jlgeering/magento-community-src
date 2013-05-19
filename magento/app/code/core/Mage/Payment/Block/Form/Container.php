@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Payment
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -113,10 +113,15 @@ class Mage_Payment_Block_Form_Container extends Mage_Core_Block_Template
     {
         $methods = $this->getData('methods');
         if (is_null($methods)) {
-            $store = $this->getQuote() ? $this->getQuote()->getStoreId() : null;
-            $methods = $this->helper('payment')->getStoreMethods($store, $this->getQuote());
+            $quote = $this->getQuote();
+            $store = $quote ? $quote->getStoreId() : null;
+            $methods = $this->helper('payment')->getStoreMethods($store, $quote);
+            $total = $quote->getBaseGrandTotal();
             foreach ($methods as $key => $method) {
-                if ($this->_canUseMethod($method)) {
+                if ($this->_canUseMethod($method)
+                    && ($total != 0
+                        || $method->getCode() == 'free'
+                        || ($quote->hasRecurringItems() && $method->canManageRecurringProfiles()))) {
                     $this->_assignMethod($method);
                 }
                 else {

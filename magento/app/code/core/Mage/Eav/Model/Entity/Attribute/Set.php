@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Eav
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -168,7 +168,7 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
     {
         if (!$this->_getResource()->validate($this, $this->getAttributeSetName())) {
             Mage::throwException(
-                Mage::helper('eav')->__('Attribute set with the "%s" name already exists', $this->getAttributeSetName())
+                Mage::helper('eav')->__('Attribute set with the "%s" name already exists.', $this->getAttributeSetName())
             );
         }
         return true;
@@ -232,5 +232,24 @@ class Mage_Eav_Model_Entity_Attribute_Set extends Mage_Core_Model_Abstract
         }
 
         return $this;
+    }
+
+    /**
+     * Return default Group Id for current or defined Attribute Set
+     *
+     * @param int $setId
+     * @return int|null
+     */
+    public function getDefaultGroupId($setId = null)
+    {
+        if (is_null($setId)) {
+            $setId = $this->getId();
+        }
+        if ($setId) {
+            $groupId = $this->_getResource()->getDefaultGroupId($setId);
+        } else {
+            $groupId = null;
+        }
+        return $groupId;
     }
 }

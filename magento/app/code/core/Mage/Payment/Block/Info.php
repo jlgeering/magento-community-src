@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Payment
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -52,7 +52,7 @@ class Mage_Payment_Block_Info extends Mage_Core_Block_Template
     {
         $info = $this->getData('info');
         if (!($info instanceof Mage_Payment_Model_Info)) {
-            Mage::throwException($this->__('Cannot retrieve payment info model object.'));
+            Mage::throwException($this->__('Cannot retrieve the payment info model object.'));
         }
         return $info;
     }
@@ -121,7 +121,9 @@ class Mage_Payment_Block_Info extends Mage_Core_Block_Template
             $value = array($value);
         }
         if ($escapeHtml) {
-            array_walk($value, array($this, '_escapeHtmlWalkCallback'));
+            foreach ($value as $_key => $_val) {
+                $value[$_key] = $this->escapeHtml($_val);
+            }
         }
         return $value;
     }
@@ -169,16 +171,5 @@ class Mage_Payment_Block_Info extends Mage_Core_Block_Template
             $this->_paymentSpecificInformation = $transport;
         }
         return $this->_paymentSpecificInformation;
-    }
-
-    /**
-     * Callback for escaping HTML
-     *
-     * @param array $array
-     * @param string|int $key
-     */
-    private function _escapeHtmlWalkCallback(&$array, $key)
-    {
-        $array[$key] = $this->htmlEscape($array[$key]);
     }
 }

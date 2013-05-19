@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Reports
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -149,6 +149,36 @@ abstract class Mage_Reports_Model_Mysql4_Product_Index_Abstract extends Mage_Cor
                 $this->getMainTable(),
                 $this->_getWriteAdapter()->quoteInto($this->getIdFieldName() . ' IN(?)', $indexIds)
             );
+        }
+        return $this;
+    }
+
+    /**
+     * Add information about product ids to visitor/customer
+     *
+     * @param $object
+     * @param $productIds
+     */
+    public function registerIds($object, $productIds)
+    {
+        $row = array(
+            'visitor_id'    => $object->getVisitorId(),
+            'customer_id'   => $object->getCustomerId(),
+            'store_id'      => $object->getStoreId(),
+        );
+        $addedAt = new Zend_Date();
+        $data = array();
+        foreach ($productIds as $productId) {
+            $productId = (int) $productId;
+            if ($productId) {
+                $row['product_id'] = $productId;
+                $row['added_at'] = $addedAt->toString(Varien_Date::DATETIME_INTERNAL_FORMAT);
+                $data[] = $row;
+            }
+            $addedAt->subSecond(1);
+        }
+        if (!empty($data)) {
+            $this->_getWriteAdapter()->insertOnDuplicate($this->getMainTable(), $data, array_keys($row));
         }
         return $this;
     }

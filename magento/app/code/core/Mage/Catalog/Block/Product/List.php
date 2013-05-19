@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -56,7 +56,7 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
     protected function _getProductCollection()
     {
         if (is_null($this->_productCollection)) {
-            $layer = Mage::getSingleton('catalog/layer');
+            $layer = $this->getLayer();
             /* @var $layer Mage_Catalog_Model_Layer */
             if ($this->getShowRootCategory()) {
                 $this->setCategoryId(Mage::app()->getStore()->getRootCategoryId());
@@ -91,7 +91,22 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
                 $layer->setCurrentCategory($origCategory);
             }
         }
+
         return $this->_productCollection;
+    }
+
+    /**
+     * Get catalog layer model
+     *
+     * @return Mage_Catalog_Model_Layer
+     */
+    public function getLayer()
+    {
+        $layer = Mage::registry('current_layer');
+        if ($layer) {
+            return $layer;
+        }
+        return Mage::getSingleton('catalog/layer');
     }
 
     /**
@@ -136,6 +151,9 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
         if ($sort = $this->getSortBy()) {
             $toolbar->setDefaultOrder($sort);
         }
+        if ($dir = $this->getDefaultDirection()) {
+            $toolbar->setDefaultDirection($dir);
+        }
         if ($modes = $this->getModes()) {
             $toolbar->setModes($modes);
         }
@@ -145,7 +163,7 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
 
         $this->setChild('toolbar', $toolbar);
         Mage::dispatchEvent('catalog_block_product_list_collection', array(
-            'collection'=>$this->_getProductCollection(),
+            'collection' => $this->_getProductCollection()
         ));
 
         $this->_getProductCollection()->load();
@@ -167,6 +185,16 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
         }
         $block = $this->getLayout()->createBlock($this->_defaultToolbarBlock, microtime());
         return $block;
+    }
+
+    /**
+     * Retrieve additional blocks html
+     *
+     * @return string
+     */
+    public function getAdditionalHtml()
+    {
+        return $this->getChildHtml('additional');
     }
 
     /**
@@ -227,7 +255,6 @@ class Mage_Catalog_Block_Product_List extends Mage_Catalog_Block_Product_Abstrac
                 }
             }
         }
-
 
         return $this;
     }

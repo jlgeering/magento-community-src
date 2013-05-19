@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_CatalogInventory
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -71,15 +71,41 @@ class Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
         if (empty($data['product_id'])) {
             return $this;
         }
-        $adapter = $this->_getWriteAdapter();
 
         $productId = $data['product_id'];
+        $this->reindexProducts($productId);
 
-        $parentIds = $this->getRelationsByChild($productId);
+        if (!empty($data['force_reindex_required'])) {
+            $massObject = new Varien_Object();
+            $massObject->setAttributesData(array(
+                'force_reindex_required'   => 1
+            ));
+            $massObject->setProductIds(array($productId));
+            Mage::getSingleton('index/indexer')->processEntityAction(
+                $massObject, Mage_Catalog_Model_Product::ENTITY, Mage_Index_Model_Event::TYPE_MASS_ACTION
+            );
+        }
+
+        return $this;
+    }
+
+    /**
+     * Refresh stock index for specific product ids
+     *
+     * @param array $productIds
+     * @return Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
+     */
+    public function reindexProducts($productIds)
+    {
+        $adapter = $this->_getWriteAdapter();
+        if (!is_array($productIds)) {
+            $productIds = array($productIds);
+        }
+        $parentIds = $this->getRelationsByChild($productIds);
         if ($parentIds) {
-            $processIds = array_merge($parentIds, array($productId));
+            $processIds = array_merge($parentIds, $productIds);
         } else {
-            $processIds = array($productId);
+            $processIds = $productIds;
         }
 
         // retrieve product types by processIds
@@ -108,6 +134,7 @@ class Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
         $adapter->commit();
 
         return $this;
+
     }
 
     /**
@@ -225,7 +252,8 @@ class Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
      */
     public function reindexAll()
     {
-        $this->cloneIndexTable(true);
+        $this->useIdxTable(true);
+        $this->clearTemporaryIndexTable();
 
         foreach ($this->_getTypeIndexers() as $indexer) {
             $indexer->reindexAll();
@@ -272,7 +300,7 @@ class Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
     {
         $types = $this->_getTypeIndexers();
         if (!isset($types[$productTypeId])) {
-            Mage::throwException(Mage::helper('catalog')->__('Unsupported product type "%s"', $productTypeId));
+            Mage::throwException(Mage::helper('catalog')->__('Unsupported product type "%s".', $productTypeId));
         }
         return $types[$productTypeId];
     }
@@ -359,5 +387,18 @@ class Mage_CatalogInventory_Model_Mysql4_Indexer_Stock
         }
 
         return $this;
+    }
+
+    /**
+     * Retrieve temporary index table name
+     *
+     * @return string
+     */
+    public function getIdxTable($table = null)
+    {
+        if ($this->useIdxTable()) {
+            return $this->getTable('cataloginventory/stock_status_indexer_idx');
+        }
+        return $this->getTable('cataloginventory/stock_status_indexer_tmp');
     }
 }

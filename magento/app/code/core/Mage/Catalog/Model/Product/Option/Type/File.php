@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -33,6 +33,12 @@
  */
 class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Product_Option_Type_Default
 {
+    /**
+     * Url for custom option download controller
+     * @var string
+     */
+    protected $_customOptionDownloadUrl = 'sales/download/downloadCustomOption';
+
     public function isCustomizedView()
     {
         return true;
@@ -67,11 +73,13 @@ class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Pro
 
         $this->setIsValid(true);
         $option = $this->getOption();
-
         // Set option value from request (Admin/Front reorders)
         if (isset($values[$option->getId()]) && is_array($values[$option->getId()])) {
             if (isset($values[$option->getId()]['order_path'])) {
-                $orderFileFullPath = Mage::getBaseDir() . $values[$option->getId()]['order_path'];
+                $relPath = $this->getUseQuotePath()
+                    ? $values[$option->getId()]['quote_path']
+                    : $values[$option->getId()]['order_path'];
+                $orderFileFullPath = Mage::getBaseDir() . $relPath;
             } else {
                 $this->setUserValue(null);
                 return $this;
@@ -272,13 +280,14 @@ class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Pro
             try {
                 $value = unserialize($optionValue);
 
-                $value['url'] = array(
-                    'route' => 'sales/download/downloadCustomOption',
-                    'params' => array(
+                $customOptionUrlParams = $this->getCustomOptionUrlParams()
+                    ? $this->getCustomOptionUrlParams()
+                    : array(
                         'id'  => $this->getQuoteItemOption()->getId(),
                         'key' => $value['secret_key']
-                    )
-                );
+                    );
+
+                $value['url'] = array('route' => $this->_customOptionDownloadUrl, 'params' => $customOptionUrlParams);
 
                 $this->_formattedOptionValue = $this->_getOptionHtml($value);
                 $this->getQuoteItemOption()->setValue(serialize($value));
@@ -316,7 +325,7 @@ class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Pro
                 $sizes
             );
         } catch (Exception $e) {
-            Mage::throwException(Mage::helper('catalog')->__("File options format is not valid"));
+            Mage::throwException(Mage::helper('catalog')->__("File options format is not valid."));
         }
     }
 
@@ -453,6 +462,18 @@ class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Pro
     }
 
     /**
+     * Set url to custom option download controller
+     *
+     * @param string $url
+     * @return Mage_Catalog_Model_Product_Option_Type_File
+     */
+    public function setCustomOptionDownloadUrl($url)
+    {
+        $this->_customOptionDownloadUrl = $url;
+        return $this;
+    }
+
+    /**
      * Directory structure initializing
      */
     protected function _initFilesystem()
@@ -483,7 +504,7 @@ class Mage_Catalog_Model_Product_Option_Type_File extends Mage_Catalog_Model_Pro
     {
         $io = new Varien_Io_File();
         if (!$io->isWriteable($path) && !$io->mkdir($path, 0777, true)) {
-            Mage::throwException(Mage::helper('catalog')->__("Cannot create writeable directory '%s'", $path));
+            Mage::throwException(Mage::helper('catalog')->__("Cannot create writeable directory '%s'.", $path));
         }
     }
 

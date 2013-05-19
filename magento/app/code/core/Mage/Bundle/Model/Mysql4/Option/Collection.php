@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Bundle
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -33,6 +33,13 @@
  */
 class Mage_Bundle_Model_Mysql4_Option_Collection extends Mage_Core_Model_Mysql4_Collection_Abstract
 {
+    /**
+     * All item ids cache
+     *
+     * @var array
+     */
+    protected $_itemIds;
+
     protected $_selectionsAppended = false;
     protected function _construct()
     {
@@ -126,4 +133,27 @@ class Mage_Bundle_Model_Mysql4_Option_Collection extends Mage_Core_Model_Mysql4_
         return $this;
     }
 
+    /**
+     * Reset all item ids cache
+     *
+     * @return Mage_Bundle_Model_Mysql4_Option_Collection
+     */
+    public function resetAllIds()
+    {
+        $this->_itemIds = null;
+        return $this;
+    }
+
+    /**
+     * Retrive all ids for collection
+     *
+     * @return array
+     */
+    public function getAllIds()
+    {
+        if (is_null($this->_itemIds)) {
+            $this->_itemIds = parent::getAllIds();
+        }
+        return $this->_itemIds;
+    }
 }

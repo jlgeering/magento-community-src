@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -230,6 +230,19 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Loading only active quote
+     *
+     * @param int $quoteId
+     * @return Mage_Sales_Model_Quote
+     */
+    public function loadActive($quoteId)
+    {
+        $this->_getResource()->loadActive($this, $quoteId);
+        $this->_afterLoad();
+        return $this;
+    }
+
+    /**
      * Assign customer model object data to quote
      *
      * @param   Mage_Customer_Model_Customer $customer
@@ -237,23 +250,45 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
      */
     public function assignCustomer(Mage_Customer_Model_Customer $customer)
     {
+        return $this->assignCustomerWithAddressChange($customer);
+    }
+
+    /**
+     * Assign customer model to quote with billing and shipping address change
+     *
+     * @param  Mage_Customer_Model_Customer    $customer
+     * @param  Mage_Sales_Model_Quote_Address  $billingAddress
+     * @param  Mage_Sales_Model_Quote_Address  $shippingAddress
+     * @return Mage_Sales_Model_Quote
+     */
+    public function assignCustomerWithAddressChange(
+        Mage_Customer_Model_Customer    $customer,
+        Mage_Sales_Model_Quote_Address  $billingAddress  = null,
+        Mage_Sales_Model_Quote_Address  $shippingAddress = null
+    )
+    {
         if ($customer->getId()) {
             $this->setCustomer($customer);
 
-            $defaultBillingAddress = $customer->getDefaultBillingAddress();
-            if ($defaultBillingAddress && $defaultBillingAddress->getId()) {
-                $billingAddress = Mage::getModel('sales/quote_address')
-                    ->importCustomerAddress($defaultBillingAddress);
+            if (!is_null($billingAddress)) {
                 $this->setBillingAddress($billingAddress);
+            } else {
+                $defaultBillingAddress = $customer->getDefaultBillingAddress();
+                if ($defaultBillingAddress && $defaultBillingAddress->getId()) {
+                    $billingAddress = Mage::getModel('sales/quote_address')
+                        ->importCustomerAddress($defaultBillingAddress);
+                    $this->setBillingAddress($billingAddress);
+                }
             }
 
-            $defaultShippingAddress= $customer->getDefaultShippingAddress();
-            if ($defaultShippingAddress && $defaultShippingAddress->getId()) {
-                $shippingAddress = Mage::getModel('sales/quote_address')
-                ->importCustomerAddress($defaultShippingAddress);
-            }
-            else {
-                $shippingAddress = Mage::getModel('sales/quote_address');
+            if (is_null($shippingAddress)) {
+                $defaultShippingAddress = $customer->getDefaultShippingAddress();
+                if ($defaultShippingAddress && $defaultShippingAddress->getId()) {
+                    $shippingAddress = Mage::getModel('sales/quote_address')
+                    ->importCustomerAddress($defaultShippingAddress);
+                } else {
+                    $shippingAddress = Mage::getModel('sales/quote_address');
+                }
             }
             $this->setShippingAddress($shippingAddress);
         }
@@ -292,6 +327,21 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
             }
         }
         return $this->_customer;
+    }
+
+    /**
+     * Retrieve customer group id
+     *
+     * @return int
+     */
+    public function getCustomerGroupId()
+    {
+        if ($this->getCustomerId()) {
+            return ($this->getData('customer_group_id')) ? $this->getData('customer_group_id')
+                : $this->getCustomer()->getGroupId();
+        } else {
+            return Mage_Customer_Model_Group::NOT_LOGGED_IN_ID;
+        }
     }
 
     public function getCustomerTaxClassId()
@@ -593,6 +643,7 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
     public function removeItem($itemId)
     {
         if ($item = $this->getItemById($itemId)) {
+            $item->setQuote($this);
             /**
              * If we remove item from quote - we can't use multishipping mode
              */
@@ -616,6 +667,18 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
      */
     public function addItem(Mage_Sales_Model_Quote_Item $item)
     {
+        /**
+         * Temporary workaround for purchase process: it is too dangerous to purchase more than one nominal item
+         * or a mixture of nominal and non-nominal items, although technically possible.
+         *
+         * The problem is that currently it is implemented as sequential submission of nominal items and order, by one click.
+         * It makes logically impossible to make the process of the purchase failsafe.
+         * Proper solution is to submit items one by one with customer confirmation each time.
+         */
+        if ($item->isNominal() && $this->hasItems() || $this->hasNominalItems()) {
+            Mage::throwException(Mage::helper('sales')->__('Nominal item can be purchased standalone only. To proceed please remove other items from the quote.'));
+        }
+
         $item->setQuote($this);
         if (!$item->getId()) {
             $this->getItemsCollection()->addItem($item);
@@ -642,7 +705,7 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
             $request = new Varien_Object(array('qty'=>$request));
         }
         if (!($request instanceof Varien_Object)) {
-            Mage::throwException(Mage::helper('sales')->__('Invalid request for adding product to quote'));
+            Mage::throwException(Mage::helper('sales')->__('Invalid request for adding product to quote.'));
         }
 
         $cartCandidates = $product->getTypeInstance(true)
@@ -731,6 +794,7 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
 
         $item->setOptions($product->getCustomOptions())
             ->setProduct($product);
+
 
         $this->addItem($item);
 
@@ -1098,6 +1162,7 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
             $countItems ++;
             if (!$_item->getProduct()->getIsVirtual()) {
                 $isVirtual = false;
+                break;
             }
         }
         return $countItems == 0 ? false : $isVirtual;
@@ -1192,6 +1257,81 @@ class Mage_Sales_Model_Quote extends Mage_Core_Model_Abstract
         );
 
         return $this;
+    }
+
+    /**
+     * Whether there are recurring items
+     *
+     * @return bool
+     */
+    public function hasRecurringItems()
+    {
+        foreach ($this->getAllVisibleItems() as $item) {
+            if ($item->getProduct() && $item->getProduct()->isRecurring()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Getter whether quote has nominal items
+     * Can bypass treating virtual items as nominal
+     *
+     * @param bool $countVirtual
+     * @return bool
+     */
+    public function hasNominalItems($countVirtual = true)
+    {
+        foreach ($this->getAllVisibleItems() as $item) {
+            if ($item->isNominal()) {
+                if ((!$countVirtual) && $item->getProduct()->isVirtual()) {
+                    continue;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether quote has nominal items only
+     *
+     * @return bool
+     */
+    public function isNominal()
+    {
+        foreach ($this->getAllVisibleItems() as $item) {
+            if (!$item->isNominal()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Create recurring payment profiles basing on the current items
+     *
+     * @return array
+     */
+    public function prepareRecurringPaymentProfiles()
+    {
+        if (!$this->getTotalsCollectedFlag()) {
+            // Whoops! Make sure nominal totals must be calculated here.
+            throw new Exception('Quote totals must be collected before this operation.');
+        }
+
+        $result = array();
+        foreach ($this->getAllVisibleItems() as $item) {
+            $product = $item->getProduct();
+            if (is_object($product) && ($product->isRecurring())
+                && $profile = Mage::getModel('sales/recurring_profile')->importProduct($product)) {
+                $profile->importQuote($this);
+                $profile->importQuoteItem($item);
+                $result[] = $profile;
+            }
+        }
+        return $result;
     }
 
     protected function _validateCouponCode()

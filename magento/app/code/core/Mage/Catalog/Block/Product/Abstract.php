@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -110,7 +110,7 @@ abstract class Mage_Catalog_Block_Product_Abstract extends Mage_Core_Block_Templ
     public function getMinimalQty($product)
     {
         if ($stockItem = $product->getStockItem()) {
-            return $stockItem->getMinSaleQty()>0 ? $stockItem->getMinSaleQty()*1 : null;
+            return ($stockItem->getMinSaleQty() && $stockItem->getMinSaleQty() > 0 ? $stockItem->getMinSaleQty() * 1 : null);
         }
         return null;
     }
@@ -301,7 +301,8 @@ abstract class Mage_Catalog_Block_Product_Abstract extends Mage_Core_Block_Templ
             ->addMinimalPrice()
             ->addFinalPrice()
             ->addTaxPercents()
-            ->addAttributeToSelect(Mage::getSingleton('catalog/config')->getProductAttributes());
+            ->addAttributeToSelect(Mage::getSingleton('catalog/config')->getProductAttributes())
+            ->addUrlRewrite();
     }
 
     /**
@@ -438,6 +439,17 @@ abstract class Mage_Catalog_Block_Product_Abstract extends Mage_Core_Block_Templ
     public function getPageLayout()
     {
         return $this->helper('page/layout')->getCurrentPageLayout();
+    }
+
+    /**
+     * Check whether the price can be shown for the specified product
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return bool
+     */
+    public function getCanShowProductPrice($product)
+    {
+        return $product->getCanShowPrice() !== false;
     }
 
     /**

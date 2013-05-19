@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -307,6 +307,7 @@ class Mage_Catalog_Model_Product_Type_Configurable extends Mage_Catalog_Model_Pr
     /**
      * Retrieve array of "subproducts"
      *
+     * @param array
      * @param Mage_Catalog_Model_Product $product
      * @return array
      */
@@ -540,7 +541,7 @@ class Mage_Catalog_Model_Product_Type_Configurable extends Mage_Catalog_Model_Pr
                     }
 
                     if (!isset($_result[0])) {
-                        return Mage::helper('checkout')->__('Can not add item to shopping cart');
+                        return Mage::helper('checkout')->__('Cannot add the item to shopping cart');
                     }
 
                     /**
@@ -577,7 +578,7 @@ class Mage_Catalog_Model_Product_Type_Configurable extends Mage_Catalog_Model_Pr
      */
     public function getSpecifyOptionMessage()
     {
-        return Mage::helper('catalog')->__('Please specify the product option(s)');
+        return Mage::helper('catalog')->__('Please specify the product\'s option(s).');
     }
 
     /**
@@ -681,5 +682,37 @@ class Mage_Catalog_Model_Product_Type_Configurable extends Mage_Catalog_Model_Pr
         }
 
         return $this;
+    }
+
+    /**
+     * Retrieve products divided into groups required to purchase
+     * At least one product in each group has to be purchased
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return array
+     */
+    public function getProductsToPurchaseByReqGroups($product = null)
+    {
+        $product = $this->getProduct($product);
+        return array($this->getUsedProducts(null, $product));
+    }
+
+    /**
+     * Get sku of product
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return string
+     */
+    public function getSku($product = null)
+    {
+        $sku = $this->getProduct($product)->getData('sku');
+        if ($simpleOption = $this->getProduct($product)->getCustomOption('simple_product')) {
+            $simple_sku = $simpleOption->getProduct($product)->getSku();
+            $sku = parent::getOptionSku($product, $simple_sku);
+        }else{
+            $sku = parent::getSku($product);
+        }
+        
+        return $sku;
     }
 }

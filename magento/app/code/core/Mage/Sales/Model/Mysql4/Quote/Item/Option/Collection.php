@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -33,9 +33,56 @@
  */
 class Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection extends Mage_Core_Model_Mysql4_Collection_Abstract
 {
+    /**
+     * Array of option ids grouped by item id
+     *
+     * @var array
+     */
+    protected $_optionsByItem       = array();
+
+    /**
+     * Array of option ids grouped by product id
+     *
+     * @var array
+     */
+    protected $_optionsByProduct    = array();
+
+    /**
+     * Define resource model for collection
+     *
+     * @return void
+     */
     protected function _construct()
     {
         $this->_init('sales/quote_item_option');
+    }
+
+    /**
+     * Fill array of options by item and product
+     *
+     * @return Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection
+     */
+    protected function _afterLoad()
+    {
+        parent::_afterLoad();
+
+        foreach ($this as $option) {
+            $optionId   = $option->getId();
+            $itemId     = $option->getItemId();
+            $productId  = $option->getProductId();
+            if (isset($this->_optionsByItem[$itemId])) {
+                $this->_optionsByItem[$itemId][] = $optionId;
+            } else {
+                $this->_optionsByItem[$itemId] = array($optionId);
+            }
+            if (isset($this->_optionsByProduct[$productId])) {
+                $this->_optionsByProduct[$productId][] = $optionId;
+            } else {
+                $this->_optionsByProduct[$productId] = array($optionId);
+            }
+        }
+
+        return $this;
     }
 
     /**
@@ -47,17 +94,17 @@ class Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection extends Mage_Core_Mod
     public function addItemFilter($item)
     {
         if (empty($item)) {
-            $this->addFieldToFilter('item_id', '');
-        }
-        elseif (is_array($item)) {
+            $this->_totalRecords = 0;
+            $this->_setIsLoaded(true);
+            //$this->addFieldToFilter('item_id', '');
+        } else if (is_array($item)) {
             $this->addFieldToFilter('item_id', array('in'=>$item));
-        }
-        elseif ($item instanceof Mage_Sales_Model_Quote_Item) {
+        } else if ($item instanceof Mage_Sales_Model_Quote_Item) {
             $this->addFieldToFilter('item_id', $item->getId());
-        }
-        else {
+        } else {
             $this->addFieldToFilter('item_id', $item);
         }
+
         return $this;
     }
 
@@ -68,11 +115,9 @@ class Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection extends Mage_Core_Mod
      */
     public function getProductIds()
     {
-        $ids = array();
-        foreach ($this as $item) {
-            $ids[] = $item->getProductId();
-        }
-        return array_unique($ids);
+        $this->load();
+        
+        return array_keys($this->_optionsByProduct);
     }
 
     /**
@@ -85,17 +130,19 @@ class Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection extends Mage_Core_Mod
     {
         if ($item instanceof Mage_Sales_Model_Quote_Item) {
             $itemId = $item->getId();
-        }
-        else {
+        } else {
             $itemId = $item;
         }
 
+        $this->load();
+
         $options = array();
-        foreach ($this as $option) {
-            if ($option->getItemId() == $itemId) {
-                $options[] = $option;
+        if (isset($this->_optionsByItem[$itemId])) {
+            foreach ($this->_optionsByItem[$itemId] as $optionId) {
+                $options[] = $this->_items[$optionId];
             }
         }
+
         return $options;
     }
 
@@ -109,17 +156,19 @@ class Mage_Sales_Model_Mysql4_Quote_Item_Option_Collection extends Mage_Core_Mod
     {
         if ($product instanceof Mage_Catalog_Model_Product) {
             $productId = $product->getId();
-        }
-        else {
+        } else {
             $productId = $product;
         }
 
+        $this->load();
+
         $options = array();
-        foreach ($this as $option) {
-            if ($option->getProductId() == $productId) {
-                $options[] = $option;
+        if (isset($this->_optionsByProduct[$productId])) {
+            foreach ($this->_optionsByProduct[$productId] as $optionId) {
+                $options[] = $this->_items[$optionId];
             }
         }
+
         return $options;
     }
 }

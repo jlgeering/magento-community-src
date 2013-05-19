@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Bundle
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -85,6 +85,11 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
             $customOption = $product->getCustomOption('bundle_selection_ids');
             $selectionIds = unserialize($customOption->getValue());
             $selections = $product->getTypeInstance(true)->getSelectionsByIds($selectionIds, $product);
+            $selections->addTierPriceData();
+            Mage::dispatchEvent('prepare_catalog_product_collection_prices', array(
+                'collection'    => $selections,
+                'store_id'      => $product->getStoreId(),
+            ));
             foreach ($selections->getItems() as $selection) {
                 if ($selection->isSalable()) {
                     $selectionQty = $product->getCustomOption('selection_qty_' . $selection->getSelectionId());
@@ -197,11 +202,6 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
                 $minimalPrice = $minPriceFounded;
             }
 
-            if ($product->getPriceType() == self::PRICE_TYPE_DYNAMIC) {
-                $minimalPrice = $this->_applySpecialPrice($product, $minimalPrice);
-                $maximalPrice = $this->_applySpecialPrice($product, $maximalPrice);
-            }
-
             $customOptions = $product->getOptions();
 
             if ($product->getPriceType() == self::PRICE_TYPE_FIXED && $customOptions) {
@@ -262,7 +262,7 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
      */
     public function getMaximalPrice($product)
     {
-        return $this->getPrice($product, 'max');
+        return $this->getPrices($product, 'max');
     }
 
     /**
@@ -610,7 +610,7 @@ class Mage_Bundle_Model_Product_Price extends Mage_Catalog_Model_Product_Type_Pr
     {
         if (!is_null($specialPrice) && $specialPrice != false) {
             if (Mage::app()->getLocale()->isStoreDateInInterval($store, $specialPriceFrom, $specialPriceTo)) {
-                $specialPrice   = ($finalPrice * $specialPrice) / 100;
+                $specialPrice   = Mage::app()->getStore()->roundPrice($finalPrice * $specialPrice / 100);
                 $finalPrice     = min($finalPrice, $specialPrice);
             }
         }

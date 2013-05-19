@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Rule
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -355,10 +355,10 @@ class Mage_Rule_Model_Rule extends Mage_Core_Model_Abstract
     public function validateData(Varien_Object $object)
     {
         if($object->getData('from_date') && $object->getData('to_date')){
-            $dateStartUnixTime = strtotime($object->getData('from_date'));
-            $dateEndUnixTime   = strtotime($object->getData('to_date'));
-
-            if ($dateEndUnixTime < $dateStartUnixTime) {
+            $dateStart = new Zend_Date($object->getData('from_date'), Varien_Date::DATE_INTERNAL_FORMAT);
+            $dateEnd = new Zend_Date($object->getData('to_date'), Varien_Date::DATE_INTERNAL_FORMAT);
+            
+            if ($dateStart->compare($dateEnd)===1) {
                 return array(Mage::helper('rule')->__("End Date should be greater than Start Date"));
             }
         }

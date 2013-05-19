@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -145,17 +145,34 @@ class Mage_Core_Block_Html_Select extends Mage_Core_Block_Abstract
         return $html;
     }
 
-    protected function _optionToHtml($option, $selected=false)
+    /**
+     * Return option HTML node
+     *
+     * @param array $option
+     * @param boolean $selected
+     * @return string
+     */
+    protected function _optionToHtml($option, $selected = false)
     {
         $selectedHtml = $selected ? ' selected="selected"' : '';
-        $html = '<option value="'.$this->htmlEscape($option['value']).'"'.$selectedHtml.'>'.$this->htmlEscape($option['label']).'</option>';
+        if ($this->getIsRenderToJsTemplate() === true) {
+            $selectedHtml .= ' #{option_extra_attr_' . self::calcOptionHash($option['value']) . '}';
+        }
 
-        return $html;
+        return sprintf('<option value="%s"%s>%s</option>',
+            $this->htmlEscape($option['value']),
+            $selectedHtml,
+            $this->htmlEscape($option['label']));
     }
 
     public function getHtml()
     {
         return $this->toHtml();
+    }
+
+    public function calcOptionHash($optionValue)
+    {
+        return sprintf('%u', crc32($this->getName() . $this->getId() . $optionValue));
     }
 
 }

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -48,6 +48,13 @@ abstract class Mage_Catalog_Model_Abstract extends Mage_Core_Model_Abstract
      * @var array
      */
     protected $_defaultValues = array();
+
+    /**
+     * This array contains codes of attributes which have value in current store
+     *
+     * @var array
+     */
+    protected $_storeValuesFlags = array();
 
     /**
      * Locked attributes
@@ -262,6 +269,30 @@ abstract class Mage_Catalog_Model_Abstract extends Mage_Core_Model_Abstract
     public function getAttributeDefaultValue($attributeCode)
     {
         return array_key_exists($attributeCode, $this->_defaultValues) ? $this->_defaultValues[$attributeCode] : false;
+    }
+
+    /**
+     * Set attribute code flag if attribute has value in current store and does not use
+     * value of default store as value
+     *
+     * @param   string $attributeCode
+     * @return  Mage_Catalog_Model_Abstract
+     */
+    public function setExistsStoreValueFlag($attributeCode)
+    {
+        $this->_storeValuesFlags[$attributeCode] = true;
+        return $this;
+    }
+
+    /**
+     * Check if object attribute has value in current store
+     *
+     * @param   string $attributeCode
+     * @return  bool
+     */
+    public function getExistsStoreValueFlag($attributeCode)
+    {
+        return array_key_exists($attributeCode, $this->_storeValuesFlags);
     }
 
     /**

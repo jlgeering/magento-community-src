@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Core
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -83,7 +83,7 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
     }
 
     /**
-     * Retrieve path to template used for generating block's output.
+     * Get relevant path to template
      *
      * @return string
      */
@@ -101,10 +101,29 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
     public function setTemplate($template)
     {
         $this->_template = $template;
-
         return $this;
     }
 
+    /**
+     * Get absolute path to template
+     *
+     * @return string
+     */
+    public function getTemplateFile()
+    {
+        $params = array('_relative'=>true);
+        $area = $this->getArea();
+        if ($area) {
+            $params['_area'] = $area;
+        }
+        $templateName = Mage::getDesign()->getTemplateFilename($this->getTemplate(), $params);
+        return $templateName;
+    }
+
+    /**
+     * Get design area
+     * @return string
+     */
     public function getArea()
     {
         return $this->_getData('area');
@@ -142,6 +161,10 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
         return $this;
     }
 
+    /**
+     * Check if dirrect output is allowed for block
+     * @return bool
+     */
     public function getDirectOutput()
     {
         if ($this->getLayout()) {
@@ -171,7 +194,9 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
     {
         Varien_Profiler::start($fileName);
 
-        extract ($this->_viewVars);
+        // EXTR_SKIP protects from overriding
+        // already defined variables
+        extract ($this->_viewVars, EXTR_SKIP);
         $do = $this->getDirectOutput();
 
         if (!$do) {
@@ -186,7 +211,13 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
         }
 
         try {
-            include $this->_viewDir . DS . $fileName;
+            $includeFilePath = realpath($this->_viewDir . DS . $fileName);
+            if (strpos($includeFilePath, realpath($this->_viewDir)) === 0) {
+                include $includeFilePath;
+            } else {
+                Mage::log('Not valid template file:'.$fileName, Zend_Log::CRIT, null, null, true);
+            }
+
         } catch (Exception $e) {
             ob_get_clean();
             throw $e;
@@ -212,20 +243,8 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
      */
     public function renderView()
     {
-        Varien_Profiler::start(__METHOD__);
-
         $this->setScriptPath(Mage::getBaseDir('design'));
-        $params = array('_relative'=>true);
-        if ($area = $this->getArea()) {
-            $params['_area'] = $area;
-        }
-
-        $templateName = Mage::getDesign()->getTemplateFilename($this->getTemplate(), $params);
-
-        $html = $this->fetchView($templateName);
-
-        Varien_Profiler::stop(__METHOD__);
-
+        $html = $this->fetchView($this->getTemplateFile());
         return $html;
     }
 
@@ -272,4 +291,30 @@ class Mage_Core_Block_Template extends Mage_Core_Block_Abstract
         return $this->_jsUrl.$fileName;
     }
 
+    /**
+     * Get data from specified object
+     *
+     * @param Varien_Object $object
+     * @param string $key
+     * @return mixed
+     */
+    public function getObjectData(Varien_Object $object, $key)
+    {
+        return $object->getDataUsingMethod((string)$key);
+    }
+
+    /**
+     * Get cache key informative items
+     *
+     * @return array
+     */
+    public function getCacheKeyInfo()
+    {
+        return array(
+            'BLOCK_TPL',
+            Mage::app()->getStore()->getCode(),
+            $this->getTemplateFile(),
+            'template' => $this->getTemplate()
+        );
+    }
 }

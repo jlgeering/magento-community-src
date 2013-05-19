@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -198,5 +198,65 @@ class Mage_Catalog_Helper_Product extends Mage_Core_Helper_Url
     public function canUseCanonicalTag($store = null)
     {
         return Mage::getStoreConfig(self::XML_PATH_USE_PRODUCT_CANONICAL_TAG, $store);
+    }
+
+    /**
+     * Return information array of product attribute input types
+     * Only a small number of settings returned, so we won't break anything in current dataflow
+     * As soon as development process goes on we need to add there all possible settings
+     *
+     * @param string $inputType
+     * @return array
+     */
+    public function getAttributeInputTypes($inputType = null)
+    {
+        /**
+        * @todo specify there all relations for properties depending on input type
+        */
+        $inputTypes = array(
+            'multiselect'   => array(
+                'backend_model'     => 'eav/entity_attribute_backend_array'
+            ),
+            'boolean'       => array(
+                'source_model'      => 'eav/entity_attribute_source_boolean'
+            )
+        );
+
+        if (is_null($inputType)) {
+            return $inputTypes;
+        } else if (isset($inputTypes[$inputType])) {
+            return $inputTypes[$inputType];
+        }
+        return array();
+    }
+
+    /**
+     * Return default attribute backend model by input type
+     *
+     * @param string $inputType
+     * @return string|null
+     */
+    public function getAttributeBackendModelByInputType($inputType)
+    {
+        $inputTypes = $this->getAttributeInputTypes();
+        if (!empty($inputTypes[$inputType]['backend_model'])) {
+            return $inputTypes[$inputType]['backend_model'];
+        }
+        return null;
+    }
+
+    /**
+     * Return default attribute source model by input type
+     *
+     * @param string $inputType
+     * @return string|null
+     */
+    public function getAttributeSourceModelByInputType($inputType)
+    {
+        $inputTypes = $this->getAttributeInputTypes();
+        if (!empty($inputTypes[$inputType]['source_model'])) {
+            return $inputTypes[$inputType]['source_model'];
+        }
+        return null;
     }
 }

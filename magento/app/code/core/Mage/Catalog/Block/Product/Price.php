@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -96,5 +96,18 @@ class Mage_Catalog_Block_Product_Price extends Mage_Core_Block_Template
         }
 
         return $res;
+    }
+
+    /**
+     * Prevent displaying if the price is not available
+     *
+     * @return string
+     */
+    protected function _toHtml()
+    {
+        if (!$this->getProduct() || $this->getProduct()->getCanShowPrice() === false) {
+            return '';
+        }
+        return parent::_toHtml();
     }
 }

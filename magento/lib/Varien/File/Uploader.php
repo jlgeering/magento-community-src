@@ -131,13 +131,14 @@ class Varien_File_Uploader
 
     const SINGLE_STYLE = 0;
     const MULTIPLE_STYLE = 1;
+    const TMP_NAME_EMPTY = 666;
 
     function __construct($fileId)
     {
         $this->_setUploadFileId($fileId);
         if( !file_exists($this->_file['tmp_name']) ) {
-            throw new Exception('File was not uploaded.');
-            return;
+            $code = empty($this->_file['tmp_name']) ? self::TMP_NAME_EMPTY : 0;
+            throw new Exception('File was not uploaded.', $code);
         } else {
             $this->_fileExists = true;
         }
@@ -240,7 +241,7 @@ class Varien_File_Uploader
     public function addValidateCallback($callbackName, $callbackObject, $callbackMethod)
     {
         $this->_validateCallbacks[$callbackName] = array(
-           'object' => $callbackObject, 
+           'object' => $callbackObject,
            'method' => $callbackMethod
         );
         return $this;
@@ -269,10 +270,13 @@ class Varien_File_Uploader
      */
     static public function getCorrectFileName($fileName)
     {
-        if (preg_match('/[^a-z0-9_\\-\\.\s]/i', $fileName)) {
-            $fileName = 'file' . substr($fileName, strrpos($fileName, '.'));
+        $fileName = preg_replace('/[^a-z0-9_\\-\\.]+/i', '_', $fileName);
+        $fileInfo = pathinfo($fileName);
+
+        if (preg_match('/^_+$/', $fileInfo['filename'])) {
+            $fileName = 'file.' . $fileInfo['extension'];
         }
-        return preg_replace('/\s+/', '_', $fileName);
+        return $fileName;
     }
 
     /**

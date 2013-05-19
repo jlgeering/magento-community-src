@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Usa
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -383,26 +383,34 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
         }
 
         $request = $xml->asXML();
+        $responseBody = $this->_getCachedQuotes($request);
+        if ($responseBody === null) {
+            $debugData = array('request' => $request);
+            try {
+                $url = $this->getConfigData('gateway_url');
+                if (!$url) {
+                    $url = $this->_defaultGatewayUrl;
+                }
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $request);
+                $responseBody = curl_exec($ch);
+                curl_close ($ch);
 
-        try {
-            $url = $this->getConfigData('gateway_url');
-            if (!$url) {
-                $url = $this->_defaultGatewayUrl;
+                $debugData['result'] = $responseBody;
+                $this->_setCachedQuotes($request, $responseBody);
             }
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $request);
-            $responseBody = curl_exec($ch);
-            curl_close ($ch);
-        } catch (Exception $e) {
-            $responseBody = '';
+            catch (Exception $e) {
+                $debugData['result'] = array('error' => $e->getMessage(), 'code' => $e->getCode());
+                $responseBody = '';
+            }
+            $this->_debug($debugData);
         }
-        $res = $this->_parseXmlResponse($responseBody);
 
-        return $res;
+        return $this->_parseXmlResponse($responseBody);
     }
 
     protected function _createShipmentXml($shipment,$shipKey)
@@ -579,7 +587,7 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
                     }
                 }
             } else {
-                $this->_errors[] = Mage::helper('usa')->__('Response is in the wrong format');
+                $this->_errors[] = Mage::helper('usa')->__('The response is in wrong format.');
             }
         }
 
@@ -831,14 +839,14 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
 
 
         if (!isset($codes[$type])) {
-//            throw Mage::exception('Mage_Shipping', Mage::helper('usa')->__('Invalid DHL XML code type: %s', $type));
+//            throw Mage::exception('Mage_Shipping', Mage::helper('usa')->__('Invalid DHL XML code type: %s.', $type));
             return false;
         } elseif (''===$code) {
             return $codes[$type];
         }
 
         if (!isset($codes[$type][$code])) {
-//            throw Mage::exception('Mage_Shipping', Mage::helper('usa')->__('Invalid DHL XML code for type %s: %s', $type, $code));
+//            throw Mage::exception('Mage_Shipping', Mage::helper('usa')->__('Invalid DHL XML code for type %s: %s.', $type, $code));
             return false;
         } else {
             return $codes[$type][$code];
@@ -948,6 +956,7 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
                $track->addChild('Shipment')->addChild('TrackingNbr',$tracking);
             }
          $request = $xml->asXML();
+         $debugData = array('request' => $request);
          /*
          * tracking api cannot process from 3pm to 5pm PST time on Sunday
          * DHL Airborne conduts a maintainance during that period.
@@ -964,10 +973,14 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $request);
             $responseBody = curl_exec($ch);
+            $debugData['result'] = $responseBody;
             curl_close ($ch);
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
+            $debugData['result'] = array('error' => $e->getMessage(), 'code' => $e->getCode());
             $responseBody = '';
         }
+        $this->_debug($debugData);
 #echo "<xmp>".$responseBody."</xmp>";
         $this->_parseXmlTrackingResponse($trackings, $responseBody);
     }
@@ -1187,8 +1200,8 @@ class Mage_Usa_Model_Shipping_Carrier_Dhl
     public function getAdditionalProtectionRoundingTypes()
     {
         return array(
-            self::ADDITIONAL_PROTECTION_ROUNDING_FLOOR => Mage::helper('usa')->__('To lower'),
-            self::ADDITIONAL_PROTECTION_ROUNDING_CEIL  => Mage::helper('usa')->__('To upper'),
+            self::ADDITIONAL_PROTECTION_ROUNDING_FLOOR => Mage::helper('usa')->__('To Lower'),
+            self::ADDITIONAL_PROTECTION_ROUNDING_CEIL  => Mage::helper('usa')->__('To Upper'),
             self::ADDITIONAL_PROTECTION_ROUNDING_ROUND => Mage::helper('usa')->__('Round'),
             );
     }

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -327,6 +327,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
                 $product->addCustomOption('option_'.$optionId, $optionValue);
             }
         }
+
         // set quantity in cart
         $product->setCartQty($buyRequest->getQty());
 
@@ -340,7 +341,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     public function getSpecifyOptionMessage()
     {
-        return Mage::helper('catalog')->__('Please specify the product required option(s)');
+        return Mage::helper('catalog')->__('Please specify the product\'s required option(s).');
     }
 
     /**
@@ -352,7 +353,8 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     protected function _prepareOptionsForCart(Varien_Object $buyRequest, $product = null)
     {
-        $newOptions = array();
+        $transport = new StdClass;
+        $transport->options = array();
         foreach ($this->getProduct($product)->getOptions() as $_option) {
             /* @var $_option Mage_Catalog_Model_Product_Option */
             $group = $_option->groupFactory($_option->getType())
@@ -363,10 +365,13 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
 
             $preparedValue = $group->prepareForCart();
             if ($preparedValue !== null) {
-                $newOptions[$_option->getId()] = $preparedValue;
+                $transport->options[$_option->getId()] = $preparedValue;
             }
         }
-        return $newOptions;
+        Mage::dispatchEvent('catalog_product_type_prepare_cart_options', array(
+            'transport' => $transport, 'buy_request' => $buyRequest, 'product' => $product
+        ));
+        return $transport->options;
     }
 
     /**
@@ -383,7 +388,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
                 if ($option->getIsRequire() && (!$this->getProduct($product)->getCustomOption('option_'.$option->getId())
                 || strlen($this->getProduct($product)->getCustomOption('option_'.$option->getId())->getValue()) == 0)) {
                     Mage::throwException(
-                        Mage::helper('catalog')->__('Product has required options')
+                        Mage::helper('catalog')->__('The product has required options')
                     );
                     break;
                 }
@@ -454,6 +459,25 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
     }
 
     /**
+     * Remove don't applicable attributes data
+     *
+     * @param Mage_Catalog_Model_Product $product
+     */
+    protected function _removeNotApplicableAttributes($product = null)
+    {
+        $product    = $this->getProduct($product);
+        $eavConfig  = Mage::getSingleton('eav/config');
+        $entityType = $product->getResource()->getEntityType();
+        foreach ($eavConfig->getEntityAttributeCodes($entityType, $product) as $attributeCode) {
+            $attribute = $eavConfig->getAttribute($entityType, $attributeCode);
+            $applyTo   = $attribute->getApplyTo();
+            if (is_array($applyTo) && count($applyTo) > 0 && !in_array($product->getTypeId(), $applyTo)) {
+                $product->unsetData($attribute->getAttributeCode());
+            }
+        }
+    }
+
+    /**
      * Before save type related data
      *
      * @param Mage_Catalog_Model_Product $product
@@ -461,6 +485,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     public function beforeSave($product = null)
     {
+        $this->_removeNotApplicableAttributes($product);
         $this->getProduct($product)->canAffectOptions(true);
         return $this;
     }
@@ -495,8 +520,26 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     public function getSku($product = null)
     {
-        $skuDelimiter = '-';
         $sku = $this->getProduct($product)->getData('sku');
+        if ($this->getProduct($product)->getCustomOption('option_ids')) {
+            $sku = $this->getOptionSku($product,$sku);
+        }
+        return $sku;
+    }
+
+    /**
+     * Default action to get sku of product with option
+     *
+     * @param Mage_Catalog_Model_Product $product Product with Custom Options
+     * @param string $sku Product SKU without option
+     * @return string
+     */
+    public function getOptionSku($product = null, $sku='')
+    {
+        $skuDelimiter = '-';
+        if(empty($sku)){
+            $sku = $this->getProduct($product)->getData('sku');
+        }
         if ($optionIds = $this->getProduct($product)->getCustomOption('option_ids')) {
             foreach (explode(',', $optionIds->getValue()) as $optionId) {
                 if ($option = $this->getProduct($product)->getOptionById($optionId)) {
@@ -505,7 +548,7 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
 
                     $group = $option->groupFactory($option->getType())
                         ->setOption($option)->setListener(new Varien_Object());
-
+                    
                     if ($optionSku = $group->getOptionSku($quoteItemOption->getValue(), $skuDelimiter)) {
                         $sku .= $skuDelimiter . $optionSku;
                     }
@@ -523,7 +566,6 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
         }
         return $sku;
     }
-
     /**
      * Default action to get weight of product
      *
@@ -544,6 +586,9 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
     public function hasOptions($product = null)
     {
         if ($this->getProduct($product)->getHasOptions()) {
+            return true;
+        }
+        if ($this->getProduct($product)->isRecurring()) {
             return true;
         }
         return false;
@@ -674,11 +719,29 @@ abstract class Mage_Catalog_Model_Product_Type_Abstract
      */
     public function getSearchableData($product = null)
     {
-        $product = $this->getProduct($product);
-
-        $searchData = Mage::getSingleton('catalog/product_option')
-            ->getSearchableData($product->getId(), $product->getStoreId());
+        $product    = $this->getProduct($product);
+        $searchData = array();
+        if ($product->getHasOptions()){
+            $searchData = Mage::getSingleton('catalog/product_option')
+                ->getSearchableData($product->getId(), $product->getStoreId());
+        }
 
         return $searchData;
+    }
+
+    /**
+     * Retrieve products divided into groups required to purchase
+     * At least one product in each group has to be purchased
+     *
+     * @param Mage_Catalog_Model_Product $product
+     * @return array
+     */
+    public function getProductsToPurchaseByReqGroups($product = null)
+    {
+        $product = $this->getProduct($product);
+        if ($this->isComposite($product)) {
+            return array();
+        }
+        return array(array($product));
     }
 }

@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Sales
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -180,8 +180,16 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
         return $return;
     }
 
-    protected function insertOrder(&$page, $order, $putOrderId = true)
+    protected function insertOrder(&$page, $obj, $putOrderId = true)
     {
+        if ($obj instanceof Mage_Sales_Model_Order) {
+            $shipment = null;
+            $order = $obj;
+        } elseif ($obj instanceof Mage_Sales_Model_Order_Shipment) {
+            $shipment = $obj;
+            $order = $shipment->getOrder();
+        }
+
         /* @var $order Mage_Sales_Model_Order */
         $page->setFillColor(new Zend_Pdf_Color_GrayScale(0.5));
 
@@ -313,7 +321,11 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
 
             $page->drawText($totalShippingChargesText, 285, $yShipments-7, 'UTF-8');
             $yShipments -=10;
-            $tracks = $order->getTracksCollection();
+
+            $tracks = array();
+            if ($shipment) {
+                $tracks = $shipment->getAllTracks();
+            }
             if (count($tracks)) {
                 $page->setFillColor(new Zend_Pdf_Color_Rgb(0.93, 0.92, 0.92));
                 $page->setLineWidth(0.5);
@@ -329,7 +341,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
 
                 $yShipments -=17;
                 $this->_setFontRegular($page, 6);
-                foreach ($order->getTracksCollection() as $track) {
+                foreach ($tracks as $track) {
 
                     $CarrierCode = $track->getCarrierCode();
                     if ($CarrierCode!='custom')
@@ -389,7 +401,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
                     $totalInfo['model'] = $totalModel;
                 } else {
                     Mage::throwException(
-                        Mage::helper('sales')->__('Pdf total model should extend Mage_Sales_Model_Order_Pdf_Total_Default')
+                        Mage::helper('sales')->__('PDF total model should extend Mage_Sales_Model_Order_Pdf_Total_Default')
                     );
                 }
             } else {
@@ -601,7 +613,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
     protected function _getPdf()
     {
         if (!$this->_pdf instanceof Zend_Pdf) {
-            Mage::throwException(Mage::helper('sales')->__('Please define PDF object before using'));
+            Mage::throwException(Mage::helper('sales')->__('Please define PDF object before using.'));
         }
 
         return $this->_pdf;
@@ -652,7 +664,7 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
     {
         foreach ($draw as $itemsProp) {
             if (!isset($itemsProp['lines']) || !is_array($itemsProp['lines'])) {
-                Mage::throwException(Mage::helper('sales')->__('Invalid draw line data. Please define "lines" array'));
+                Mage::throwException(Mage::helper('sales')->__('Invalid draw line data. Please define "lines" array.'));
             }
             $lines  = $itemsProp['lines'];
             $height = isset($itemsProp['height']) ? $itemsProp['height'] : 10;
@@ -685,10 +697,10 @@ abstract class Mage_Sales_Model_Order_Pdf_Abstract extends Varien_Object
             foreach ($lines as $line) {
                 $maxHeight = 0;
                 foreach ($line as $column) {
-                    $fontSize  = empty($column['font_size']) ? 7 : $column['font_size'];
+                    $fontSize = empty($column['font_size']) ? 7 : $column['font_size'];
                     if (!empty($column['font_file'])) {
                         $font = Zend_Pdf_Font::fontWithPath($column['font_file']);
-                        $page->setFont($font);
+                        $page->setFont($font, $fontSize);
                     }
                     else {
                         $fontStyle = empty($column['font']) ? 'regular' : $column['font'];

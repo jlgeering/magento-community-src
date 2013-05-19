@@ -20,7 +20,7 @@
  *
  * @category    Mage
  * @package     Mage_Adminhtml
- * @copyright   Copyright (c) 2009 Irubin Consulting Inc. DBA Varien (http://www.varien.com)
+ * @copyright   Copyright (c) 2010 Magento Inc. (http://www.magentocommerce.com)
  * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -110,18 +110,20 @@ class Mage_Adminhtml_Block_Sales_Order_Create_Giftmessage_Form extends Mage_Admi
             return '';
         }
 
-        if($this->getEntity()->getOrder()) {
-            if ($this->getEntity()->getOrder()->getShippingAddress()) {
-                return $this->getEntity()->getOrder()->getShippingAddress()->getName();
-            } else if ($this->getEntity()->getOrder()->getBillingAddress()) {
-                return $this->getEntity()->getOrder()->getBillingAddress()->getName();
-            }
+        $object = $this->getEntity();
+
+        if ($this->getEntity()->getOrder()) {
+            $object = $this->getEntity()->getOrder();
+        }
+        else if ($this->getEntity()->getQuote()){
+            $object = $this->getEntity()->getQuote();
         }
 
-        if ($this->getEntity()->getShippingAddress()) {
-            return $this->getEntity()->getShippingAddress()->getName();
-        } else if ($this->getEntity()->getBillingAddress()) {
-            return $this->getEntity()->getBillingAddress()->getName();
+        if ($object->getShippingAddress()) {
+            return $object->getShippingAddress()->getName();
+        }
+        else if ($object->getBillingAddress()) {
+            return $object->getBillingAddress()->getName();
         }
 
         return '';
